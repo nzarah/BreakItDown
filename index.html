@@ -1,0 +1,2897 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BreakItDown </title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCuHI_VhHOd_0LmUkMlJgFhC0cWcnfMRck",
+      authDomain: "breakitdown-b1293.firebaseapp.com",
+      databaseURL: "https://breakitdown-b1293-default-rtdb.firebaseio.com",
+      projectId: "breakitdown-b1293",
+      storageBucket: "breakitdown-b1293.firebasestorage.app",
+      messagingSenderId: "882657130967",
+      appId: "1:882657130967:web:aa9feadd917a80a56ef392",
+      measurementId: "G-TD66JWQTWS"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db   = firebase.database();
+
+    // Track the last signed-in uid so we can detect user switches
+    let _lastSignedInUid = null;
+    let _appUser = null;
+
+    function _clearProfileCache() {
+      // Strip per-user profile fields; keep only device-level appearance prefs
+      try {
+        const s = JSON.parse(localStorage.getItem('bid_settings') || '{}');
+        const kept = {};
+        if (s.lightMode    !== undefined) kept.lightMode    = s.lightMode;
+        if (s.dyslexiaFont !== undefined) kept.dyslexiaFont = s.dyslexiaFont;
+        if (s.fontSize     !== undefined) kept.fontSize     = s.fontSize;
+        localStorage.setItem('bid_settings', JSON.stringify(kept));
+      } catch(_) {}
+    }
+
+    // Keep app hidden until auth state is known
+    auth.onAuthStateChanged(user => {
+      const landing = document.getElementById('landingPage');
+      const appInterface = document.getElementById('app-interface');
+      const welcomeScreen = document.getElementById('welcome-screen');
+
+      if (user) {
+        _appUser = user;
+        // If a different account just signed in, wipe the stale profile cache
+        if (_lastSignedInUid !== user.uid) {
+          _clearProfileCache();
+          _lastSignedInUid = user.uid;
+        }
+
+        // Signed in — show app, hide everything else
+        if (landing) landing.classList.add('js-hidden');
+        welcomeScreen.classList.add('js-hidden');
+        welcomeScreen.style.display = 'none';
+        appInterface.classList.remove('hidden');
+        appInterface.style.display = 'flex';
+
+        // Show user name in sidebar if element exists
+        const nameEl = document.getElementById('sidebar-username');
+        if (nameEl) nameEl.textContent = user.displayName || user.email || 'Student';
+        const avatarEl = document.getElementById('sidebar-avatar');
+        if (avatarEl && user.photoURL) avatarEl.src = user.photoURL;
+
+        showPage('pg-home');
+        loadUserProfile(user);
+      } else {
+        _appUser = null;
+        // Signed out — clear profile cache and show landing
+        _clearProfileCache();
+        _lastSignedInUid = null;
+        appInterface.classList.add('hidden');
+        appInterface.style.display = 'none';
+        welcomeScreen.classList.add('js-hidden');
+        welcomeScreen.style.display = 'none';
+        if (landing) {
+          landing.classList.remove('js-hidden');
+          landing.style.display = 'block';
+        }
+      }
+    });
+  </script>
+
+  <style>
+    :root {
+      --sidebar-bg: #0B0A10;
+      --main-bg: #0B0A10;
+      --card-bg: #13111C;
+      --accent: #8B5CF6;
+      --accent-soft: rgba(139, 92, 246, 0.1);
+    }
+.js-hidden { display: none !important; }
+
+    /* Editor toolbar */
+    .ed-btn { display:inline-flex; align-items:center; justify-content:center; min-width:2rem; height:2rem; padding:0 0.35rem; border-radius:0.5rem; background:transparent; border:none; color:#a1a1aa; cursor:pointer; font-size:0.8rem; transition:background 0.15s, color 0.15s; }
+    .ed-btn:hover { background:rgba(139,92,246,0.15); color:white; }
+    .ed-sep { width:1px; height:1.25rem; background:rgba(255,255,255,0.08); margin:0 0.2rem; flex-shrink:0; }
+    .ed-select { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:0.5rem; color:#a1a1aa; font-size:0.75rem; padding:0.2rem 0.4rem; outline:none; cursor:pointer; height:2rem; }
+    .ed-select:hover { border-color:#7c3aed; color:white; }
+    /* Chart type buttons */
+    .chart-type-btn { flex:1; padding:0.5rem; border-radius:0.75rem; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.03); color:#a1a1aa; font-size:0.8rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
+    .chart-type-btn:hover { background:rgba(139,92,246,0.1); color:white; }
+    .active-ct { background:rgba(139,92,246,0.2) !important; border-color:#7c3aed !important; color:white !important; }
+
+    /* Echo AI Sidebar */
+    .echo-sidebar { width:320px; min-width:320px; border-left:1px solid rgba(255,255,255,0.07); display:flex; flex-direction:column; background:#0f0d18; border-radius:0 1.5rem 1.5rem 0; overflow:hidden; }
+    .echo-msg-user { align-self:flex-end; background:linear-gradient(135deg,#7c3aed,#6d28d9); color:white; border-radius:16px 16px 4px 16px; padding:10px 14px; font-size:0.82rem; max-width:85%; line-height:1.5; word-break:break-word; }
+    .echo-msg-echo { align-self:flex-start; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); color:#d4d4d8; border-radius:16px 16px 16px 4px; padding:10px 14px; font-size:0.82rem; max-width:92%; line-height:1.6; word-break:break-word; }
+    .echo-msg-echo strong { color:white; }
+    .echo-chip { padding:5px 12px; border-radius:20px; border:1px solid rgba(139,92,246,0.3); background:rgba(139,92,246,0.08); color:#c4b5fd; font-size:0.73rem; font-weight:600; cursor:pointer; transition:all 0.15s; white-space:nowrap; font-family:inherit; }
+    .echo-chip:hover { background:rgba(139,92,246,0.2); border-color:#7c3aed; color:white; }
+    .echo-apply-btn { margin-top:8px; padding:6px 14px; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); border-radius:10px; color:#6ee7b7; font-size:0.75rem; font-weight:700; cursor:pointer; font-family:inherit; transition:all 0.15s; }
+    .echo-apply-btn:hover { background:rgba(16,185,129,0.22); color:white; }
+    .echo-toggle-btn { padding:4px 12px; border-radius:8px; border:1px solid rgba(139,92,246,0.35); background:rgba(139,92,246,0.1); color:#c4b5fd; font-size:0.78rem; font-weight:700; cursor:pointer; transition:all 0.15s; font-family:inherit; flex-shrink:0; }
+    .echo-toggle-btn:hover, .echo-toggle-btn.active { background:rgba(139,92,246,0.25); border-color:#7c3aed; color:white; }
+    /* Inserted SVG charts */
+    .inserted-chart { display:block; margin:1rem auto; border-radius:0.75rem; overflow:hidden; border:1px solid rgba(255,255,255,0.08); }
+
+    body {
+      background-color: var(--main-bg);
+      color: #FAFAFA;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      overflow-x: hidden;
+    }
+
+    .sidebar {
+      width: 260px;
+      background-color: var(--sidebar-bg);
+      border-right: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      margin: 4px 16px;
+      border-radius: 12px;
+      color: #A1A1AA;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .nav-item:hover, .nav-item.active {
+      background: rgba(255, 255, 255, 0.05);
+      color: #FFFFFF;
+    }
+
+    .action-card-landing {
+      background: #13111C;
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 24px;
+      padding: 32px;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .action-card-landing:hover {
+      border-color: rgba(139, 92, 246, 0.3);
+      transform: translateY(-4px);
+      background: #181622;
+    }
+
+    .page-section { display: none; }
+    .page-section.active { display: block; animation: fadeIn 0.4s forwards; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .loader {
+      border: 2px solid rgba(139, 92, 246, 0.1);
+      border-top: 2px solid var(--accent);
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    .premium-btn {
+      background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%);
+      box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+    }
+  </style>
+  <style>
+  .feature-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 40px 30px;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    cursor: default;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .feature-card:hover {
+    transform: translateY(-10px);
+    background: rgba(168, 85, 247, 0.08); /* Faint purple glow */
+    border-color: #a855f7;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Decorative glow circle inside card */
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(168, 85, 247, 0.1) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+
+  .feature-card:hover::before {
+    opacity: 1;
+  }
+
+  .feature-card i {
+    background: rgba(168, 85, 247, 0.1);
+    padding: 12px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    display: inline-block;
+  }
+
+  .feature-card h3 {
+    color: white;
+    font-size: 1.5rem;
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+
+  .feature-card p {
+    color: #a1a1aa;
+    line-height: 1.6;
+    font-size: 1rem;
+  }
+</style>
+
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* ── LIGHT THEME ── */
+    [data-theme="light"] { color-scheme: light; }
+    [data-theme="light"] body { background: #f5f3ff !important; color: #18181b !important; }
+    [data-theme="light"] #app-interface { background: #f5f3ff; }
+    [data-theme="light"] .sidebar { background: #edeafd !important; border-color: rgba(124,58,237,0.15) !important; }
+    [data-theme="light"] .nav-item { color: #52525b !important; }
+    [data-theme="light"] .nav-item:hover,
+    [data-theme="light"] .nav-item.active { background: rgba(124,58,237,0.1) !important; color: #18181b !important; }
+    [data-theme="light"] main { background: #f5f3ff !important; }
+    [data-theme="light"] .action-card-landing { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+    [data-theme="light"] .action-card-landing:hover { background: #faf5ff !important; border-color: rgba(124,58,237,0.3) !important; }
+    [data-theme="light"] .text-white { color: #18181b !important; }
+    [data-theme="light"] .text-zinc-300 { color: #3f3f46 !important; }
+    [data-theme="light"] .text-zinc-400 { color: #52525b !important; }
+    [data-theme="light"] .text-zinc-500 { color: #71717a !important; }
+    [data-theme="light"] .text-zinc-600 { color: #a1a1aa !important; }
+    [data-theme="light"] .bg-\[\#13111C\] { background: #ffffff !important; }
+    [data-theme="light"] .bg-white\/5 { background: rgba(0,0,0,0.04) !important; }
+    [data-theme="light"] .border-white\/10 { border-color: rgba(0,0,0,0.1) !important; }
+    [data-theme="light"] .border-white\/5 { border-color: rgba(0,0,0,0.05) !important; }
+    [data-theme="light"] .settings-card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+    [data-theme="light"] .settings-input,
+    [data-theme="light"] .settings-select { background: rgba(0,0,0,0.04) !important; border-color: rgba(0,0,0,0.12) !important; color: #18181b !important; }
+    [data-theme="light"] .settings-row { border-color: rgba(0,0,0,0.06) !important; }
+    [data-theme="light"] .settings-row-label { color: #18181b !important; }
+    [data-theme="light"] .sett-track { background: rgba(0,0,0,0.1) !important; border-color: rgba(0,0,0,0.15) !important; }
+    [data-theme="light"] #sidebar-username { color: #27272a !important; }
+
+    /* ── DYSLEXIA FONT (class applied to <html> for pre-paint application) ── */
+    html.dyslexia-font,
+    html.dyslexia-font * {
+      font-family: 'Lexend', sans-serif !important;
+      letter-spacing: 0.03em !important;
+      word-spacing: 0.12em !important;
+      line-height: 1.85 !important;
+    }
+
+    /* ── SETTINGS PAGE ── */
+    .settings-card {
+      background: #13111C;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 20px;
+      padding: 28px 32px;
+      margin-bottom: 20px;
+    }
+    .settings-section-title {
+      font-size: 0.65rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #7c3aed;
+      margin-bottom: 20px;
+    }
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 16px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .settings-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .settings-row-label { font-size: 0.9rem; font-weight: 600; color: #e4e4e7; }
+    .settings-row-desc  { font-size: 0.75rem; color: #71717a; margin-top: 3px; }
+    .settings-input {
+      width: 100%;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: #e4e4e7;
+      font-size: 0.875rem;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+    .settings-input:focus { border-color: #7c3aed; }
+    .settings-select {
+      width: 100%;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: #e4e4e7;
+      font-size: 0.875rem;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+    .settings-select:focus { border-color: #7c3aed; }
+    /* Toggle switch */
+    .sett-toggle { position: relative; display: inline-flex; align-items: center; cursor: pointer; flex-shrink: 0; }
+    .sett-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .sett-track { width: 48px; height: 26px; background: rgba(255,255,255,0.08); border-radius: 999px; border: 1px solid rgba(255,255,255,0.12); transition: background 0.2s, border-color 0.2s; position: relative; display: block; }
+    .sett-track::after { content: ''; position: absolute; left: 4px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; background: #71717a; border-radius: 50%; transition: left 0.2s, background 0.2s; }
+    .sett-toggle input:checked + .sett-track { background: #7c3aed; border-color: #6d28d9; }
+    .sett-toggle input:checked + .sett-track::after { left: 26px; background: white; }
+    /* Avatar */
+    .sett-avatar { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(124,58,237,0.5); background: #1a1825; flex-shrink: 0; }
+    /* Save button */
+    .sett-save-btn { background: linear-gradient(135deg,#7c3aed,#a855f7); color: white; border: none; padding: 10px 28px; border-radius: 10px; font-size: 0.875rem; font-weight: 700; cursor: pointer; transition: opacity 0.2s; font-family: inherit; }
+    .sett-save-btn:hover { opacity: 0.85; }
+  </style>
+
+  <style>
+    /* ── SOCIAL FEATURES ── */
+    .social-card {
+      background: #13111C;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 16px;
+      padding: 20px 24px;
+      transition: border-color 0.2s;
+    }
+    .social-card:hover { border-color: rgba(124,58,237,0.25); }
+
+    .tab-btn {
+      padding: 8px 20px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.03);
+      color: #71717a;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tab-btn:hover { color: white; background: rgba(255,255,255,0.06); }
+    .tab-btn.active { background: rgba(124,58,237,0.15); border-color: rgba(124,58,237,0.3); color: #c4b5fd; }
+    .tab-badge {
+      background: #7c3aed; color: white; border-radius: 999px;
+      padding: 1px 7px; font-size: 0.65rem; font-weight: 800;
+    }
+
+    .post-card {
+      background: #13111C;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 20px;
+      padding: 22px 26px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      border-left-width: 3px;
+    }
+    .post-card:hover { border-color: rgba(255,255,255,0.13); box-shadow: 0 4px 24px rgba(0,0,0,0.18); }
+
+    .group-detail-header {
+      background: linear-gradient(135deg, rgba(124,58,237,0.08) 0%, rgba(0,0,0,0) 60%);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 20px;
+      padding: 24px 28px;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .like-btn, .comment-btn, .borrow-btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 6px 14px; border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      color: #71717a; font-size: 0.78rem; font-weight: 600;
+      cursor: pointer; transition: all 0.15s; font-family: inherit;
+    }
+    .like-btn:hover, .comment-btn:hover { background: rgba(255,255,255,0.07); color: white; }
+    .like-btn.liked { color: #f43f5e; border-color: rgba(244,63,94,0.3); background: rgba(244,63,94,0.08); }
+    .borrow-btn:hover { background: rgba(124,58,237,0.1); color: #c4b5fd; border-color: rgba(124,58,237,0.25); }
+
+    .group-badge {
+      display: inline-block;
+      background: rgba(124,58,237,0.12); color: #a78bfa;
+      border: 1px solid rgba(124,58,237,0.2); border-radius: 6px;
+      padding: 3px 10px; font-size: 0.7rem; font-weight: 700; white-space: nowrap;
+    }
+    .username-tag { color: #a78bfa; font-size: 0.75rem; font-weight: 600; }
+    .availability-ok  { color: #34d399; font-size: 0.75rem; font-weight: 600; }
+    .availability-err { color: #f87171; font-size: 0.75rem; font-weight: 600; }
+
+    /* Light mode overrides for social */
+    [data-theme="light"] .social-card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+    [data-theme="light"] .post-card   { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+    [data-theme="light"] .tab-btn { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.1) !important; color: #71717a !important; }
+    [data-theme="light"] .tab-btn.active { background: rgba(124,58,237,0.1) !important; border-color: rgba(124,58,237,0.2) !important; color: #7c3aed !important; }
+    [data-theme="light"] .like-btn, [data-theme="light"] .comment-btn, [data-theme="light"] .borrow-btn { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.08) !important; color: #71717a !important; }
+    [data-theme="light"] .like-btn.liked { background: rgba(244,63,94,0.08) !important; color: #f43f5e !important; }
+    [data-theme="light"] #create-group-modal > div,
+    [data-theme="light"] #post-group-modal > div { background: #f5f3ff !important; border-color: rgba(0,0,0,0.1) !important; }
+  </style>
+
+  <script>
+    /* Apply persisted appearance settings before first paint to avoid flash */
+    (function(){
+      try{
+        var s=JSON.parse(localStorage.getItem('bid_settings')||'{}');
+        if(s.lightMode)    document.documentElement.setAttribute('data-theme','light');
+        if(s.dyslexiaFont) document.documentElement.classList.add('dyslexia-font');
+        if(s.fontSize)     document.documentElement.style.fontSize=s.fontSize+'px';
+      }catch(e){}
+    })();
+  </script>
+
+</head>
+<body class="bg-[#0a0a0a] text-white">
+<div id="landingPage" style="width:100%;min-height:100vh;display:block;position:relative;z-index:10;background:#0a0a0a;overflow-x:hidden;">
+
+  <!-- Ambient background blobs -->
+  <div style="position:fixed;top:-20%;left:-10%;width:600px;height:600px;background:radial-gradient(circle,rgba(139,92,246,0.12) 0%,transparent 70%);pointer-events:none;z-index:0;"></div>
+  <div style="position:fixed;bottom:-20%;right:-10%;width:500px;height:500px;background:radial-gradient(circle,rgba(168,85,247,0.08) 0%,transparent 70%);pointer-events:none;z-index:0;"></div>
+
+  <!-- Nav -->
+  <nav style="display:flex;justify-content:space-between;align-items:center;padding:22px 60px;position:sticky;top:0;z-index:100;background:rgba(10,10,10,0.8);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.05);">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:32px;height:32px;background:linear-gradient(135deg,#7c3aed,#a855f7);border-radius:8px;display:flex;align-items:center;justify-content:center;">
+        <svg width="18" height="18" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      </div>
+      <span style="font-size:1.2rem;font-weight:800;color:white;letter-spacing:-0.02em;">BreakItDown</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button onclick="showLogin()" style="background:transparent;color:#a1a1aa;border:1px solid rgba(255,255,255,0.12);padding:8px 22px;border-radius:8px;cursor:pointer;font-size:0.875rem;font-weight:600;transition:all 0.2s;" onmouseover="this.style.color='white';this.style.borderColor='rgba(255,255,255,0.3)';" onmouseout="this.style.color='#a1a1aa';this.style.borderColor='rgba(255,255,255,0.12)';">Log in</button>
+      <button onclick="showLogin()" style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:white;border:none;padding:8px 22px;border-radius:8px;cursor:pointer;font-size:0.875rem;font-weight:700;box-shadow:0 4px 15px rgba(124,58,237,0.3);">Get Started</button>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section style="text-align:center;padding:110px 20px 80px;position:relative;z-index:1;">
+    <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);border-radius:100px;padding:6px 16px;margin-bottom:28px;">
+      <div style="width:6px;height:6px;background:#a855f7;border-radius:50%;box-shadow:0 0 8px #a855f7;"></div>
+      <span style="color:#c4b5fd;font-size:0.78rem;font-weight:600;letter-spacing:0.05em;">Powered by Gemini AI</span>
+    </div>
+    <h1 style="font-size:clamp(2.8rem,7vw,5.5rem);font-weight:900;color:white;margin:0 0 24px;line-height:1.05;letter-spacing:-0.03em;">Study Smarter.<br><span style="background:linear-gradient(135deg,#a855f7,#7c3aed,#c4b5fd);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Not Harder.</span></h1>
+    <p style="color:#71717a;font-size:1.15rem;max-width:560px;margin:0 auto 40px;line-height:1.7;">BreakItDown turns lectures, videos, and textbooks into clear notes, roadmaps, and flashcards — in seconds.</p>
+    <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
+      <button onclick="showLogin()" style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:white;border:none;padding:15px 38px;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;box-shadow:0 8px 30px rgba(124,58,237,0.35);letter-spacing:-0.01em;">Start for Free →</button>
+      <button onclick="document.getElementById('ld-how').scrollIntoView({behavior:'smooth'})" style="background:rgba(255,255,255,0.05);color:#d4d4d8;border:1px solid rgba(255,255,255,0.1);padding:15px 38px;border-radius:12px;font-size:1rem;font-weight:600;cursor:pointer;">See how it works</button>
+    </div>
+
+    <!-- Stats row -->
+    <div style="display:flex;gap:40px;justify-content:center;margin-top:70px;flex-wrap:wrap;">
+      <div style="text-align:center;">
+        <div style="font-size:2rem;font-weight:800;color:white;">5+</div>
+        <div style="font-size:0.8rem;color:#71717a;margin-top:2px;">AI Tools</div>
+      </div>
+      <div style="width:1px;background:rgba(255,255,255,0.08);"></div>
+      <div style="text-align:center;">
+        <div style="font-size:2rem;font-weight:800;color:white;">10×</div>
+        <div style="font-size:0.8rem;color:#71717a;margin-top:2px;">Faster Notes</div>
+      </div>
+      <div style="width:1px;background:rgba(255,255,255,0.08);"></div>
+      <div style="text-align:center;">
+        <div style="font-size:2rem;font-weight:800;color:white;">100%</div>
+        <div style="font-size:0.8rem;color:#71717a;margin-top:2px;">Free to Start</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Feature Showcase -->
+  <section style="max-width:1100px;margin:0 auto;padding:40px 40px 100px;position:relative;z-index:1;">
+
+    <!-- Row 1: Notes — text left, mockup right -->
+    <div style="display:flex;align-items:center;gap:60px;margin-bottom:100px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:280px;">
+        <div style="display:inline-block;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:4px 12px;font-size:0.72rem;font-weight:700;color:#a78bfa;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:16px;">Smart Notes</div>
+        <h2 style="font-size:2.2rem;font-weight:800;color:white;line-height:1.15;margin:0 0 16px;letter-spacing:-0.02em;">Paste anything.<br>Get perfect notes.</h2>
+        <p style="color:#71717a;font-size:1rem;line-height:1.75;margin:0 0 28px;">Drop in a lecture transcript, textbook chapter, or any text. Echo instantly structures it into clean, hierarchical study notes with key terms highlighted.</p>
+        <button onclick="showLogin()" style="background:rgba(139,92,246,0.15);color:#c4b5fd;border:1px solid rgba(139,92,246,0.3);padding:10px 24px;border-radius:10px;font-size:0.875rem;font-weight:700;cursor:pointer;">Try Smart Notes →</button>
+      </div>
+      <div style="flex:1;min-width:280px;background:linear-gradient(135deg,#13111C,#1a1825);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+        <div style="display:flex;gap:6px;margin-bottom:18px;"><div style="width:10px;height:10px;border-radius:50%;background:#ff5f57;"></div><div style="width:10px;height:10px;border-radius:50%;background:#febc2e;"></div><div style="width:10px;height:10px;border-radius:50%;background:#28c840;"></div></div>
+        <div style="font-size:0.7rem;font-weight:700;color:#a78bfa;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:12px;">Echo — Study Notes</div>
+        <div style="font-size:0.92rem;color:#e4e4e7;font-weight:600;margin-bottom:8px;">&#9632; The French Revolution</div>
+        <div style="font-size:0.82rem;color:#a1a1aa;line-height:1.7;margin-bottom:6px;">&#8226; Causes: financial crisis, social inequality, Enlightenment ideas</div>
+        <div style="font-size:0.82rem;color:#a1a1aa;line-height:1.7;margin-bottom:6px;">&#8226; Key date: <span style="color:#c4b5fd;font-weight:600;">1789</span> — Storming of the Bastille</div>
+        <div style="font-size:0.82rem;color:#a1a1aa;line-height:1.7;margin-bottom:14px;">&#8226; Outcome: Abolition of monarchy, rise of Napoleon</div>
+        <div style="font-size:0.7rem;font-weight:700;color:#a78bfa;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">&#9632; Key Vocabulary</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <span style="background:rgba(139,92,246,0.15);color:#c4b5fd;border:1px solid rgba(139,92,246,0.2);border-radius:6px;padding:3px 10px;font-size:0.75rem;font-weight:600;">Ancien Régime</span>
+          <span style="background:rgba(139,92,246,0.15);color:#c4b5fd;border:1px solid rgba(139,92,246,0.2);border-radius:6px;padding:3px 10px;font-size:0.75rem;font-weight:600;">Republic</span>
+          <span style="background:rgba(139,92,246,0.15);color:#c4b5fd;border:1px solid rgba(139,92,246,0.2);border-radius:6px;padding:3px 10px;font-size:0.75rem;font-weight:600;">Jacobins</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Video — mockup left, text right -->
+    <div style="display:flex;align-items:center;gap:60px;margin-bottom:100px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:280px;background:linear-gradient(135deg,#13111C,#1a1825);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+        <div style="display:flex;gap:6px;margin-bottom:18px;"><div style="width:10px;height:10px;border-radius:50%;background:#ff5f57;"></div><div style="width:10px;height:10px;border-radius:50%;background:#febc2e;"></div><div style="width:10px;height:10px;border-radius:50%;background:#28c840;"></div></div>
+        <div style="font-size:0.7rem;font-weight:700;color:#ef4444;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:12px;">&#9654; Video Insights</div>
+        <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.15);border-radius:10px;padding:10px 14px;font-size:0.8rem;color:#fca5a5;margin-bottom:14px;display:flex;align-items:center;gap:8px;">
+          <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          youtube.com/watch?v=dQw4...
+        </div>
+        <div style="font-size:0.82rem;color:#a1a1aa;line-height:1.7;margin-bottom:6px;">&#8226; Introduction to Quantum Mechanics</div>
+        <div style="font-size:0.82rem;color:#a1a1aa;line-height:1.7;margin-bottom:6px;">&#8226; Wave-particle duality explained</div>
+        <div style="font-size:0.82rem;color:#a1a1aa;line-height:1.7;">&#8226; Heisenberg uncertainty principle: <span style="color:#c4b5fd;font-weight:600;">ΔxΔp ≥ ℏ/2</span></div>
+      </div>
+      <div style="flex:1;min-width:280px;">
+        <div style="display:inline-block;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:4px 12px;font-size:0.72rem;font-weight:700;color:#fca5a5;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:16px;">Video Insights</div>
+        <h2 style="font-size:2.2rem;font-weight:800;color:white;line-height:1.15;margin:0 0 16px;letter-spacing:-0.02em;">Any video.<br>Instant notes.</h2>
+        <p style="color:#71717a;font-size:1rem;line-height:1.75;margin:0 0 28px;">Paste a YouTube link and Echo extracts the real transcript to generate accurate, topic-specific study notes — not guesses.</p>
+        <button onclick="showLogin()" style="background:rgba(239,68,68,0.1);color:#fca5a5;border:1px solid rgba(239,68,68,0.25);padding:10px 24px;border-radius:10px;font-size:0.875rem;font-weight:700;cursor:pointer;">Try Video Insights →</button>
+      </div>
+    </div>
+
+    <!-- Row 3: Roadmap — text left, mockup right -->
+    <div style="display:flex;align-items:center;gap:60px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:280px;">
+        <div style="display:inline-block;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:4px 12px;font-size:0.72rem;font-weight:700;color:#6ee7b7;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:16px;">AI Roadmaps</div>
+        <h2 style="font-size:2.2rem;font-weight:800;color:white;line-height:1.15;margin:0 0 16px;letter-spacing:-0.02em;">Your path<br>to an A.</h2>
+        <p style="color:#71717a;font-size:1rem;line-height:1.75;margin:0 0 28px;">Tell Echo your subject and grade. Get a personalised 3-step action plan, the top concepts to master, and essential vocabulary — all in one click.</p>
+        <button onclick="showLogin()" style="background:rgba(16,185,129,0.1);color:#6ee7b7;border:1px solid rgba(16,185,129,0.25);padding:10px 24px;border-radius:10px;font-size:0.875rem;font-weight:700;cursor:pointer;">Try AI Roadmaps →</button>
+      </div>
+      <div style="flex:1;min-width:280px;background:linear-gradient(135deg,#13111C,#1a1825);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+        <div style="display:flex;gap:6px;margin-bottom:18px;"><div style="width:10px;height:10px;border-radius:50%;background:#ff5f57;"></div><div style="width:10px;height:10px;border-radius:50%;background:#febc2e;"></div><div style="width:10px;height:10px;border-radius:50%;background:#28c840;"></div></div>
+        <div style="font-size:0.7rem;font-weight:700;color:#6ee7b7;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:14px;">&#9632; Roadmap — Biology, 10th Grade</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <div style="width:24px;height:24px;border-radius:50%;background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:800;color:#6ee7b7;flex-shrink:0;">1</div>
+            <div style="font-size:0.82rem;color:#d4d4d8;line-height:1.5;">Master cell structure, mitosis & meiosis</div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <div style="width:24px;height:24px;border-radius:50%;background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:800;color:#6ee7b7;flex-shrink:0;">2</div>
+            <div style="font-size:0.82rem;color:#d4d4d8;line-height:1.5;">Study genetics: DNA replication & Punnett squares</div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <div style="width:24px;height:24px;border-radius:50%;background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:800;color:#6ee7b7;flex-shrink:0;">3</div>
+            <div style="font-size:0.82rem;color:#d4d4d8;line-height:1.5;">Practice past papers & active recall daily</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section id="ld-how" style="background:rgba(255,255,255,0.02);border-top:1px solid rgba(255,255,255,0.05);border-bottom:1px solid rgba(255,255,255,0.05);padding:100px 40px;position:relative;z-index:1;">
+    <div style="max-width:900px;margin:0 auto;text-align:center;">
+      <div style="font-size:0.72rem;font-weight:700;color:#a78bfa;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:16px;">How it works</div>
+      <h2 style="font-size:2.5rem;font-weight:800;color:white;margin:0 0 60px;letter-spacing:-0.02em;">Three steps to study mastery</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:40px;">
+        <div style="text-align:center;">
+          <div style="width:56px;height:56px;background:linear-gradient(135deg,rgba(139,92,246,0.2),rgba(168,85,247,0.1));border:1px solid rgba(139,92,246,0.3);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:1.5rem;">&#128196;</div>
+          <div style="font-size:0.65rem;font-weight:800;color:#a78bfa;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">Step 01</div>
+          <h3 style="color:white;font-size:1.1rem;font-weight:700;margin:0 0 10px;">Add your content</h3>
+          <p style="color:#71717a;font-size:0.875rem;line-height:1.7;margin:0;">Paste text, drop a YouTube link, or enter your subject and grade level.</p>
+        </div>
+        <div style="text-align:center;">
+          <div style="width:56px;height:56px;background:linear-gradient(135deg,rgba(139,92,246,0.2),rgba(168,85,247,0.1));border:1px solid rgba(139,92,246,0.3);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:1.5rem;">&#9889;</div>
+          <div style="font-size:0.65rem;font-weight:800;color:#a78bfa;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">Step 02</div>
+          <h3 style="color:white;font-size:1.1rem;font-weight:700;margin:0 0 10px;">Echo processes it</h3>
+          <p style="color:#71717a;font-size:0.875rem;line-height:1.7;margin:0;">Our AI instantly generates structured notes, roadmaps, or flashcards.</p>
+        </div>
+        <div style="text-align:center;">
+          <div style="width:56px;height:56px;background:linear-gradient(135deg,rgba(139,92,246,0.2),rgba(168,85,247,0.1));border:1px solid rgba(139,92,246,0.3);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:1.5rem;">&#127941;</div>
+          <div style="font-size:0.65rem;font-weight:800;color:#a78bfa;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">Step 03</div>
+          <h3 style="color:white;font-size:1.1rem;font-weight:700;margin:0 0 10px;">Study &amp; succeed</h3>
+          <p style="color:#71717a;font-size:0.875rem;line-height:1.7;margin:0;">Save, edit, and review your material. Track progress with daily goals.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Final CTA -->
+  <section style="text-align:center;padding:120px 20px;position:relative;z-index:1;">
+    <h2 style="font-size:clamp(2rem,5vw,3.5rem);font-weight:900;color:white;margin:0 0 20px;letter-spacing:-0.03em;">Ready to break it down?</h2>
+    <p style="color:#71717a;font-size:1.05rem;margin:0 0 40px;">Join students already studying smarter with BreakItDown.</p>
+    <button onclick="showLogin()" style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:white;border:none;padding:18px 50px;border-radius:14px;font-size:1.05rem;font-weight:700;cursor:pointer;box-shadow:0 8px 30px rgba(124,58,237,0.4);letter-spacing:-0.01em;">Get Started — It's Free →</button>
+  </section>
+
+  <!-- Footer -->
+  <footer style="border-top:1px solid rgba(255,255,255,0.05);padding:30px 60px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+    <span style="color:#3f3f46;font-size:0.8rem;font-weight:700;">BreakItDown</span>
+    <span style="color:#3f3f46;font-size:0.75rem;">Built with Gemini AI</span>
+  </footer>
+
+</div>
+
+<div id="welcome-screen" class="fixed inset-0 z-50 bg-[#0a0a0a] js-hidden items-center justify-center p-6">
+  <div class="max-w-lg w-full mx-auto">
+
+    <!-- Branding -->
+    <div class="text-center mb-7">
+      <span class="text-5xl font-extrabold tracking-tighter text-white">BreakItDown<span class="text-violet-500">.</span></span>
+      <p class="text-zinc-500 text-sm mt-1">Your AI-powered study companion</p>
+      <div class="flex justify-center gap-2 mt-3 flex-wrap">
+        <span class="text-xs text-violet-400 bg-violet-500/10 border border-violet-500/20 px-3 py-1 rounded-full font-semibold">✦ Smart Notes</span>
+        <span class="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full font-semibold">✦ AI Roadmaps</span>
+        <span class="text-xs text-red-400 bg-red-500/10 border border-red-500/20 px-3 py-1 rounded-full font-semibold">✦ Video Insights</span>
+      </div>
+    </div>
+
+    <!-- Auth card -->
+    <div id="auth-step-1" class="bg-zinc-900/60 border border-zinc-800 p-10 rounded-3xl backdrop-blur-xl shadow-2xl">
+
+      <!-- Google -->
+      <button onclick="loginWithGoogle()" class="w-full py-3.5 bg-white text-black font-bold rounded-2xl flex items-center justify-center gap-3 hover:bg-zinc-100 transition-all text-sm">
+        <img src="https://www.google.com/favicon.ico" class="w-4 h-4"> Continue with Google
+      </button>
+
+      <!-- Divider -->
+      <div class="flex items-center gap-3 my-5">
+        <div class="flex-1 h-px bg-zinc-800"></div>
+        <span class="text-zinc-600 text-[11px] font-bold tracking-widest uppercase">or</span>
+        <div class="flex-1 h-px bg-zinc-800"></div>
+      </div>
+
+      <!-- Tab switcher -->
+      <div class="flex bg-zinc-800/60 rounded-xl p-1 mb-5">
+        <button id="tab-btn-email" onclick="switchAuthTab('email')" class="flex-1 py-2 text-sm font-bold rounded-lg transition-all bg-zinc-700 text-white">Email</button>
+        <button id="tab-btn-username" onclick="switchAuthTab('username')" class="flex-1 py-2 text-sm font-bold rounded-lg transition-all text-zinc-500 hover:text-zinc-300">Username</button>
+      </div>
+
+      <!-- Email panel -->
+      <div id="auth-email-panel" class="space-y-3">
+        <input type="email" id="authEmail" placeholder="Email address" class="w-full p-3.5 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white text-sm placeholder-zinc-300 outline-none focus:border-violet-500 transition-colors">
+        <input type="password" id="authPassword" placeholder="Password (min. 6 chars)" class="w-full p-3.5 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white text-sm placeholder-zinc-300 outline-none focus:border-violet-500 transition-colors">
+        <div class="flex gap-2">
+          <button onclick="loginWithEmail('signin')" class="flex-1 py-3 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-xl transition-all text-sm">Sign In</button>
+          <button onclick="loginWithEmail('create')" class="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold rounded-xl border border-zinc-700 transition-all text-sm">Create Account</button>
+        </div>
+        <button onclick="forgotPassword()" class="w-full text-center text-zinc-600 hover:text-violet-400 text-xs font-semibold transition-colors pt-0.5">Forgot password?</button>
+      </div>
+
+      <!-- Username panel -->
+      <div id="auth-username-panel" class="hidden space-y-3">
+        <div class="relative">
+          <span class="absolute left-4 top-1/2 -translate-y-1/2 text-violet-500 font-extrabold text-base pointer-events-none">@</span>
+          <input type="text" id="authUsernameLogin" placeholder="username" class="w-full p-3.5 pl-9 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white text-sm placeholder-zinc-300 outline-none focus:border-violet-500 transition-colors">
+        </div>
+        <input type="password" id="authUsernamePassword" placeholder="Password" class="w-full p-3.5 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white text-sm placeholder-zinc-300 outline-none focus:border-violet-500 transition-colors">
+        <button onclick="loginWithUsername()" class="w-full py-3 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-xl transition-all text-sm">Sign In</button>
+        <p class="text-zinc-600 text-xs text-center">No account yet? Use the Email tab to create one.</p>
+      </div>
+
+      <!-- Error / success message -->
+      <div id="auth-error" class="hidden mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm text-center"></div>
+
+    </div>
+
+    <p class="text-center text-zinc-700 text-xs mt-5">By signing in you agree to use Echo responsibly.</p>
+
+  </div>
+</div>
+
+<div id="app-interface" class="flex h-screen hidden" style="overflow:hidden;">
+  
+  <aside class="sidebar h-full flex flex-col flex-shrink-0">
+    <div class="p-8">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-2xl font-extrabold tracking-tight">BreakItDown<span class="text-violet-500">.</span></span>
+      </div>
+      <div class="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em]">Intelligence Studio</div>
+    </div>
+
+    <nav class="flex-1 mt-4">
+      <div onclick="showPage('pg-home')" id="nav-pg-home" class="nav-item active">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        Dashboard
+      </div>
+      <div onclick="showPage('pg-notes')" id="nav-pg-notes" class="nav-item">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+        Smart Editor
+      </div>
+      <div onclick="showPage('pg-yt')" id="nav-pg-yt" class="nav-item">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+        Video Insights
+      </div>
+      <div onclick="showPage('pg-roadmap')" id="nav-pg-roadmap" class="nav-item">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+        Roadmaps
+      </div>
+      <div onclick="showPage('pg-cards')" id="nav-pg-cards" class="nav-item">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Study Center
+      </div>
+      <div onclick="showPage('pg-mystuff'); loadMyStuff();" id="nav-pg-mystuff" class="nav-item">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+        My Stuff
+      </div>
+      <div onclick="showPage('pg-settings'); loadSettings();" id="nav-pg-settings" class="nav-item">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+        Settings
+      </div>
+      <div onclick="showPage('pg-friends'); loadFriendsPage();" id="nav-pg-friends" class="nav-item">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        Friends
+      </div>
+      <div onclick="showPage('pg-groups'); loadGroupsPage();" id="nav-pg-groups" class="nav-item">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        Study Groups
+      </div>
+    </nav>
+
+    <div class="p-6 space-y-3">
+        <div class="bg-white/5 rounded-xl p-4 border border-white/5">
+            <div class="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-2">Engine Status</div>
+            <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.8)]"></div>
+                <span class="text-xs font-semibold text-zinc-300">Gemini Active</span>
+            </div>
+        </div>
+        <div class="bg-white/5 rounded-xl p-4 border border-white/5 flex items-center gap-3">
+            <img id="sidebar-avatar" src="https://www.google.com/favicon.ico" class="w-7 h-7 rounded-full object-cover hidden">
+            <span id="sidebar-username" class="text-xs text-zinc-300 font-semibold flex-1 truncate">Student</span>
+            <button onclick="signOut()" title="Sign out" class="text-zinc-500 hover:text-red-400 transition-colors text-xs font-bold">Sign out</button>
+        </div>
+    </div>
+  </aside>
+
+  <main class="flex-1 h-full overflow-y-auto">
+    <section id="pg-home" class="page-section active p-20 max-w-7xl mx-auto">
+      <div class="mb-16">
+        <h1 class="text-7xl font-extrabold mb-6 tracking-tight">Your Digital Brain<span class="text-violet-500">.</span></h1>
+        <p class="text-xl text-zinc-500 max-w-2xl leading-relaxed">
+          The ultimate workspace for students to decompose complex subjects into simple, manageable insights.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div class="action-card-landing" onclick="showPage('pg-yt')">
+          <div class="w-12 h-12 bg-red-500/10 text-red-400 rounded-xl flex items-center justify-center mb-8 border border-red-500/20">
+             <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+          </div>
+          <h3 class="text-2xl font-bold mb-4">Video Intake</h3>
+          <p class="text-zinc-500 leading-relaxed">Paste YouTube links for instant, structured summaries.</p>
+        </div>
+
+        <div class="action-card-landing" onclick="showPage('pg-roadmap')">
+          <div class="w-12 h-12 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center mb-8 border border-emerald-500/20">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
+          </div>
+          <h3 class="text-2xl font-bold mb-4">Pathfinder</h3>
+          <p class="text-zinc-500 leading-relaxed">Generate curricula and action plans for any subject.</p>
+        </div>
+
+        <div class="action-card-landing" onclick="showPage('pg-cards')">
+          <div class="w-12 h-12 bg-pink-500/10 text-pink-400 rounded-xl flex items-center justify-center mb-8 border border-pink-500/20">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          </div>
+          <h3 class="text-2xl font-bold mb-4">Retain Center</h3>
+          <p class="text-zinc-500 leading-relaxed">Transform notes into high-recall flashcards.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="pg-notes" class="page-section p-10 max-w-5xl mx-auto">
+      <div class="flex justify-between items-center mb-8">
+        <h2 class="text-2xl font-bold">Smart Intake Editor</h2>
+        <div id="notes-loader" class="hidden"><div class="loader"></div></div>
+      </div>
+      <div class="grid grid-cols-1 gap-6">
+        <textarea id="note-input" placeholder="Paste your study material here..." 
+          class="w-full h-48 bg-[#13111C] border border-white/10 rounded-2xl p-6 text-zinc-300 focus:border-violet-500 outline-none resize-none"></textarea>
+        <div class="flex gap-4">
+          <button id="btn-gen-notes" onclick="generateNotes('text')" class="premium-btn flex-1 py-4 rounded-xl font-bold">Process Content</button>
+          <button onclick="saveCurrentNote('note-output')" class="bg-white/5 border border-white/10 px-8 rounded-xl font-bold hover:bg-white/10 transition-colors">Save Result</button>
+        </div>
+        <div id="note-output" class="mt-8 bg-[#13111C] border border-white/5 p-8 rounded-3xl min-h-[200px] text-zinc-300 leading-relaxed">
+          <div class="text-zinc-600 italic">Echo is waiting for your input...</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="pg-yt" class="page-section p-10 max-w-5xl mx-auto">
+      <div class="flex justify-between items-center mb-8">
+        <h2 class="text-2xl font-bold">Video Insights</h2>
+        <div id="yt-loader" class="hidden"><div class="loader"></div></div>
+      </div>
+      <div class="grid grid-cols-1 gap-6">
+        <div class="bg-[#13111C] border border-white/10 rounded-2xl p-6">
+          <label class="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">YouTube URL</label>
+          <input type="text" id="yt-url" placeholder="https://www.youtube.com/watch?v=..." 
+            class="w-full bg-transparent border-b border-white/10 py-2 text-zinc-200 outline-none focus:border-red-500 mb-6">
+          <div class="flex gap-3">
+            <button id="btn-gen-yt" onclick="generateNotes('yt')" class="bg-red-600 hover:bg-red-700 flex-1 py-4 rounded-xl font-bold transition-colors">Generate Video Breakdown</button>
+            <button onclick="saveCurrentNote('yt-output', 'Video')" class="bg-white/5 border border-white/10 px-6 rounded-xl font-bold hover:bg-white/10 transition-colors">Save</button>
+          </div>
+        </div>
+        <div id="yt-output" class="mt-8 bg-[#13111C] border border-white/5 p-8 rounded-3xl min-h-[200px] text-zinc-300 leading-relaxed">
+          <div class="text-zinc-600 italic">Echo will breakdown the video here...</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="pg-roadmap" class="page-section p-10 max-w-5xl mx-auto">
+      <div class="flex justify-between items-center mb-8">
+        <h2 class="text-2xl font-bold">Pathfinder Roadmaps</h2>
+        <div id="roadmap-loader" class="hidden"><div class="loader"></div></div>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-1 space-y-6">
+          <div class="bg-[#13111C] border border-white/10 rounded-2xl p-6">
+            <label class="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Class Details</label>
+            <input type="text" id="rm-subject" placeholder="e.g. Biology, Calculus" 
+              class="w-full bg-black/20 border border-white/5 rounded-lg p-3 text-zinc-200 outline-none focus:border-emerald-500 mb-4">
+            <select id="rm-grade" class="w-full bg-black/20 border border-white/5 rounded-lg p-3 text-zinc-200 outline-none focus:border-emerald-500 mb-6">
+              <option value="8">8th Grade</option>
+              <option value="9">High School</option>
+              <option value="College">College</option>
+            </select>
+            <button onclick="generateRoadmap()" class="bg-emerald-600 hover:bg-emerald-700 w-full py-4 rounded-xl font-bold transition-colors">Generate Pathfinder</button>
+            <button onclick="saveCurrentNote('roadmap-output', 'Roadmap')" class="bg-white/5 border border-white/10 w-full py-3 rounded-xl font-bold hover:bg-white/10 transition-colors mt-2">Save Roadmap</button>
+          </div>
+        </div>
+        <div class="lg:col-span-2">
+          <div id="roadmap-output" class="bg-[#13111C] border border-white/5 p-8 rounded-3xl min-h-[400px] text-zinc-300">
+            <div class="text-zinc-600 italic text-center py-20">Echo is ready to map your path...</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="pg-cards" class="page-section p-10 max-w-6xl mx-auto">
+      <div class="flex justify-between items-end mb-10">
+        <div>
+          <h2 class="text-4xl font-bold mb-2 text-pink-400">Retain Center</h2>
+          <p class="text-zinc-500">Echo transforms your notes into high-recall cards.</p>
+        </div>
+        <button id="btn-gen-cards" onclick="prepareAndGenerateCards()" class="premium-btn px-8 py-3 rounded-xl font-bold transition-all hover:scale-105">
+          ✨ AI Generate from Notes
+        </button>
+      </div>
+      <div id="cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="col-span-full text-center py-20 text-zinc-600 italic">
+          Generate notes first, then click AI Generate!
+        </div>
+      </div>
+    </section>
+
+    <section id="pg-mystuff" class="page-section p-10 max-w-5xl mx-auto">
+      <div class="flex justify-between items-center mb-8">
+        <div>
+          <h2 class="text-2xl font-bold">My Stuff</h2>
+          <p class="text-zinc-500 text-sm mt-1">All your saved notes, roadmaps, and video breakdowns.</p>
+        </div>
+      </div>
+      <div id="mystuff-empty" class="hidden text-center py-24 text-zinc-600 italic">
+        Nothing saved yet. Generate some notes or a roadmap and hit Save!
+      </div>
+      <div id="mystuff-list" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+    </section>
+
+    <!-- ── SETTINGS PAGE ── -->
+    <section id="pg-settings" class="page-section p-10 max-w-4xl mx-auto">
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold">Account Settings</h2>
+        <p class="text-zinc-500 text-sm mt-1">Manage your profile, appearance, and study preferences.</p>
+      </div>
+
+      <!-- Profile -->
+      <div class="settings-card">
+        <div class="settings-section-title">Profile</div>
+        <div class="flex flex-wrap items-center gap-6 mb-6 pb-6" style="border-bottom:1px solid rgba(255,255,255,0.06);">
+          <img id="sett-avatar-preview" class="sett-avatar" src="https://www.google.com/favicon.ico" alt="Profile photo">
+          <div class="flex-1 min-w-0">
+            <p class="text-zinc-500 text-sm mb-3">Update your profile photo by pasting an image URL below.</p>
+            <div class="flex gap-2">
+              <input type="url" id="sett-photo-url" placeholder="https://example.com/photo.jpg" class="settings-input" style="max-width:320px;">
+              <button onclick="updateAvatarPreview()" style="flex-shrink:0;padding:9px 18px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#a1a1aa;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;" onmouseover="this.style.color='white';this.style.background='rgba(124,58,237,0.15)';" onmouseout="this.style.color='#a1a1aa';this.style.background='rgba(255,255,255,0.05)';">Preview</button>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Display Name</label>
+            <input type="text" id="sett-display-name" placeholder="Your name" class="settings-input">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Email Address</label>
+            <input type="email" id="sett-email" placeholder="your@email.com" class="settings-input">
+          </div>
+        </div>
+        <div class="mb-4">
+          <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Username</label>
+          <div class="flex gap-2 items-center">
+            <div style="position:relative;flex:1;max-width:280px;">
+              <span style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#7c3aed;font-weight:800;font-size:1rem;line-height:1;">@</span>
+              <input type="text" id="sett-username" placeholder="your_username" class="settings-input" style="padding-left:28px;" oninput="debounceCheckUsername(this.value)">
+            </div>
+            <span id="username-status" class="text-xs font-semibold"></span>
+          </div>
+          <div class="text-xs text-zinc-600 mt-1">3–20 chars · lowercase letters, numbers, underscores only.</div>
+        </div>
+        <div class="mb-4">
+          <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Bio <span id="bio-char-count" style="color:#52525b;font-weight:400;text-transform:none;letter-spacing:0;">(0/160)</span></label>
+          <textarea id="sett-bio" placeholder="Tell others about yourself..." class="settings-input" style="resize:none;min-height:70px;" maxlength="160" oninput="document.getElementById('bio-char-count').textContent='('+this.value.length+'/160)'"></textarea>
+        </div>
+        <div class="mb-6">
+          <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Status</label>
+          <input type="text" id="sett-status" placeholder="e.g. Studying for finals 📚" class="settings-input" maxlength="80">
+        </div>
+        <button onclick="saveProfile(this)" class="sett-save-btn">Save Profile</button>
+      </div>
+
+      <!-- Study Preferences -->
+      <div class="settings-card">
+        <div class="settings-section-title">Study Preferences</div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">Current Courses</div>
+            <div class="settings-row-desc">Used to personalise your roadmaps and AI notes</div>
+          </div>
+          <div style="flex-shrink:0;width:260px;">
+            <input type="text" id="sett-courses" placeholder="e.g. Biology, Algebra 1" class="settings-input">
+          </div>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">Study Goal</div>
+            <div class="settings-row-desc">What are you working towards?</div>
+          </div>
+          <div style="flex-shrink:0;width:260px;">
+            <select id="sett-study-goal" class="settings-select">
+              <option value="grades">Improve my grades</option>
+              <option value="time">Save study time</option>
+              <option value="prep-hs">Prep for high school</option>
+              <option value="prep-college">Prep for college</option>
+              <option value="exam">Ace an upcoming exam</option>
+              <option value="curiosity">Learn out of curiosity</option>
+            </select>
+          </div>
+        </div>
+        <div class="pt-5">
+          <button onclick="saveStudyPrefs()" class="sett-save-btn">Save Preferences</button>
+        </div>
+      </div>
+
+      <!-- Appearance -->
+      <div class="settings-card">
+        <div class="settings-section-title">Appearance</div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">Light Mode</div>
+            <div class="settings-row-desc">Switch to a light interface</div>
+          </div>
+          <label class="sett-toggle">
+            <input type="checkbox" id="sett-light-mode" onchange="applyTheme(this.checked)">
+            <span class="sett-track"></span>
+          </label>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">Dyslexia-Friendly Font</div>
+            <div class="settings-row-desc">Switches to Lexend — a typeface designed for reading ease and accessibility</div>
+          </div>
+          <label class="sett-toggle">
+            <input type="checkbox" id="sett-dyslexia-font" onchange="applyDyslexiaFont(this.checked)">
+            <span class="sett-track"></span>
+          </label>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">Font Size</div>
+            <div class="settings-row-desc">Adjust the base text size across the app</div>
+          </div>
+          <select id="sett-font-size" class="settings-select" style="width:185px;" onchange="applyFontSize(this.value)">
+            <option value="13">Small (13 px)</option>
+            <option value="15" selected>Default (15 px)</option>
+            <option value="17">Large (17 px)</option>
+            <option value="19">Extra Large (19 px)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Account / Danger Zone -->
+      <div class="settings-card">
+        <div class="settings-section-title">Account</div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">Sign Out</div>
+            <div class="settings-row-desc">End your current session on this device</div>
+          </div>
+          <button onclick="signOut()" style="padding:9px 22px;border-radius:10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#f87171;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;" onmouseover="this.style.background='rgba(239,68,68,0.2)';" onmouseout="this.style.background='rgba(239,68,68,0.1)';">Sign Out</button>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">Clear All Saved Notes</div>
+            <div class="settings-row-desc">Permanently delete everything stored in My Stuff</div>
+          </div>
+          <button onclick="clearAllNotes()" style="padding:9px 22px;border-radius:10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#f87171;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;" onmouseover="this.style.background='rgba(239,68,68,0.2)';" onmouseout="this.style.background='rgba(239,68,68,0.1)';">Clear All</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── FRIENDS PAGE ── -->
+    <section id="pg-friends" class="page-section p-10 max-w-4xl mx-auto">
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold">Friends</h2>
+        <p class="text-zinc-500 text-sm mt-1">Find classmates by username and build your study network.</p>
+      </div>
+
+      <!-- Search -->
+      <div class="settings-card mb-6">
+        <div class="settings-section-title">Find Someone</div>
+        <div class="flex gap-3">
+          <div style="position:relative;flex:1;max-width:340px;">
+            <span style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#7c3aed;font-weight:800;font-size:1rem;line-height:1;">@</span>
+            <input type="text" id="friend-search-input" placeholder="username" class="settings-input" style="padding-left:28px;" onkeydown="if(event.key==='Enter') searchUser()">
+          </div>
+          <button onclick="searchUser()" class="sett-save-btn" style="flex-shrink:0;">Search</button>
+        </div>
+        <div id="friend-search-result" class="mt-4"></div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="flex gap-2 mb-6">
+        <button onclick="switchFriendTab('requests')" id="tab-requests" class="tab-btn active">Incoming Requests <span id="req-badge" class="tab-badge hidden">0</span></button>
+        <button onclick="switchFriendTab('friends')" id="tab-friends" class="tab-btn">My Friends</button>
+      </div>
+
+      <div id="friends-requests-panel">
+        <div id="friends-requests-list" class="space-y-4">
+          <div class="text-zinc-600 italic text-sm py-8 text-center">No incoming requests.</div>
+        </div>
+      </div>
+      <div id="friends-friends-panel" class="hidden">
+        <div id="friends-friends-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="text-zinc-600 italic text-sm py-8 text-center col-span-full">No friends yet. Search for someone above!</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── STUDY GROUPS PAGE ── -->
+    <section id="pg-groups" class="page-section p-10 max-w-5xl mx-auto">
+
+      <!-- Groups list view -->
+      <div id="groups-list-view">
+        <div class="flex justify-between items-center mb-8">
+          <div>
+            <h2 class="text-2xl font-bold">Study Groups</h2>
+            <p class="text-zinc-500 text-sm mt-1">Collaborate with friends on notes, roadmaps, and more.</p>
+          </div>
+          <button onclick="openCreateGroupModal()" class="sett-save-btn">+ Create Group</button>
+        </div>
+        <div id="groups-list" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="text-zinc-600 italic text-sm py-16 text-center col-span-full">No groups yet. Create one or ask a friend to add you!</div>
+        </div>
+      </div>
+
+      <!-- Group detail view -->
+      <div id="group-detail-view" class="hidden">
+
+        <!-- Header card -->
+        <div class="group-detail-header">
+          <div class="flex items-center gap-4 min-w-0">
+            <button onclick="closeGroupDetail()" style="padding:7px 15px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#a1a1aa;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;flex-shrink:0;" onmouseover="this.style.color='white';this.style.borderColor='rgba(255,255,255,0.2)';" onmouseout="this.style.color='#a1a1aa';this.style.borderColor='rgba(255,255,255,0.1)';">← Back</button>
+            <div class="min-w-0">
+              <h2 id="group-detail-name" class="text-2xl font-extrabold text-white tracking-tight truncate"></h2>
+              <p id="group-detail-desc" class="text-zinc-500 text-sm mt-0.5 truncate"></p>
+            </div>
+          </div>
+          <button onclick="openPostToGroupModal()" class="sett-save-btn flex-shrink-0" style="padding:9px 20px;">+ Post to Group</button>
+        </div>
+
+        <!-- Borrow requests panel (visible to post authors) -->
+        <div id="borrow-requests-panel" class="settings-card mb-6 hidden" style="border-left:3px solid #f59e0b;">
+          <div class="settings-section-title">📥 Borrow Requests</div>
+          <div id="borrow-requests-list"></div>
+        </div>
+
+        <!-- Posts feed -->
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-xs font-bold text-zinc-500 uppercase tracking-widest">Posts</span>
+        </div>
+        <div id="group-posts-feed" class="space-y-5">
+          <div class="text-zinc-600 italic text-sm py-16 text-center">No posts yet. Be the first to share something!</div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+  <!-- Note Editor Modal -->
+  <!-- Chart Insert Modal -->
+  <div id="chart-modal" class="js-hidden fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+    <div class="bg-[#1a1825] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl p-6">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="font-bold text-white text-lg">Insert Visual</h3>
+        <button onclick="closeChartModal()" class="text-zinc-500 hover:text-white transition-colors text-xl">&#x2715;</button>
+      </div>
+      <div class="flex gap-3 mb-5">
+        <button onclick="setChartType('bar')"   id="ct-bar"  class="chart-type-btn active-ct">Bar Chart</button>
+        <button onclick="setChartType('pie')"   id="ct-pie"  class="chart-type-btn">Pie Chart</button>
+        <button onclick="setChartType('mind')"  id="ct-mind" class="chart-type-btn">Mind Map</button>
+      </div>
+      <!-- Bar / Pie inputs -->
+      <div id="chart-data-inputs">
+        <div class="text-xs text-zinc-500 mb-2">Enter items (one per line, format: <span class="text-violet-400">Label, Value</span>)</div>
+        <textarea id="chart-data-text" rows="5" placeholder="Photosynthesis, 40&#10;Respiration, 30&#10;Transpiration, 30"
+          class="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-zinc-300 outline-none resize-none focus:border-violet-500 transition-colors"></textarea>
+      </div>
+      <!-- Mind map inputs -->
+      <div id="mindmap-inputs" class="hidden">
+        <div class="text-xs text-zinc-500 mb-2">Central topic</div>
+        <input id="mm-center" type="text" placeholder="e.g. Photosynthesis" class="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-zinc-300 outline-none mb-3 focus:border-violet-500 transition-colors">
+        <div class="text-xs text-zinc-500 mb-2">Branches (one per line)</div>
+        <textarea id="mm-branches" rows="4" placeholder="Light Reactions&#10;Calvin Cycle&#10;Chlorophyll&#10;ATP Production"
+          class="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-zinc-300 outline-none resize-none focus:border-violet-500 transition-colors"></textarea>
+      </div>
+      <button onclick="insertChart()" class="mt-4 w-full py-3 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-xl transition-colors">Insert into Note</button>
+    </div>
+  </div>
+
+  <div id="editor-modal" class="js-hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+    <div id="editor-modal-inner" class="bg-[#13111C] border border-white/10 rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-row shadow-2xl" style="transition:max-width 0.25s ease;">
+
+      <!-- LEFT: Editor -->
+      <div class="flex flex-col flex-1 min-w-0">
+
+        <!-- Title row -->
+        <div class="flex items-center gap-3 px-6 pt-5 pb-4 border-b border-white/5">
+          <input id="editor-title" class="bg-transparent text-xl font-bold text-white outline-none flex-1" placeholder="Note title...">
+          <button onclick="saveEditorNote()" class="px-4 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-lg transition-colors flex-shrink-0">Save</button>
+          <button onclick="toggleEchoSidebar()" id="echo-toggle-btn" class="echo-toggle-btn" title="Chat with Echo AI">✦ Echo</button>
+          <button onclick="closeEditor()" class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 transition-colors flex-shrink-0">&#x2715;</button>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="flex flex-wrap items-center gap-1 px-4 py-2 border-b border-white/5 bg-white/[0.02]">
+          <!-- Text style -->
+          <button onclick="editorFormat('bold')"          title="Bold"      class="ed-btn font-bold">B</button>
+          <button onclick="editorFormat('italic')"        title="Italic"    class="ed-btn italic">I</button>
+          <button onclick="editorFormat('underline')"     title="Underline" class="ed-btn underline">U</button>
+          <button onclick="editorFormat('strikeThrough')" title="Strikethrough" class="ed-btn line-through">S</button>
+          <button onclick="editorHighlight()"             title="Highlight" class="ed-btn text-yellow-400">H</button>
+          <div class="ed-sep"></div>
+          <!-- Lists -->
+          <button onclick="editorFormat('insertUnorderedList')" title="Bullet list"   class="ed-btn text-base">&#8226;&#8212;</button>
+          <button onclick="editorFormat('insertOrderedList')"   title="Numbered list" class="ed-btn text-base">1.</button>
+          <div class="ed-sep"></div>
+          <!-- Align -->
+          <button onclick="editorFormat('justifyLeft')"   title="Align left"   class="ed-btn">&#8676;</button>
+          <button onclick="editorFormat('justifyCenter')" title="Align center" class="ed-btn">&#8660;</button>
+          <button onclick="editorFormat('justifyRight')"  title="Align right"  class="ed-btn">&#8677;</button>
+          <div class="ed-sep"></div>
+          <!-- Font -->
+          <select onchange="changeFont(this.value)" title="Font" class="ed-select">
+            <option value="inherit">Default</option>
+            <option value="Georgia, serif">Georgia</option>
+            <option value="'Courier New', monospace">Courier</option>
+            <option value="Arial, sans-serif">Arial</option>
+          </select>
+          <!-- Size -->
+          <select onchange="changeSize(this.value)" title="Text size" class="ed-select">
+            <option value="">Size</option>
+            <option value="1">XS</option>
+            <option value="2">S</option>
+            <option value="3">M</option>
+            <option value="4">L</option>
+            <option value="5">XL</option>
+            <option value="6">XXL</option>
+          </select>
+          <!-- Color -->
+          <input type="color" onchange="changeColor(this.value)" title="Text color" value="#ffffff"
+            class="w-7 h-7 rounded cursor-pointer bg-transparent border border-white/10 p-0.5">
+          <div class="ed-sep"></div>
+          <!-- Visuals -->
+          <button onclick="openChartModal()" title="Insert chart / mind map" class="ed-btn text-violet-400 font-semibold px-2 text-xs">&#9741; Chart</button>
+          <!-- Divider -->
+          <button onclick="insertDivider()" title="Insert divider" class="ed-btn text-zinc-400 px-2 text-xs">&#8213; Rule</button>
+        </div>
+
+        <!-- Body -->
+        <div id="editor-body" contenteditable="true"
+          class="flex-1 overflow-y-auto px-8 py-6 text-zinc-300 leading-relaxed outline-none min-h-[340px]">
+        </div>
+
+        <!-- Footer -->
+        <div class="flex items-center justify-between px-6 py-3 border-t border-white/5">
+          <span id="editor-meta" class="text-xs text-zinc-600"></span>
+          <button onclick="deleteNoteFromEditor()" class="text-xs text-red-500 hover:text-red-400 font-semibold transition-colors">Delete Note</button>
+        </div>
+
+      </div><!-- end editor left -->
+
+      <!-- RIGHT: Echo AI Sidebar -->
+      <div id="echo-sidebar" class="echo-sidebar" style="display:none;">
+
+        <!-- Header -->
+        <div style="padding:16px 18px 12px;border-bottom:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+          <div>
+            <div style="font-size:0.9rem;font-weight:800;color:white;letter-spacing:-0.01em;">✦ Echo</div>
+            <div style="font-size:0.68rem;color:#71717a;font-weight:600;margin-top:1px;">AI Study Assistant</div>
+          </div>
+          <button onclick="clearEchoChat()" style="font-size:0.7rem;color:#52525b;font-weight:600;cursor:pointer;background:none;border:none;font-family:inherit;" onmouseover="this.style.color='#a1a1aa';" onmouseout="this.style.color='#52525b';">Clear chat</button>
+        </div>
+
+        <!-- Messages -->
+        <div id="echo-messages" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;">
+          <div class="echo-msg-echo">Hi! I'm Echo. I know your note — ask me anything, or use the quick actions below.</div>
+        </div>
+
+        <!-- Quick action chips -->
+        <div style="padding:10px 12px;border-top:1px solid rgba(255,255,255,0.05);display:flex;flex-wrap:wrap;gap:6px;flex-shrink:0;">
+          <button class="echo-chip" onclick="echoQuickAction('Rewrite this note for clarity and conciseness')">Rewrite</button>
+          <button class="echo-chip" onclick="echoQuickAction('Quiz me on the key concepts in this note')">Quiz me</button>
+          <button class="echo-chip" onclick="echoQuickAction('Give me a 3-bullet summary of this note')">Summarize</button>
+          <button class="echo-chip" onclick="echoQuickAction('Fix all grammar and spelling mistakes in this note')">Fix grammar</button>
+          <button class="echo-chip" onclick="echoQuickAction('Explain the most difficult concept in this note in simple terms')">Explain</button>
+        </div>
+
+        <!-- Input -->
+        <div style="padding:10px 12px 14px;border-top:1px solid rgba(255,255,255,0.05);display:flex;gap:8px;align-items:flex-end;flex-shrink:0;">
+          <textarea id="echo-input" rows="2" placeholder="Ask Echo anything…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendEchoMessage();}" style="flex:1;resize:none;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:8px 12px;color:white;font-size:0.82rem;outline:none;font-family:inherit;line-height:1.4;"></textarea>
+          <button onclick="sendEchoMessage()" style="padding:8px 14px;background:linear-gradient(135deg,#7c3aed,#6d28d9);border:none;border-radius:12px;color:white;font-size:0.82rem;font-weight:700;cursor:pointer;flex-shrink:0;font-family:inherit;align-self:flex-end;">Send</button>
+        </div>
+
+      </div><!-- end echo sidebar -->
+
+    </div>
+  </div>
+
+  <!-- ── CREATE GROUP MODAL ── -->
+  <div id="create-group-modal" class="js-hidden fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+    <div class="bg-[#1a1825] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl p-6">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="font-bold text-white text-lg">Create Study Group</h3>
+        <button onclick="closeCreateGroupModal()" class="text-zinc-500 hover:text-white transition-colors text-xl">&#x2715;</button>
+      </div>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Group Name</label>
+          <input type="text" id="cg-name" placeholder="e.g. AP Bio Study Squad" class="settings-input">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Description</label>
+          <input type="text" id="cg-desc" placeholder="What will you study together?" class="settings-input">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Invite Friends</label>
+          <div id="cg-friends-list" class="max-h-40 overflow-y-auto space-y-2 bg-white/5 border border-white/10 rounded-xl p-3">
+            <div class="text-zinc-600 text-xs italic">Add friends first to invite them.</div>
+          </div>
+        </div>
+      </div>
+      <button onclick="createGroup()" class="mt-5 w-full sett-save-btn">Create Group</button>
+    </div>
+  </div>
+
+  <!-- ── POST TO GROUP MODAL ── -->
+  <div id="post-group-modal" class="js-hidden fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+    <div class="bg-[#1a1825] border border-white/10 rounded-2xl w-full max-w-2xl shadow-2xl p-6">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="font-bold text-white text-lg">Post to Group</h3>
+        <button onclick="closePostModal()" class="text-zinc-500 hover:text-white transition-colors text-xl">&#x2715;</button>
+      </div>
+      <div class="space-y-4">
+        <div id="pm-group-selector-row" class="hidden">
+          <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Post to Group</label>
+          <select id="pm-group-select" class="settings-input">
+            <option value="">Select a group…</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Title</label>
+          <input type="text" id="pm-title" placeholder="e.g. My Biology notes" class="settings-input">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Type</label>
+          <div class="flex gap-2">
+            <button onclick="setPostType('text')"    id="pt-text"    class="chart-type-btn active-ct">Text</button>
+            <button onclick="setPostType('note')"    id="pt-note"    class="chart-type-btn">Note</button>
+            <button onclick="setPostType('roadmap')" id="pt-roadmap" class="chart-type-btn">Roadmap</button>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Content</label>
+          <textarea id="pm-content" rows="6" placeholder="Share your notes, ideas, or questions..." class="settings-input" style="resize:vertical;"></textarea>
+          <div class="flex gap-2 mt-2">
+            <button onclick="useLastNoteOutput()" style="padding:6px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#a1a1aa;font-size:0.75rem;font-weight:600;cursor:pointer;font-family:inherit;" onmouseover="this.style.color='white';" onmouseout="this.style.color='#a1a1aa';">Use last Smart Note</button>
+            <button onclick="useLastRoadmapOutput()" style="padding:6px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#a1a1aa;font-size:0.75rem;font-weight:600;cursor:pointer;font-family:inherit;" onmouseover="this.style.color='white';" onmouseout="this.style.color='#a1a1aa';">Use last Roadmap</button>
+          </div>
+        </div>
+      </div>
+      <button onclick="submitPostToGroup()" class="mt-5 w-full sett-save-btn">Share Post</button>
+    </div>
+  </div>
+
+  <script>
+    let currentActiveOutputId = 'note-output';
+
+    // Returns a per-user localStorage key so each account has its own saved notes
+    function vaultKey() {
+      const user = _appUser;
+      return user ? 'bid_vault_' + user.uid : 'bid_vault_anon';
+    }
+
+ function showPage(pageId) {
+    // 1. Hide all sections
+    document.querySelectorAll('.page-section').forEach(p => {
+        p.classList.remove('active');
+        p.style.display = 'none';
+    });
+    
+    // 2. Remove active styling from all nav items
+    document.querySelectorAll('.nav-item').forEach(n => {
+        n.classList.remove('active', 'bg-white/5', 'text-white');
+    });
+
+    // 3. Show the target page
+    const targetPage = document.getElementById(pageId);
+    if (targetPage) {
+        targetPage.classList.add('active');
+        targetPage.style.display = 'block';
+    }
+
+    // 4. Highlight the current nav item
+    const navItem = document.getElementById('nav-' + pageId);
+    if (navItem) {
+        navItem.classList.add('active', 'bg-white/5', 'text-white');
+    }
+    
+    // 5. Re-render icons if using Lucide
+    if (window.lucide) {
+        lucide.createIcons();
+    }
+}
+// --- AUTH & NAVIGATION LOGIC ---
+
+function goToStepOne() {
+    document.getElementById('auth-step-2').classList.add('hidden');
+    document.getElementById('auth-step-1').classList.remove('hidden');
+}
+
+function showLogin() {
+    // Hide landing, show auth screen
+    document.getElementById('landingPage').classList.add('js-hidden');
+    document.getElementById('welcome-screen').classList.remove('js-hidden');
+    document.getElementById('welcome-screen').style.display = 'flex';
+}
+
+async function loginWithGoogle() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    try {
+        await auth.signInWithPopup(provider);
+        // onAuthStateChanged handles showing the app
+    } catch (err) {
+        alert('Google sign-in failed: ' + err.message);
+    }
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg;
+  el.className = 'mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm text-center';
+}
+function showAuthSuccess(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg;
+  el.className = 'mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 text-sm text-center';
+}
+function clearAuthError() {
+  const el = document.getElementById('auth-error');
+  if (el) el.className = 'hidden mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm text-center';
+}
+
+function switchAuthTab(tab) {
+  const emailPanel    = document.getElementById('auth-email-panel');
+  const usernamePanel = document.getElementById('auth-username-panel');
+  const tabEmail      = document.getElementById('tab-btn-email');
+  const tabUsername   = document.getElementById('tab-btn-username');
+  clearAuthError();
+  if (tab === 'email') {
+    emailPanel.classList.remove('hidden');
+    usernamePanel.classList.add('hidden');
+    tabEmail.classList.add('bg-zinc-700', 'text-white');
+    tabEmail.classList.remove('text-zinc-500', 'hover:text-zinc-300');
+    tabUsername.classList.remove('bg-zinc-700', 'text-white');
+    tabUsername.classList.add('text-zinc-500', 'hover:text-zinc-300');
+  } else {
+    emailPanel.classList.add('hidden');
+    usernamePanel.classList.remove('hidden');
+    tabUsername.classList.add('bg-zinc-700', 'text-white');
+    tabUsername.classList.remove('text-zinc-500', 'hover:text-zinc-300');
+    tabEmail.classList.remove('bg-zinc-700', 'text-white');
+    tabEmail.classList.add('text-zinc-500', 'hover:text-zinc-300');
+  }
+}
+
+async function loginWithEmail(mode) {
+  const email    = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  clearAuthError();
+  if (!email)              { showAuthError('Please enter your email address.'); return; }
+  if (password.length < 6) { showAuthError('Password must be at least 6 characters.'); return; }
+  try {
+    if (mode === 'create') {
+      await auth.createUserWithEmailAndPassword(email, password);
+    } else {
+      await auth.signInWithEmailAndPassword(email, password);
+    }
+  } catch (err) {
+    const friendly = {
+      'auth/user-not-found':       'No account with that email. Hit "Create Account" to sign up.',
+      'auth/wrong-password':       'Incorrect password.',
+      'auth/invalid-credential':   'Incorrect email or password.',
+      'auth/email-already-in-use': 'An account already exists with that email. Use "Sign In".',
+      'auth/invalid-email':        'Please enter a valid email address.',
+      'auth/weak-password':        'Password must be at least 6 characters.',
+      'auth/too-many-requests':    'Too many attempts. Please wait and try again.',
+    };
+    showAuthError(friendly[err.code] || err.message);
+  }
+}
+
+async function loginWithUsername() {
+  const username = document.getElementById('authUsernameLogin').value.trim().toLowerCase().replace(/^@/, '');
+  const password = document.getElementById('authUsernamePassword').value;
+  clearAuthError();
+  if (!username) { showAuthError('Please enter your username.'); return; }
+  if (!password) { showAuthError('Please enter your password.'); return; }
+  try {
+    const uidSnap = await db.ref('usernames/' + username).once('value');
+    if (!uidSnap.exists()) { showAuthError('No account found with that username.'); return; }
+    const entry = uidSnap.val();
+    const uid   = (entry && typeof entry === 'object') ? entry.uid : entry;
+    const email = (entry && typeof entry === 'object') ? entry.email : null;
+    if (!email) { showAuthError('Please log in once with Google or Email to activate username login — it will work permanently after that.'); return; }
+    await auth.signInWithEmailAndPassword(email, password);
+  } catch (err) {
+    const friendly = {
+      'auth/wrong-password':    'Incorrect password.',
+      'auth/invalid-credential':'Incorrect password.',
+      'auth/too-many-requests': 'Too many attempts. Please wait and try again.',
+    };
+    showAuthError(friendly[err.code] || err.message);
+  }
+}
+
+async function forgotPassword() {
+  const email = document.getElementById('authEmail').value.trim();
+  clearAuthError();
+  if (!email) { showAuthError('Enter your email address above, then click Forgot password.'); return; }
+  try {
+    await auth.sendPasswordResetEmail(email);
+    showAuthSuccess('✓ Password reset email sent! Check your inbox.');
+    setTimeout(clearAuthError, 5000);
+  } catch (err) {
+    showAuthError(err.message);
+  }
+}
+
+async function signOut() {
+    await auth.signOut();
+}
+
+function completeSignup() {
+    // Legacy: onAuthStateChanged now handles this, but keep for safety
+    document.getElementById('welcome-screen').classList.add('js-hidden');
+    document.getElementById('welcome-screen').style.display = 'none';
+    const app = document.getElementById('app-interface');
+    app.classList.remove('hidden');
+    app.style.display = 'flex';
+    showPage('pg-home');
+}
+async function generateNotes(type) {
+    const inputId = type === 'text' ? 'note-input' : 'yt-url';
+    const outputId = type === 'text' ? 'note-output' : 'yt-output';
+    const loaderId = type === 'text' ? 'notes-loader' : 'yt-loader';
+    const btnId = type === 'text' ? 'btn-gen-notes' : 'btn-gen-yt';
+    
+    const val = document.getElementById(inputId).value;
+    if (!val.trim()) return;
+
+    const loader = document.getElementById(loaderId);
+    const output = document.getElementById(outputId);
+    const btn = document.getElementById(btnId);
+    
+    // UI Feedback
+    loader.classList.remove('hidden');
+    btn.disabled = true;
+    output.innerHTML = '<div class="text-zinc-500">Echo is analyzing your content...</div>';
+
+    try {
+        const endpoint = type === 'yt' ? '/api/video' : '/api/notes';
+        const body     = type === 'yt' ? { url: val } : { text: val };
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        const res = await response.json();
+        if (!response.ok) throw new Error(res.error || 'Network response was not ok');
+
+        loader.classList.add('hidden');
+        btn.disabled = false;
+        output.innerHTML = formatAIResponse(res.notes);
+        currentActiveOutputId = outputId;
+
+    } catch (err) {
+        loader.classList.add('hidden');
+        btn.disabled = false;
+        output.innerHTML = `<div class="text-red-400 p-4">Error: ${err.message}</div>`;
+        console.error('Notes Error:', err);
+    }
+}
+  async function generateRoadmap() {
+  const subject = document.getElementById('rm-subject').value;
+  const grade = document.getElementById('rm-grade').value;
+  
+  if (!subject) return;
+
+  const loader = document.getElementById('roadmap-loader');
+  const output = document.getElementById('roadmap-output');
+  
+  // UI Feedback: Show loader and initial message
+  loader.classList.remove('hidden');
+  output.innerHTML = '<div class="text-zinc-500 text-center py-20">Echo is mapping your educational journey...</div>';
+
+  try {
+    // Replace with your Firebase Function URL or your specific API endpoint
+    const response = await fetch('/api/roadmap', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subject: subject, grade: grade })
+    });
+
+    if (!response.ok) throw new Error('Failed to generate roadmap');
+
+    const res = await response.json();
+
+    loader.classList.add('hidden');
+    output.innerHTML = formatAIResponse(res.roadmap);
+    currentActiveOutputId = 'roadmap-output';
+
+  } catch (err) {
+    // Failure Logic: Hide loader and show error
+    loader.classList.add('hidden');
+    output.innerHTML = `<div class="text-red-400 p-4 text-center">Error: ${err.message}</div>`;
+    console.error("Roadmap Logic Error:", err);
+  }
+}
+
+function formatAIResponse(text) {
+  if (!text) return "";
+  
+  // Clean up the text and handle markdown-style formatting
+  let html = text
+    .replace(/### (.*?)(?:\n|$)/g, '<h3 class="text-lg font-bold text-violet-400 mt-6 mb-2 tracking-tight">$1</h3>')
+    .replace(/## (.*?)(?:\n|$)/g, '<h2 class="text-xl font-bold text-white mt-8 mb-4 border-b border-white/5 pb-2 tracking-tight">$1</h2>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-bold">$1</strong>')
+    .replace(/- (.*?)(?:\n|$)/g, '<div class="flex gap-3 mb-2 text-zinc-400"><span class="text-violet-500">•</span><span>$1</span></div>')
+    .replace(/\n/g, '<br>');
+
+  return `<div class="prose prose-invert max-w-none">${html}</div>`;
+}
+
+// ── MY STUFF ──────────────────────────────────────────────
+let currentEditingId = null;
+
+async function saveCurrentNote(outputId, type = 'Note') {
+  const user = _appUser;
+  if (!user) { alert('Sign in to save notes.'); return; }
+  const btn = event.target;
+
+  const outputElement = document.getElementById(outputId);
+  const content = outputElement.innerHTML;
+  const text = outputElement.innerText;
+
+  if (!text.trim() || text.includes('Echo is analyzing your content...') || text.includes('Echo will breakdown the video here...')) {
+    alert("Nothing to save yet! Generate some content first.");
+    return;
+  }
+
+  const noteId = 'note-' + Date.now();
+  const noteObj = {
+    id: noteId,
+    title: type + ': ' + new Date().toLocaleDateString(),
+    content: content,
+    type: type,
+    timestamp: new Date().toISOString()
+  };
+
+  try {
+    await db.ref('notes/' + user.uid + '/' + noteId).set(noteObj);
+    const orig = btn.innerHTML;
+    btn.innerHTML = '✓ Saved!';
+    btn.classList.add('text-green-400');
+    setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('text-green-400'); }, 2000);
+  } catch (err) {
+    alert("Could not save. Try again.");
+  }
+}
+
+async function loadMyStuff() {
+  const user = _appUser;
+  if (!user) return;
+  const snap = await db.ref('notes/' + user.uid).once('value');
+  const raw  = snap.val() || {};
+  const notes = Object.values(raw).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  const list = document.getElementById('mystuff-list');
+  const empty = document.getElementById('mystuff-empty');
+
+  if (notes.length === 0) {
+    list.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+
+  const typeColors = { 'Note': 'violet', 'Roadmap': 'emerald', 'Video': 'red' };
+
+  list.innerHTML = notes.map(n => {
+    const color = typeColors[n.type] || 'violet';
+    const preview = (n.content || '').replace(/<[^>]+>/g, '').slice(0, 120) + '...';
+    const date = new Date(n.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `
+      <div class="action-card-landing group flex flex-col gap-3 border-l-4 border-l-${color}-500">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <span class="text-[10px] font-bold text-${color}-400 uppercase tracking-widest">${n.type || 'Note'}</span>
+            <h3 class="text-white font-bold mt-0.5 leading-tight">${n.title}</h3>
+          </div>
+          <span class="text-[10px] text-zinc-600 whitespace-nowrap mt-1">${date}</span>
+        </div>
+        <p class="text-zinc-500 text-sm leading-relaxed flex-1">${preview}</p>
+        <div class="flex gap-2 mt-2">
+          <button onclick="openEditor('${n.id}')" class="flex-1 py-2 rounded-lg bg-white/5 hover:bg-violet-500/20 text-zinc-300 hover:text-white text-sm font-semibold transition-colors">Edit</button>
+          <button onclick="openPostToGroupModalFromNote('${n.id}')" class="flex-1 py-2 rounded-lg bg-violet-500/10 hover:bg-violet-500/25 text-violet-400 hover:text-violet-300 text-sm font-semibold transition-colors">Post in Group</button>
+          <button onclick="deleteNote('${n.id}')" class="py-2 px-4 rounded-lg bg-white/5 hover:bg-red-500/20 text-zinc-500 hover:text-red-400 text-sm font-semibold transition-colors">Delete</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── ECHO AI SIDEBAR ──────────────────────────────────────────────────────────
+let _echoChatHistory = [];
+let _echoSidebarOpen = false;
+
+function toggleEchoSidebar() {
+  _echoSidebarOpen = !_echoSidebarOpen;
+  const sidebar = document.getElementById('echo-sidebar');
+  const inner   = document.getElementById('editor-modal-inner');
+  const btn     = document.getElementById('echo-toggle-btn');
+  if (_echoSidebarOpen) {
+    sidebar.style.display = 'flex';
+    inner.style.maxWidth  = '72rem';
+    btn.classList.add('active');
+  } else {
+    sidebar.style.display = 'none';
+    inner.style.maxWidth  = '';
+    btn.classList.remove('active');
+  }
+}
+
+function echoQuickAction(prompt) {
+  document.getElementById('echo-input').value = prompt;
+  sendEchoMessage();
+}
+
+async function sendEchoMessage() {
+  const input = document.getElementById('echo-input');
+  const text  = input.value.trim();
+  if (!text) return;
+  input.value = '';
+
+  const msgs = document.getElementById('echo-messages');
+  // User bubble
+  const userBubble = document.createElement('div');
+  userBubble.className = 'echo-msg-user';
+  userBubble.textContent = text;
+  msgs.appendChild(userBubble);
+
+  // Thinking indicator
+  const thinking = document.createElement('div');
+  thinking.className = 'echo-msg-echo';
+  thinking.style.opacity = '0.5';
+  thinking.textContent = 'Echo is thinking…';
+  msgs.appendChild(thinking);
+  msgs.scrollTop = msgs.scrollHeight;
+
+  _echoChatHistory.push({ role: 'user', text });
+
+  try {
+    const res = await fetch('/api/echo-chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message:     text,
+        noteTitle:   document.getElementById('editor-title').value,
+        noteContent: document.getElementById('editor-body').innerText,
+        history:     _echoChatHistory.slice(-10)
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error');
+
+    let reply = data.reply;
+    msgs.removeChild(thinking);
+
+    // Detect full note rewrite
+    const editMatch = reply.match(/\[EDIT_START\]([\s\S]*?)\[EDIT_END\]/);
+    let editContent = null;
+    if (editMatch) {
+      editContent = editMatch[1].trim();
+      reply = reply.replace(/\[EDIT_START\][\s\S]*?\[EDIT_END\]/, '').trim();
+      if (!reply) reply = 'Here\'s the rewritten note. Click "Apply to note" to replace the editor content.';
+    }
+
+    _echoChatHistory.push({ role: 'echo', text: reply });
+
+    const echoBubble = document.createElement('div');
+    echoBubble.className = 'echo-msg-echo';
+    echoBubble.innerHTML = formatAIResponse(reply).replace('<div class="prose prose-invert max-w-none">', '').replace(/<\/div>$/, '');
+    msgs.appendChild(echoBubble);
+
+    if (editContent) {
+      const applyBtn = document.createElement('button');
+      applyBtn.className = 'echo-apply-btn';
+      applyBtn.textContent = '✓ Apply to note';
+      const captured = editContent;
+      applyBtn.onclick = () => applyEchoEdit(captured, applyBtn);
+      msgs.appendChild(applyBtn);
+    }
+  } catch (err) {
+    msgs.removeChild(thinking);
+    const errBubble = document.createElement('div');
+    errBubble.className = 'echo-msg-echo';
+    errBubble.style.color = '#f87171';
+    errBubble.textContent = 'Error: ' + err.message;
+    msgs.appendChild(errBubble);
+  }
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function applyEchoEdit(content, btn) {
+  document.getElementById('editor-body').innerText = content;
+  if (btn) { btn.textContent = '✓ Applied!'; btn.disabled = true; btn.style.opacity = '0.6'; }
+  const body = document.getElementById('editor-body');
+  body.style.outline = '2px solid #7c3aed';
+  setTimeout(() => { body.style.outline = ''; }, 1000);
+}
+
+function clearEchoChat() {
+  _echoChatHistory = [];
+  const msgs = document.getElementById('echo-messages');
+  msgs.innerHTML = '<div class="echo-msg-echo">Chat cleared. I still know your note — ask me anything!</div>';
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function openEditor(id) {
+  const user = _appUser;
+  if (!user) return;
+  const snap = await db.ref('notes/' + user.uid + '/' + id).once('value');
+  const note = snap.val();
+  if (!note) return;
+
+  currentEditingId = id;
+  document.getElementById('editor-title').value = note.title;
+  document.getElementById('editor-body').innerHTML = note.content;
+  document.getElementById('editor-meta').textContent = 'Last saved: ' + new Date(note.timestamp).toLocaleString();
+
+  // Reset Echo on each note open
+  _echoChatHistory = [];
+  const msgs = document.getElementById('echo-messages');
+  if (msgs) msgs.innerHTML = '<div class="echo-msg-echo">Hi! I\'m Echo. I know your note — ask me anything, or use the quick actions below.</div>';
+
+  const modal = document.getElementById('editor-modal');
+  modal.classList.remove('js-hidden');
+  modal.style.display = 'flex';
+}
+
+function closeEditor() {
+  // Close Echo sidebar if open
+  if (_echoSidebarOpen) {
+    _echoSidebarOpen = false;
+    const sidebar = document.getElementById('echo-sidebar');
+    const inner   = document.getElementById('editor-modal-inner');
+    const btn     = document.getElementById('echo-toggle-btn');
+    if (sidebar) sidebar.style.display = 'none';
+    if (inner)   inner.style.maxWidth  = '';
+    if (btn)     btn.classList.remove('active');
+  }
+  const modal = document.getElementById('editor-modal');
+  modal.classList.add('js-hidden');
+  modal.style.display = 'none';
+  currentEditingId = null;
+}
+
+async function saveEditorNote() {
+  if (!currentEditingId) return;
+  const user = _appUser;
+  if (!user) return;
+  const btn = event.target;
+  const snap = await db.ref('notes/' + user.uid + '/' + currentEditingId).once('value');
+  const note = snap.val();
+  if (!note) return;
+
+  const updated = { ...note,
+    title:     document.getElementById('editor-title').value || note.title,
+    content:   document.getElementById('editor-body').innerHTML,
+    timestamp: new Date().toISOString()
+  };
+  await db.ref('notes/' + user.uid + '/' + currentEditingId).set(updated);
+
+  document.getElementById('editor-meta').textContent = 'Last saved: ' + new Date().toLocaleString();
+  const orig = btn.innerHTML;
+  btn.innerHTML = '✓ Saved';
+  setTimeout(() => { btn.innerHTML = orig; loadMyStuff(); }, 1500);
+}
+
+function editorFormat(command) {
+  document.getElementById('editor-body').focus();
+  document.execCommand(command, false, null);
+}
+
+function editorHighlight() {
+  document.getElementById('editor-body').focus();
+  document.execCommand('hiliteColor', false, '#7C3AED55');
+}
+
+function changeFont(font) {
+  document.getElementById('editor-body').focus();
+  document.execCommand('fontName', false, font);
+}
+
+function changeSize(size) {
+  if (!size) return;
+  document.getElementById('editor-body').focus();
+  document.execCommand('fontSize', false, size);
+}
+
+function changeColor(color) {
+  document.getElementById('editor-body').focus();
+  document.execCommand('foreColor', false, color);
+}
+
+function insertDivider() {
+  document.getElementById('editor-body').focus();
+  document.execCommand('insertHTML', false, '<hr style="border:none;border-top:1px solid rgba(255,255,255,0.12);margin:1rem 0;">');
+}
+
+// ── CHART / MIND MAP ──────────────────────────────────────
+let currentChartType = 'bar';
+
+function openChartModal() {
+  const m = document.getElementById('chart-modal');
+  m.classList.remove('js-hidden');
+  m.style.display = 'flex';
+}
+
+function closeChartModal() {
+  const m = document.getElementById('chart-modal');
+  m.classList.add('js-hidden');
+  m.style.display = 'none';
+}
+
+function setChartType(type) {
+  currentChartType = type;
+  document.querySelectorAll('.chart-type-btn').forEach(b => b.classList.remove('active-ct'));
+  document.getElementById('ct-' + type).classList.add('active-ct');
+  document.getElementById('chart-data-inputs').classList.toggle('hidden', type === 'mind');
+  document.getElementById('mindmap-inputs').classList.toggle('hidden', type !== 'mind');
+}
+
+function insertChart() {
+  let svg = '';
+  if (currentChartType === 'bar')  svg = buildBarChart();
+  if (currentChartType === 'pie')  svg = buildPieChart();
+  if (currentChartType === 'mind') svg = buildMindMap();
+  if (!svg) return;
+
+  document.getElementById('editor-body').focus();
+  document.execCommand('insertHTML', false, '<div contenteditable="false" style="margin:1.25rem 0;">' + svg + '</div><p><br></p>');
+  closeChartModal();
+}
+
+function parseChartData() {
+  const raw = document.getElementById('chart-data-text').value.trim();
+  if (!raw) return [];
+  return raw.split('\n').map(line => {
+    const parts = line.split(',');
+    return { label: (parts[0] || '').trim(), value: parseFloat((parts[1] || '1').trim()) || 1 };
+  }).filter(d => d.label);
+}
+
+function buildBarChart() {
+  const data = parseChartData();
+  if (!data.length) { alert('Enter at least one row.'); return ''; }
+  const W = 480, H = 260, pad = 48, barGap = 12;
+  const max = Math.max(...data.map(d => d.value));
+  const barW = Math.max(20, Math.floor((W - pad * 2 - barGap * (data.length - 1)) / data.length));
+  const colors = ['#7c3aed','#a78bfa','#6d28d9','#8b5cf6','#c4b5fd','#4c1d95'];
+  let bars = '', labels = '', vals = '';
+  data.forEach((d, i) => {
+    const x = pad + i * (barW + barGap);
+    const bh = Math.round(((H - pad * 2) * d.value) / max);
+    const y = H - pad - bh;
+    const col = colors[i % colors.length];
+    bars   += `<rect x="${x}" y="${y}" width="${barW}" height="${bh}" rx="4" fill="${col}" opacity="0.9"/>`;
+    vals   += `<text x="${x + barW/2}" y="${y - 5}" text-anchor="middle" fill="#e4e4e7" font-size="10">${d.value}</text>`;
+    const lbl = d.label.length > 8 ? d.label.slice(0,7)+'…' : d.label;
+    labels += `<text x="${x + barW/2}" y="${H - pad + 14}" text-anchor="middle" fill="#a1a1aa" font-size="10">${lbl}</text>`;
+  });
+  return '<svg class="inserted-chart" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" style="background:#1a1825;">'
+    + '<line x1="'+pad+'" y1="'+(pad/2)+'" x2="'+pad+'" y2="'+(H-pad)+'" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>'
+    + '<line x1="'+pad+'" y1="'+(H-pad)+'" x2="'+(W-pad/2)+'" y2="'+(H-pad)+'" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>'
+    + bars + vals + labels
+    + '</'+'svg>';
+}
+
+function buildPieChart() {
+  const data = parseChartData();
+  if (!data.length) { alert('Enter at least one row.'); return ''; }
+  const total = data.reduce((s, d) => s + d.value, 0);
+  const colors = ['#7c3aed','#a78bfa','#6d28d9','#8b5cf6','#c4b5fd','#4c1d95','#ddd6fe'];
+  const cx = 140, cy = 130, r = 100, W = 420, H = 260;
+  let slices = '', legend = '', angle = -Math.PI / 2;
+  data.forEach((d, i) => {
+    const sweep = (d.value / total) * 2 * Math.PI;
+    const x1 = cx + r * Math.cos(angle), y1 = cy + r * Math.sin(angle);
+    const x2 = cx + r * Math.cos(angle + sweep), y2 = cy + r * Math.sin(angle + sweep);
+    const large = sweep > Math.PI ? 1 : 0;
+    const col = colors[i % colors.length];
+    slices += `<path d="M${cx},${cy} L${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 ${large},1 ${x2.toFixed(1)},${y2.toFixed(1)} Z" fill="${col}" opacity="0.9" stroke="#13111C" stroke-width="1.5"/>`;
+    const ly = 36 + i * 20;
+    legend += `<rect x="290" y="${ly - 9}" width="12" height="12" rx="2" fill="${col}"/>`;
+    const pct = Math.round((d.value / total) * 100);
+    const lbl = d.label.length > 14 ? d.label.slice(0,13)+'…' : d.label;
+    legend += `<text x="308" y="${ly}" fill="#d4d4d8" font-size="11">${lbl} (${pct}%)</text>`;
+    angle += sweep;
+  });
+  return '<svg class="inserted-chart" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" style="background:#1a1825;">'
+    + slices + legend
+    + '</'+'svg>';
+}
+
+function buildMindMap() {
+  const center = (document.getElementById('mm-center').value || 'Topic').trim();
+  const branches = document.getElementById('mm-branches').value.trim().split('\n').map(s => s.trim()).filter(Boolean);
+  if (!branches.length) { alert('Add at least one branch.'); return ''; }
+  const W = 520, H = 300, cx = W/2, cy = H/2, r = 95, nodeR = 38;
+  const colors = ['#7c3aed','#8b5cf6','#a78bfa','#6d28d9','#c4b5fd','#4c1d95'];
+  let lines = '', nodes = '';
+  branches.forEach((b, i) => {
+    const angle = (2 * Math.PI * i / branches.length) - Math.PI / 2;
+    const bx = cx + r * Math.cos(angle), by = cy + r * Math.sin(angle);
+    const col = colors[i % colors.length];
+    lines += `<line x1="${cx}" y1="${cy}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}" stroke="${col}" stroke-width="2" opacity="0.6"/>`;
+    nodes += `<ellipse cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" rx="${nodeR}" ry="18" fill="${col}" opacity="0.85"/>`;
+    const lbl = b.length > 12 ? b.slice(0,11)+'…' : b;
+    nodes += `<text x="${bx.toFixed(1)}" y="${(by+0.5).toFixed(1)}" text-anchor="middle" dominant-baseline="middle" fill="white" font-size="10" font-weight="600">${lbl}</text>`;
+  });
+  var cLabel = center.length > 10 ? center.slice(0,9)+'...' : center;
+  return '<svg class="inserted-chart" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" style="background:#1a1825;">'
+    + lines
+    + '<circle cx="'+cx+'" cy="'+cy+'" r="48" fill="#7c3aed"/>'
+    + '<text x="'+cx+'" y="'+cy+'" text-anchor="middle" dominant-baseline="middle" fill="white" font-size="12" font-weight="700">'+cLabel+'</text>'
+    + nodes
+    + '</'+'svg>';
+}
+
+async function deleteNote(id) {
+  if (!confirm('Delete this note? This cannot be undone.')) return;
+  const user = _appUser;
+  if (!user) return;
+  await db.ref('notes/' + user.uid + '/' + id).remove();
+  loadMyStuff();
+}
+
+function deleteNoteFromEditor() {
+  if (!currentEditingId) return;
+  if (!confirm('Delete this note? This cannot be undone.')) return;
+  deleteNote(currentEditingId);
+  closeEditor();
+}
+async function prepareAndGenerateCards() {
+  const notesText = document.getElementById('note-output').innerText;
+  
+  // Validation logic from your original code
+  if (notesText.includes('Echo is waiting') || notesText.length < 20) {
+    alert("Wait! You need to generate some notes in the Smart Editor first.");
+    showPage('pg-notes');
+    return;
+  }
+
+  const container = document.getElementById('cards-container');
+  const btn = document.getElementById('btn-gen-cards');
+  
+  // UI State: Loading
+  btn.disabled = true;
+  btn.innerHTML = "Echo is Studying...";
+  container.innerHTML = '<div class="col-span-full text-center py-20 text-zinc-500">Echo is extracting core concepts...</div>';
+
+  try {
+    // Firebase/Linux standard fetch call
+    const response = await fetch('/api/flashcards', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notesContent: notesText })
+    });
+
+    if (!response.ok) throw new Error('Generation failed');
+
+    const res = await response.json();
+    const cards = res.flashcards;
+
+    btn.disabled = false;
+    btn.innerHTML = "✨ AI Generate from Notes";
+    
+    if (!cards || cards.length === 0) {
+      container.innerHTML = '<div class="col-span-full text-center text-zinc-500">No cards could be generated.</div>';
+      return;
+    }
+
+    // Modernized card rendering using your established styles
+    container.innerHTML = cards.map(c => `
+      <div class="action-card-landing group relative border-l-4 border-l-pink-500 cursor-pointer transition-all duration-300" 
+           onclick="toggleCard(this)">
+        <div class="card-content">
+          <div class="text-[10px] font-bold text-pink-500 uppercase tracking-widest mb-2">Question</div>
+          <div class="text-white font-bold mb-4 card-front">${c.front}</div>
+          <div class="card-back hidden pt-4 border-t border-white/5">
+            <div class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Answer</div>
+            <div class="text-zinc-400 text-sm">${c.back}</div>
+          </div>
+        </div>
+        <div class="text-[9px] text-zinc-600 mt-4 uppercase">Click to reveal answer</div>
+      </div>
+    `).join('');
+
+  } catch (err) {
+    btn.disabled = false;
+    btn.innerHTML = "AI Generate";
+    container.innerHTML = `<div class="col-span-full text-red-400 text-center p-4">Error: ${err.message}</div>`;
+    console.error("Study Center Error:", err);
+  }
+}
+
+// Simple helper to handle the flip effect in a standard browser environment
+function toggleCard(cardElement) {
+  const back = cardElement.querySelector('.card-back');
+  back.classList.toggle('hidden');
+}
+    // Add this line to make the flip animation work
+    var s=document.createElement('style');s.textContent='.flipped .card-front{opacity:0.3;}.flipped .card-back{display:block!important;}';document.head.appendChild(s);
+    document.addEventListener('DOMContentLoaded', () => {
+    if (window.lucide) {
+        lucide.createIcons();
+    }
+});
+
+// ── SETTINGS ─────────────────────────────────────────────────────────────────
+
+function loadSettings() {
+  const user = _appUser;
+  const s    = JSON.parse(localStorage.getItem('bid_settings') || '{}');
+
+  // Appearance toggles always come from localStorage (applied pre-paint)
+  document.getElementById('sett-light-mode').checked    = !!s.lightMode;
+  document.getElementById('sett-dyslexia-font').checked = !!s.dyslexiaFont;
+  if (s.fontSize) document.getElementById('sett-font-size').value = s.fontSize;
+
+  if (user) {
+    // Pull full profile from RTDB, merge into form fields
+    db.ref('users/' + user.uid).once('value').then(snap => {
+      const p = snap.val() || {};
+      const avatarPreview = document.getElementById('sett-avatar-preview');
+      const photoUrl = p.photoUrl || s.photoUrl || user.photoURL || '';
+      if (photoUrl) { avatarPreview.src = photoUrl; document.getElementById('sett-photo-url').value = photoUrl; }
+
+      document.getElementById('sett-display-name').value = p.displayName || s.displayName || user.displayName || '';
+      document.getElementById('sett-email').value        = p.email       || s.email       || user.email       || '';
+      if (p.username) { document.getElementById('sett-username').value = p.username; }
+      if (p.bio)      { document.getElementById('sett-bio').value = p.bio; document.getElementById('bio-char-count').textContent = '(' + p.bio.length + '/160)'; }
+      if (p.status)   { document.getElementById('sett-status').value = p.status; }
+      if (p.courses)  { document.getElementById('sett-courses').value = p.courses; }
+      if (p.studyGoal){ document.getElementById('sett-study-goal').value = p.studyGoal; }
+    }).catch(() => {});
+  } else {
+    // Fallback to localStorage only
+    const avatarPreview = document.getElementById('sett-avatar-preview');
+    if (s.photoUrl) { avatarPreview.src = s.photoUrl; document.getElementById('sett-photo-url').value = s.photoUrl; }
+    document.getElementById('sett-display-name').value = s.displayName || '';
+    document.getElementById('sett-email').value        = s.email       || '';
+    if (s.courses)   document.getElementById('sett-courses').value   = s.courses;
+    if (s.studyGoal) document.getElementById('sett-study-goal').value = s.studyGoal;
+  }
+}
+
+async function saveProfile(btn) {
+  const user = _appUser;
+  if (!user) { alert('You must be signed in to save your profile.'); return; }
+
+  const s           = JSON.parse(localStorage.getItem('bid_settings') || '{}');
+  const photoUrl    = document.getElementById('sett-photo-url').value.trim();
+  const displayName = document.getElementById('sett-display-name').value.trim();
+  const email       = document.getElementById('sett-email').value.trim();
+  const newUsername = document.getElementById('sett-username').value.trim().toLowerCase();
+  const bio         = document.getElementById('sett-bio').value.trim();
+  const status      = document.getElementById('sett-status').value.trim();
+
+  // Update localStorage
+  if (photoUrl)    s.photoUrl    = photoUrl;
+  if (displayName) s.displayName = displayName;
+  if (email)       s.email       = email;
+  localStorage.setItem('bid_settings', JSON.stringify(s));
+
+  // Sync sidebar
+  if (displayName) { const el = document.getElementById('sidebar-username'); if (el) el.textContent = displayName; }
+  if (s.photoUrl) {
+    const av = document.getElementById('sidebar-avatar');
+    if (av) { av.src = s.photoUrl; av.classList.remove('hidden'); }
+    document.getElementById('sett-avatar-preview').src = s.photoUrl;
+  }
+  if (displayName) user.updateProfile({ displayName }).catch(() => {});
+
+  // Build base RTDB update — bio/status/displayName always save regardless of username outcome
+  const update = {};
+  if (displayName) update.displayName = displayName;
+  if (s.photoUrl)  update.photoUrl    = s.photoUrl;
+  if (email)       update.email       = email;
+  update.bio    = bio;
+  update.status = status;
+
+  // Username claiming — handled separately so a taken username doesn't block bio/status save
+  const statusEl = document.getElementById('username-status');
+  if (newUsername && /^[a-z0-9_]{3,20}$/.test(newUsername)) {
+    try {
+      const snap = await db.ref('usernames/' + newUsername).once('value');
+      if (snap.exists() && (snap.val()?.uid || snap.val()) !== user.uid) {
+        statusEl.textContent = '✗ Username taken — other info still saved';
+        statusEl.className   = 'availability-err text-xs font-semibold';
+      } else {
+        const oldSnap    = await db.ref('users/' + user.uid + '/username').once('value');
+        const oldUsername = oldSnap.val();
+        if (oldUsername && oldUsername !== newUsername) {
+          await db.ref('usernames/' + oldUsername).remove();
+        }
+        await db.ref('usernames/' + newUsername).set({ uid: user.uid, email: user.email || '' });
+        update.username = newUsername;
+        statusEl.textContent = '✓ Username saved';
+        statusEl.className   = 'availability-ok text-xs font-semibold';
+      }
+    } catch(e) {
+      statusEl.textContent = '✗ Username error — other info still saved';
+      statusEl.className   = 'availability-err text-xs font-semibold';
+    }
+  }
+
+  // Always write bio/status/displayName to RTDB
+  try {
+    await db.ref('users/' + user.uid).update(update);
+    flashSettBtn(btn);
+  } catch(e) {
+    if (btn) { btn.innerHTML = '✗ Save failed — check console'; setTimeout(() => { btn.innerHTML = 'Save Profile'; }, 3000); }
+    console.error('saveProfile RTDB error:', e);
+  }
+}
+
+function saveStudyPrefs() {
+  const user = auth.currentUser;
+  const s    = JSON.parse(localStorage.getItem('bid_settings') || '{}');
+  s.courses   = document.getElementById('sett-courses').value.trim();
+  s.studyGoal = document.getElementById('sett-study-goal').value;
+  localStorage.setItem('bid_settings', JSON.stringify(s));
+  if (user) {
+    db.ref('users/' + user.uid).update({ courses: s.courses, studyGoal: s.studyGoal }).catch(() => {});
+  }
+  flashSettBtn(event.target);
+}
+
+function applyTheme(isLight) {
+  document.documentElement.setAttribute('data-theme', isLight ? 'light' : 'dark');
+  const s = JSON.parse(localStorage.getItem('bid_settings') || '{}');
+  s.lightMode = isLight;
+  localStorage.setItem('bid_settings', JSON.stringify(s));
+}
+
+function applyDyslexiaFont(isOn) {
+  document.documentElement.classList.toggle('dyslexia-font', isOn);
+  const s = JSON.parse(localStorage.getItem('bid_settings') || '{}');
+  s.dyslexiaFont = isOn;
+  localStorage.setItem('bid_settings', JSON.stringify(s));
+}
+
+function applyFontSize(size) {
+  document.documentElement.style.fontSize = size + 'px';
+  const s = JSON.parse(localStorage.getItem('bid_settings') || '{}');
+  s.fontSize = size;
+  localStorage.setItem('bid_settings', JSON.stringify(s));
+}
+
+function updateAvatarPreview() {
+  const url = document.getElementById('sett-photo-url').value.trim();
+  if (url) document.getElementById('sett-avatar-preview').src = url;
+}
+
+function clearAllNotes() {
+  if (!confirm('Delete ALL saved notes and roadmaps? This cannot be undone.')) return;
+  localStorage.removeItem(vaultKey());
+  const btn = event.target;
+  const orig = btn.innerHTML;
+  btn.innerHTML = '✓ Cleared';
+  setTimeout(() => { btn.innerHTML = orig; }, 2000);
+}
+
+function flashSettBtn(btn) {
+  const orig = btn.innerHTML;
+  const origBg = btn.style.background;
+  btn.innerHTML = '✓ Saved!';
+  btn.style.background = 'linear-gradient(135deg,#10b981,#059669)';
+  setTimeout(() => { btn.innerHTML = orig; btn.style.background = origBg; }, 2000);
+}
+
+// ── PROFILE PERSISTENCE ───────────────────────────────────────────────────────
+
+function _migrateOldVault() {
+  // One-time migration: move notes from the old shared 'bid_vault' key
+  // into the current user's scoped key, then delete the old key.
+  try {
+    const old = localStorage.getItem('bid_vault');
+    if (!old) return;
+    const oldNotes = JSON.parse(old);
+    if (!Array.isArray(oldNotes) || oldNotes.length === 0) { localStorage.removeItem('bid_vault'); return; }
+    const existing = JSON.parse(localStorage.getItem(vaultKey()) || '[]');
+    const existingIds = new Set(existing.map(n => n.id));
+    const merged = [...oldNotes.filter(n => !existingIds.has(n.id)), ...existing];
+    localStorage.setItem(vaultKey(), JSON.stringify(merged));
+    localStorage.removeItem('bid_vault');
+  } catch(_) {}
+}
+
+async function _migrateLocalNotesToFirebase(user) {
+  const key = 'bid_vault_' + user.uid;
+  const raw = localStorage.getItem(key);
+  if (!raw) return;
+  try {
+    const notes = JSON.parse(raw);
+    if (!Array.isArray(notes) || notes.length === 0) { localStorage.removeItem(key); return; }
+    const writes = {};
+    notes.forEach(n => { writes[n.id] = n; });
+    await db.ref('notes/' + user.uid).update(writes);
+    localStorage.removeItem(key);
+  } catch(_) {}
+}
+
+function loadUserProfile(user) {
+  _migrateOldVault();
+  _migrateLocalNotesToFirebase(user);
+  db.ref('users/' + user.uid).once('value').then(async snap => {
+    const p = snap.val();
+
+    // Auto-assign a username if missing (first login OR existing user with no username)
+    async function ensureUsername(currentUsername) {
+      if (currentUsername) return currentUsername;
+      const base = ((user.displayName || user.email || 'user')
+        .toLowerCase().replace(/@.*/, '').replace(/[^a-z0-9]/g, '_')
+        .replace(/_+/g, '_').replace(/^_|_$/g, '').slice(0, 16)) || 'user';
+      let username = base, attempt = 0;
+      while (attempt < 10) {
+        const taken = await db.ref('usernames/' + username).once('value');
+        if (!taken.exists()) break;
+        username = base.slice(0, 13) + '_' + Math.floor(Math.random() * 900 + 100);
+        attempt++;
+      }
+      if (attempt === 10) username = 'user' + Date.now().toString().slice(-6);
+      await db.ref('usernames/' + username).set({ uid: user.uid, email: user.email || '' });
+      await db.ref('users/' + user.uid + '/username').set(username);
+      return username;
+    }
+
+    if (!p) {
+      // First login — seed profile then auto-assign username
+      await db.ref('users/' + user.uid).set({
+        displayName: user.displayName || '',
+        photoUrl:    user.photoURL    || '',
+        email:       user.email       || '',
+        createdAt:   Date.now()
+      }).catch(() => {});
+      await ensureUsername(null);
+    } else {
+      // Merge RTDB data into localStorage cache
+      const s = JSON.parse(localStorage.getItem('bid_settings') || '{}');
+      if (p.displayName) s.displayName = p.displayName;
+      if (p.photoUrl)    s.photoUrl    = p.photoUrl;
+      if (p.courses)     s.courses     = p.courses;
+      if (p.studyGoal)   s.studyGoal   = p.studyGoal;
+      localStorage.setItem('bid_settings', JSON.stringify(s));
+
+      // Update sidebar with RTDB values (more up-to-date than Firebase Auth)
+      const nameEl = document.getElementById('sidebar-username');
+      if (nameEl && p.displayName) nameEl.textContent = p.displayName;
+      const avatarEl = document.getElementById('sidebar-avatar');
+      if (avatarEl && p.photoUrl) { avatarEl.src = p.photoUrl; avatarEl.classList.remove('hidden'); }
+
+      // Backfill username for existing accounts that don't have one yet
+      await ensureUsername(p.username || null);
+
+      // Upgrade old-format usernames/ entries (plain UID string → {uid, email})
+      // so that username-based login can read the email without being authenticated
+      if (p.username && user.email) {
+        const unSnap = await db.ref('usernames/' + p.username).once('value');
+        if (unSnap.exists() && typeof unSnap.val() === 'string') {
+          await db.ref('usernames/' + p.username).set({ uid: user.uid, email: user.email }).catch(() => {});
+        }
+      }
+    }
+    listenForReceivedNotes(user.uid);
+  }).catch(() => {});
+}
+
+// ── USERNAME AVAILABILITY CHECK ───────────────────────────────────────────────
+
+let _usernameTimer = null;
+function debounceCheckUsername(val) {
+  clearTimeout(_usernameTimer);
+  const statusEl = document.getElementById('username-status');
+  const v = val.trim().toLowerCase();
+  if (!v) { statusEl.textContent = ''; return; }
+  if (!/^[a-z0-9_]{3,20}$/.test(v)) {
+    statusEl.textContent = '✗ Invalid format';
+    statusEl.className   = 'availability-err text-xs font-semibold';
+    return;
+  }
+  statusEl.textContent = 'Checking…';
+  statusEl.className   = 'text-xs font-semibold text-zinc-500';
+  _usernameTimer = setTimeout(() => {
+    const user = auth.currentUser;
+    db.ref('usernames/' + v).once('value').then(snap => {
+      if (!snap.exists() || (snap.val()?.uid || snap.val()) === (user && user.uid)) {
+        statusEl.textContent = '✓ Available';
+        statusEl.className   = 'availability-ok text-xs font-semibold';
+      } else {
+        statusEl.textContent = '✗ Taken';
+        statusEl.className   = 'availability-err text-xs font-semibold';
+      }
+    }).catch(() => { statusEl.textContent = ''; });
+  }, 500);
+}
+
+// ── FRIENDS ───────────────────────────────────────────────────────────────────
+
+let _friendsCache = {}; // { uid: { username, displayName, photoUrl, status } }
+let _friendListeners = [];
+
+function loadFriendsPage() {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  // Detach any old listeners
+  _friendListeners.forEach(({ ref, fn }) => ref.off('value', fn));
+  _friendListeners = [];
+
+  // Incoming friend requests
+  const reqRef = db.ref('friendRequests/' + user.uid);
+  const reqFn = snap => {
+    const data    = snap.val() || {};
+    const list    = document.getElementById('friends-requests-list');
+    const badge   = document.getElementById('req-badge');
+    const entries = Object.entries(data);
+    badge.textContent = entries.length;
+    entries.length ? badge.classList.remove('hidden') : badge.classList.add('hidden');
+    list.innerHTML = entries.length === 0
+      ? '<div class="text-zinc-600 italic text-sm py-8 text-center">No incoming requests.</div>'
+      : entries.map(([fromUid, r]) => `
+        <div class="social-card flex items-center gap-4">
+          <img src="${escHtml(r.fromPhotoUrl||'')}" class="w-10 h-10 rounded-full object-cover border border-white/10" onerror="this.src='https://ui-avatars.com/api/?background=7c3aed&color=fff&name=${encodeURIComponent(r.fromDisplayName||'U')}'">
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-white truncate">${escHtml(r.fromDisplayName||'User')}</div>
+            <div class="username-tag">@${escHtml(r.fromUsername||'?')}</div>
+          </div>
+          <div class="flex gap-2 flex-shrink-0">
+            <button onclick="acceptFriendRequest('${fromUid}',${JSON.stringify(r).replace(/</g,'\\u003c').replace(/"/g,'&quot;')})" class="sett-save-btn" style="padding:7px 14px;font-size:0.78rem;">Accept</button>
+            <button onclick="declineFriendRequest('${fromUid}')" style="padding:7px 14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#f87171;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">Decline</button>
+          </div>
+        </div>`).join('');
+  };
+  reqRef.on('value', reqFn);
+  _friendListeners.push({ ref: reqRef, fn: reqFn });
+
+  // My friends list
+  const friRef = db.ref('friends/' + user.uid);
+  const friFn = snap => {
+    const data    = snap.val() || {};
+    _friendsCache = data;
+    const list    = document.getElementById('friends-friends-list');
+    const entries = Object.entries(data);
+    list.innerHTML = entries.length === 0
+      ? '<div class="text-zinc-600 italic text-sm py-8 text-center col-span-full">No friends yet. Search for someone above!</div>'
+      : entries.map(([, f]) => `
+        <div class="social-card">
+          <div class="flex items-center gap-3">
+            <img src="${escHtml(f.photoUrl||'')}" class="w-10 h-10 rounded-full object-cover border border-white/10 flex-shrink-0" onerror="this.src='https://ui-avatars.com/api/?background=7c3aed&color=fff&name=${encodeURIComponent(f.displayName||'U')}'">
+            <div class="min-w-0">
+              <div class="font-semibold text-white truncate">${escHtml(f.displayName||'User')}</div>
+              <div class="username-tag">@${escHtml(f.username||'?')}</div>
+            </div>
+          </div>
+          ${f.status ? `<div class="text-zinc-400 text-xs mt-2 italic">${escHtml(f.status)}</div>` : ''}
+        </div>`).join('');
+  };
+  friRef.on('value', friFn);
+  _friendListeners.push({ ref: friRef, fn: friFn });
+}
+
+function switchFriendTab(tab) {
+  const show = tab === 'requests' ? 'friends-requests-panel' : 'friends-friends-panel';
+  const hide = tab === 'requests' ? 'friends-friends-panel'  : 'friends-requests-panel';
+  document.getElementById(show).classList.remove('hidden');
+  document.getElementById(hide).classList.add('hidden');
+  document.getElementById('tab-requests').classList.toggle('active', tab === 'requests');
+  document.getElementById('tab-friends').classList.toggle('active', tab === 'friends');
+}
+
+async function searchUser() {
+  const user = auth.currentUser;
+  if (!user) return;
+  const input    = document.getElementById('friend-search-input').value.trim().toLowerCase();
+  const resultEl = document.getElementById('friend-search-result');
+  if (!input) return;
+  resultEl.innerHTML = '<div class="text-zinc-500 text-sm">Searching…</div>';
+  try {
+    const uidSnap = await db.ref('usernames/' + input).once('value');
+    if (!uidSnap.exists()) { resultEl.innerHTML = '<div class="text-zinc-500 text-sm">No user found with that username.</div>'; return; }
+    const entry = uidSnap.val();
+    const foundUid = (entry && typeof entry === 'object') ? entry.uid : entry;
+    if (foundUid === user.uid) { resultEl.innerHTML = '<div class="text-zinc-500 text-sm">That\'s you! 😄</div>'; return; }
+
+    let p = {};
+    try { const pSnap = await db.ref('users/' + foundUid).once('value'); p = pSnap.val() || {}; } catch(_) {}
+
+    let actionBtn = `<button onclick="sendFriendRequest('${foundUid}',this)" class="sett-save-btn" style="padding:7px 14px;font-size:0.78rem;">Add Friend</button>`;
+    try {
+      const friendSnap = await db.ref('friends/' + user.uid + '/' + foundUid).once('value');
+      if (friendSnap.exists()) actionBtn = '<span style="padding:7px 14px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);color:#34d399;border-radius:10px;font-size:0.78rem;font-weight:700;">Friends ✓</span>';
+    } catch(_) {}
+    try {
+      const reqSnap = await db.ref('friendRequests/' + foundUid + '/' + user.uid).once('value');
+      if (reqSnap.exists()) actionBtn = '<span style="padding:7px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#a1a1aa;border-radius:10px;font-size:0.78rem;font-weight:700;">Request Sent</span>';
+    } catch(_) {}
+    resultEl.innerHTML = `
+      <div class="social-card flex items-center gap-4 mt-2">
+        <img src="${escHtml(p.photoUrl||'')}" class="w-12 h-12 rounded-full object-cover border-2 border-violet-500/40 flex-shrink-0" onerror="this.src='https://ui-avatars.com/api/?background=7c3aed&color=fff&name=${encodeURIComponent(p.displayName||'U')}'">
+        <div class="flex-1 min-w-0">
+          <div class="font-bold text-white">${escHtml(p.displayName||'User')}</div>
+          <div class="username-tag">@${escHtml(input)}</div>
+          ${p.bio ? `<div class="text-zinc-500 text-xs mt-1">${escHtml(p.bio.slice(0,100))}${p.bio.length>100?'…':''}</div>` : ''}
+          ${p.status ? `<div class="text-zinc-400 text-xs italic mt-0.5">${escHtml(p.status)}</div>` : ''}
+        </div>
+        ${actionBtn}
+      </div>`;
+  } catch(_) { resultEl.innerHTML = '<div class="text-red-400 text-sm">Error searching. Try again.</div>'; }
+}
+
+async function sendFriendRequest(toUid, btn) {
+  const user = auth.currentUser;
+  if (!user) return;
+  const mySnap = await db.ref('users/' + user.uid).once('value');
+  const me     = mySnap.val() || {};
+  await db.ref('friendRequests/' + toUid + '/' + user.uid).set({
+    fromUsername:    me.username    || '',
+    fromDisplayName: me.displayName || user.displayName || user.email || 'User',
+    fromPhotoUrl:    me.photoUrl    || user.photoURL    || '',
+    timestamp:       Date.now()
+  });
+  if (btn) btn.outerHTML = '<span style="padding:7px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#a1a1aa;border-radius:10px;font-size:0.78rem;font-weight:700;">Request Sent</span>';
+}
+
+async function acceptFriendRequest(fromUid, reqData) {
+  const user = auth.currentUser;
+  if (!user) return;
+  const now = Date.now();
+  let me = {}, them = {};
+  try { me   = (await db.ref('users/' + user.uid).once('value')).val() || {}; } catch(_) {}
+  try { them = (await db.ref('users/' + fromUid).once('value')).val()  || {}; } catch(_) {}
+  await Promise.all([
+    db.ref('friends/' + user.uid + '/' + fromUid).set({ username: them.username || reqData.fromUsername || '', displayName: them.displayName || reqData.fromDisplayName || 'User', photoUrl: them.photoUrl || reqData.fromPhotoUrl || '', status: them.status || '', since: now }),
+    db.ref('friends/' + fromUid + '/' + user.uid).set({ username: me.username || '', displayName: me.displayName || user.displayName || 'User', photoUrl: me.photoUrl || user.photoURL || '', status: me.status || '', since: now }).catch(() => {}),
+    db.ref('friendRequests/' + user.uid + '/' + fromUid).remove()
+  ]);
+}
+
+function declineFriendRequest(fromUid) {
+  const user = auth.currentUser;
+  if (user) db.ref('friendRequests/' + user.uid + '/' + fromUid).remove();
+}
+
+// ── STUDY GROUPS ──────────────────────────────────────────────────────────────
+
+let _currentGroupId   = null;
+let _groupPostsRef    = null;
+let _borrowReqRef     = null;
+
+function loadGroupsPage() {
+  const user = auth.currentUser;
+  if (!user) return;
+  document.getElementById('groups-list-view').classList.remove('hidden');
+  document.getElementById('group-detail-view').classList.add('hidden');
+
+  db.ref('userGroups/' + user.uid).once('value').then(async snap => {
+    const ids  = Object.keys(snap.val() || {});
+    const list = document.getElementById('groups-list');
+    if (ids.length === 0) {
+      list.innerHTML = '<div class="text-zinc-600 italic text-sm py-16 text-center col-span-full">No groups yet. Create one or ask a friend to add you!</div>';
+      return;
+    }
+    const groups = await Promise.all(ids.map(id => db.ref('studyGroups/' + id).once('value').then(s => ({ id, ...(s.val()||{}) }))));
+    list.innerHTML = groups.filter(g => g.name).map(g => `
+      <div class="social-card cursor-pointer" onclick="openGroup('${g.id}')">
+        <div class="flex items-start justify-between gap-3 mb-3">
+          <div class="min-w-0">
+            <div class="font-bold text-white text-lg truncate">${escHtml(g.name)}</div>
+            <div class="text-zinc-500 text-sm mt-0.5 truncate">${escHtml(g.description||'')}</div>
+          </div>
+          <span class="group-badge flex-shrink-0">${Object.keys(g.members||{}).length} members</span>
+        </div>
+        <button class="text-xs font-bold text-violet-400 hover:text-violet-300 transition-colors">Open Group →</button>
+      </div>`).join('');
+  }).catch(() => {});
+}
+
+async function openGroup(groupId) {
+  const user = auth.currentUser;
+  if (!user) return;
+  _currentGroupId = groupId;
+
+  document.getElementById('groups-list-view').classList.add('hidden');
+  document.getElementById('group-detail-view').classList.remove('hidden');
+
+  const gSnap = await db.ref('studyGroups/' + groupId).once('value');
+  const g     = gSnap.val() || {};
+  document.getElementById('group-detail-name').textContent = g.name        || 'Group';
+  document.getElementById('group-detail-desc').textContent = g.description || '';
+
+  // Detach previous listeners
+  if (_groupPostsRef)  { _groupPostsRef.off();  _groupPostsRef  = null; }
+  if (_borrowReqRef)   { _borrowReqRef.off();   _borrowReqRef   = null; }
+
+  // Real-time posts feed
+  _groupPostsRef = db.ref('groupPosts/' + groupId).orderByChild('timestamp');
+  _groupPostsRef.on('value', snap => {
+    const feed    = document.getElementById('group-posts-feed');
+    const entries = Object.entries(snap.val() || {}).sort((a,b) => b[1].timestamp - a[1].timestamp);
+    feed.innerHTML = entries.length === 0
+      ? '<div class="text-zinc-600 italic text-sm py-16 text-center">No posts yet. Be the first to share something!</div>'
+      : entries.map(([pid, p]) => renderPost(groupId, pid, p, user.uid)).join('');
+  });
+
+  // Real-time borrow requests addressed to me
+  _borrowReqRef = db.ref('borrowRequests/' + user.uid);
+  _borrowReqRef.on('value', snap => {
+    const panel   = document.getElementById('borrow-requests-panel');
+    const reqList = document.getElementById('borrow-requests-list');
+    const pending = Object.entries(snap.val() || {}).filter(([, r]) => r.status === 'pending' && r.groupId === groupId);
+    if (pending.length === 0) { panel.classList.add('hidden'); return; }
+    panel.classList.remove('hidden');
+    reqList.innerHTML = pending.map(([reqId, r]) => `
+      <div class="flex items-center gap-3 py-3 border-b border-white/5 last:border-0">
+        <div class="flex-1 text-sm"><span class="font-semibold text-white">@${escHtml(r.requesterUsername||'?')}</span> wants to borrow <span class="text-violet-400 font-semibold">"${escHtml(r.postTitle||'your post')}"</span></div>
+        <button onclick="approveBorrow('${reqId}','${r.requesterUid}','${groupId}','${r.postId}')" class="sett-save-btn" style="padding:6px 14px;font-size:0.78rem;flex-shrink:0;">Approve</button>
+      </div>`).join('');
+  });
+}
+
+function renderPost(groupId, postId, p, myUid) {
+  const likeCount  = Object.keys(p.likes||{}).length;
+  const iLiked     = p.likes && p.likes[myUid];
+  const isMine     = p.authorUid === myUid;
+  const timeStr    = p.timestamp ? new Date(p.timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
+  const typeColors = { note:'#c4b5fd', roadmap:'#6ee7b7', text:'#a5b4fc' };
+  const typeBgs    = { note:'rgba(124,58,237,0.15)', roadmap:'rgba(16,185,129,0.12)', text:'rgba(99,102,241,0.12)' };
+  const contentTxt = (p.content||'').replace(/<[^>]+>/g,'');
+  const preview    = contentTxt.slice(0,250);
+  const hasMore    = contentTxt.length > 250;
+  const safeContent = JSON.stringify(p.content||'').replace(/</g,'\\u003c');
+
+  const accentColors = { note:'#7c3aed', roadmap:'#10b981', text:'#6366f1' };
+  const accentBorder = accentColors[p.type] || accentColors.text;
+
+  return `<div class="post-card" id="post-card-${postId}" style="border-left-color:${accentBorder};">
+    <div class="flex items-center gap-3 mb-4">
+      <img src="${escHtml(p.authorPhotoUrl||'')}" class="w-9 h-9 rounded-full object-cover border border-white/10 flex-shrink-0" onerror="this.src='https://ui-avatars.com/api/?background=7c3aed&color=fff&name=${encodeURIComponent(p.authorUsername||'U')}'">
+      <div class="flex-1 min-w-0">
+        <span class="font-bold text-white text-sm">@${escHtml(p.authorUsername||'user')}</span>
+      </div>
+      <span class="text-zinc-600 text-xs flex-shrink-0">${timeStr}</span>
+      <span class="group-badge" style="background:${typeBgs[p.type]||typeBgs.text};color:${typeColors[p.type]||typeColors.text};">${p.type||'text'}</span>
+    </div>
+    ${p.title ? `<div class="font-bold text-white text-base mb-2">${escHtml(p.title)}</div>` : ''}
+    <div class="text-zinc-400 text-sm mb-5 leading-relaxed" id="post-preview-${postId}">${escHtml(preview)}${hasMore?`… <button onclick="expandPost('${postId}',${safeContent})" class="text-violet-400 font-semibold hover:text-violet-300 text-xs">Show more</button>`:''}
+    </div>
+    <div class="flex items-center gap-2 pt-3 border-t border-white/5 flex-wrap">
+      <button onclick="likePost('${groupId}','${postId}')" class="like-btn${iLiked?' liked':''}">♥ ${likeCount}</button>
+      <button onclick="toggleComments('${groupId}','${postId}')" class="comment-btn">💬 <span id="cmt-lbl-${postId}">Comments</span></button>
+      ${!isMine?`<button onclick="requestBorrow('${p.authorUid}','${groupId}','${postId}',${JSON.stringify(p.title||'this post').replace(/</g,'\\u003c')})" class="borrow-btn">📥 Borrow</button>`:''}
+    </div>
+    <div id="comments-${postId}" class="hidden mt-4 pt-4 border-t border-white/5">
+      <div id="cmt-list-${postId}" class="space-y-2 mb-3 text-sm"></div>
+      <div class="flex gap-2">
+        <input type="text" id="cmt-input-${postId}" placeholder="Add a comment…" class="settings-input" style="font-size:0.8rem;" onkeydown="if(event.key==='Enter')addComment('${groupId}','${postId}')">
+        <button onclick="addComment('${groupId}','${postId}')" style="padding:8px 14px;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:10px;color:#c4b5fd;font-size:0.8rem;font-weight:600;cursor:pointer;flex-shrink:0;font-family:inherit;">Send</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function expandPost(postId, rawContent) {
+  const el = document.getElementById('post-preview-' + postId);
+  if (el) el.textContent = rawContent.replace(/<[^>]+>/g,'');
+}
+
+function closeGroupDetail() {
+  if (_groupPostsRef) { _groupPostsRef.off(); _groupPostsRef = null; }
+  if (_borrowReqRef)  { _borrowReqRef.off();  _borrowReqRef  = null; }
+  _currentGroupId = null;
+  document.getElementById('groups-list-view').classList.remove('hidden');
+  document.getElementById('group-detail-view').classList.add('hidden');
+  loadGroupsPage();
+}
+
+function openCreateGroupModal() {
+  const friends = Object.entries(_friendsCache);
+  const list    = document.getElementById('cg-friends-list');
+  list.innerHTML = friends.length === 0
+    ? '<div class="text-zinc-600 text-xs italic">Add friends first to invite them.</div>'
+    : friends.map(([uid, f]) => `
+      <label class="flex items-center gap-3 cursor-pointer hover:bg-white/5 rounded-lg p-2 transition-colors">
+        <input type="checkbox" value="${uid}" class="cg-friend-check" style="accent-color:#7c3aed;width:16px;height:16px;">
+        <img src="${escHtml(f.photoUrl||'')}" class="w-6 h-6 rounded-full object-cover" onerror="this.src='https://ui-avatars.com/api/?background=7c3aed&color=fff&name=${encodeURIComponent(f.displayName||'U')}'">
+        <span class="text-zinc-300 text-sm font-medium flex-1">${escHtml(f.displayName||f.username||'Friend')}</span>
+        <span class="username-tag text-xs">@${escHtml(f.username||'?')}</span>
+      </label>`).join('');
+  const m = document.getElementById('create-group-modal');
+  m.classList.remove('js-hidden'); m.style.display = 'flex';
+}
+function closeCreateGroupModal() {
+  const m = document.getElementById('create-group-modal');
+  m.classList.add('js-hidden'); m.style.display = 'none';
+}
+
+async function createGroup() {
+  const user = auth.currentUser;
+  if (!user) return;
+  const name = document.getElementById('cg-name').value.trim();
+  const desc = document.getElementById('cg-desc').value.trim();
+  if (!name) { alert('Please enter a group name.'); return; }
+  const members = { [user.uid]: true };
+  document.querySelectorAll('.cg-friend-check:checked').forEach(cb => { members[cb.value] = true; });
+  try {
+    const ref     = db.ref('studyGroups').push();
+    const groupId = ref.key;
+    await ref.set({ name, description: desc, createdBy: user.uid, createdAt: Date.now(), members });
+    // Write your own userGroups entry first (always allowed), then friends' entries individually
+    await db.ref('userGroups/' + user.uid + '/' + groupId).set(true);
+    await Promise.all(
+      Object.keys(members)
+        .filter(uid => uid !== user.uid)
+        .map(uid => db.ref('userGroups/' + uid + '/' + groupId).set(true).catch(() => {}))
+    );
+    closeCreateGroupModal();
+    document.getElementById('cg-name').value = '';
+    document.getElementById('cg-desc').value = '';
+    loadGroupsPage();
+  } catch (err) {
+    alert('Failed to create group: ' + err.message);
+  }
+}
+
+let _currentPostType = 'text';
+function setPostType(type) {
+  _currentPostType = type;
+  ['text','note','roadmap'].forEach(t => document.getElementById('pt-'+t).classList.toggle('active-ct', t === type));
+}
+function openPostToGroupModal() {
+  // Called from inside a group — hide group selector, use _currentGroupId
+  document.getElementById('pm-group-selector-row').classList.add('hidden');
+  const m = document.getElementById('post-group-modal');
+  m.classList.remove('js-hidden'); m.style.display = 'flex';
+}
+function closePostModal() {
+  const m = document.getElementById('post-group-modal');
+  m.classList.add('js-hidden'); m.style.display = 'none';
+  document.getElementById('pm-title').value   = '';
+  document.getElementById('pm-content').value = '';
+  document.getElementById('pm-group-select').value = '';
+  document.getElementById('pm-group-selector-row').classList.add('hidden');
+  setPostType('text');
+}
+function useLastNoteOutput()    { const el = document.getElementById('note-output');    if(el){ document.getElementById('pm-content').value = el.innerText; setPostType('note'); } }
+function useLastRoadmapOutput() { const el = document.getElementById('roadmap-output'); if(el){ document.getElementById('pm-content').value = el.innerText; setPostType('roadmap'); } }
+
+async function openPostToGroupModalFromNote(noteId) {
+  const user = auth.currentUser;
+  if (!user) return;
+  // Load note content
+  const noteSnap = await db.ref('notes/' + user.uid + '/' + noteId).once('value');
+  const note = noteSnap.val();
+  if (!note) return;
+  // Pre-fill modal
+  document.getElementById('pm-title').value   = note.title || '';
+  document.getElementById('pm-content').value = (note.content || '').replace(/<[^>]+>/g, '');
+  const typeMap = { 'Video': 'note', 'Roadmap': 'roadmap', 'Note': 'note' };
+  setPostType(typeMap[note.type] || 'note');
+  // Populate group selector
+  const select = document.getElementById('pm-group-select');
+  select.innerHTML = '<option value="">Select a group…</option>';
+  try {
+    const ugSnap = await db.ref('userGroups/' + user.uid).once('value');
+    const groupIds = Object.keys(ugSnap.val() || {});
+    if (groupIds.length === 0) {
+      select.innerHTML = '<option value="">You have no groups yet.</option>';
+    } else {
+      await Promise.all(groupIds.map(async gid => {
+        const gSnap = await db.ref('studyGroups/' + gid).once('value');
+        const g = gSnap.val();
+        if (g && g.name) {
+          const opt = document.createElement('option');
+          opt.value = gid;
+          opt.textContent = g.name;
+          select.appendChild(opt);
+        }
+      }));
+    }
+  } catch(_) {}
+  // Show selector and open modal
+  document.getElementById('pm-group-selector-row').classList.remove('hidden');
+  const m = document.getElementById('post-group-modal');
+  m.classList.remove('js-hidden'); m.style.display = 'flex';
+}
+
+async function submitPostToGroup() {
+  const user = auth.currentUser;
+  if (!user) return;
+  const targetGroupId = _currentGroupId || document.getElementById('pm-group-select').value;
+  if (!targetGroupId) { alert('Please select a group to post to.'); return; }
+  const title   = document.getElementById('pm-title').value.trim();
+  const content = document.getElementById('pm-content').value.trim();
+  if (!content) { alert('Please add some content to your post.'); return; }
+  const mySnap = await db.ref('users/' + user.uid).once('value');
+  const me     = mySnap.val() || {};
+  await db.ref('groupPosts/' + targetGroupId).push({
+    authorUid:      user.uid,
+    authorUsername: me.username  || user.displayName || 'user',
+    authorPhotoUrl: me.photoUrl  || user.photoURL    || '',
+    type: _currentPostType, title, content,
+    timestamp: Date.now()
+  });
+  closePostModal();
+}
+
+function likePost(groupId, postId) {
+  const user = auth.currentUser;
+  if (!user) return;
+  const ref = db.ref('groupPosts/' + groupId + '/' + postId + '/likes/' + user.uid);
+  ref.once('value').then(snap => { snap.exists() ? ref.remove() : ref.set(true); });
+}
+
+function toggleComments(groupId, postId) {
+  const el = document.getElementById('comments-' + postId);
+  if (!el) return;
+  const wasHidden = el.classList.contains('hidden');
+  el.classList.toggle('hidden');
+  if (wasHidden) loadComments(groupId, postId);
+}
+
+function loadComments(groupId, postId) {
+  db.ref('groupComments/' + groupId + '/' + postId).once('value').then(snap => {
+    const entries  = Object.values(snap.val() || {}).sort((a,b) => a.timestamp - b.timestamp);
+    const list     = document.getElementById('cmt-list-' + postId);
+    const labelEl  = document.getElementById('cmt-lbl-' + postId);
+    if (labelEl) labelEl.textContent = entries.length + (entries.length === 1 ? ' Comment' : ' Comments');
+    if (!list) return;
+    list.innerHTML = entries.length === 0
+      ? '<div class="text-zinc-600 text-xs italic">No comments yet.</div>'
+      : entries.map(c => `<div class="flex gap-2"><span class="username-tag flex-shrink-0 text-xs">@${escHtml(c.authorUsername||'?')}</span><span class="text-zinc-400">${escHtml(c.text||'')}</span></div>`).join('');
+  }).catch(() => {});
+}
+
+async function addComment(groupId, postId) {
+  const user  = auth.currentUser;
+  if (!user) return;
+  const input = document.getElementById('cmt-input-' + postId);
+  const text  = input ? input.value.trim() : '';
+  if (!text) return;
+  const mySnap = await db.ref('users/' + user.uid).once('value');
+  const me     = mySnap.val() || {};
+  await db.ref('groupComments/' + groupId + '/' + postId).push({ authorUid: user.uid, authorUsername: me.username || user.displayName || 'user', text, timestamp: Date.now() });
+  if (input) input.value = '';
+  loadComments(groupId, postId);
+}
+
+async function requestBorrow(postAuthorUid, groupId, postId, postTitle) {
+  const user = auth.currentUser;
+  if (!user || postAuthorUid === user.uid) return;
+  const mySnap = await db.ref('users/' + user.uid).once('value');
+  const me     = mySnap.val() || {};
+  await db.ref('borrowRequests/' + postAuthorUid).push({
+    requesterUid: user.uid, requesterUsername: me.username || user.displayName || 'user',
+    groupId, postId, postTitle, timestamp: Date.now(), status: 'pending'
+  });
+  alert('Borrow request sent! The post author will be notified.');
+}
+
+async function approveBorrow(reqId, requesterUid, groupId, postId) {
+  const user   = auth.currentUser;
+  if (!user) return;
+  const pSnap  = await db.ref('groupPosts/' + groupId + '/' + postId).once('value');
+  const post   = pSnap.val() || {};
+  const mySnap = await db.ref('users/' + user.uid + '/username').once('value');
+  await db.ref('borrowRequests/' + user.uid + '/' + reqId).update({ status: 'approved' });
+  await db.ref('receivedNotes/' + requesterUid).push({
+    title:        'Borrowed: ' + (post.title || 'Note'),
+    content:      post.content || '',
+    fromUsername: mySnap.val() || user.displayName || 'user',
+    timestamp:    Date.now()
+  });
+  alert('Approved! The note has been shared with them.');
+}
+
+function listenForReceivedNotes(uid) {
+  db.ref('receivedNotes/' + uid).on('child_added', snap => {
+    const note = snap.val();
+    const key  = snap.key;
+    if (!note || !note.content) return;
+    if (sessionStorage.getItem('shown-note-' + key)) return;
+    sessionStorage.setItem('shown-note-' + key, '1');
+    if (confirm(`"${note.title}" was shared with you by @${note.fromUsername}. Save it to My Stuff?`)) {
+      const vault = JSON.parse(localStorage.getItem(vaultKey()) || '[]');
+      vault.unshift({ id: 'note-' + Date.now(), title: note.title, content: note.content, type: 'Note', timestamp: new Date().toISOString() });
+      localStorage.setItem(vaultKey(), JSON.stringify(vault));
+    }
+    db.ref('receivedNotes/' + uid + '/' + key).remove();
+  });
+}
+
+// ── UTILITY ───────────────────────────────────────────────────────────────────
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+  </script>
+</body>
+</html>
