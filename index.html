@@ -1577,9 +1577,8 @@ async function generateNotes(type) {
       body: JSON.stringify({ subject: subject, grade: grade })
     });
 
-    if (!response.ok) throw new Error('Failed to generate roadmap');
-
     const res = await response.json();
+    if (!response.ok) throw new Error(res.error || 'Failed to generate roadmap');
 
     loader.classList.add('hidden');
     output.innerHTML = formatAIResponse(res.roadmap);
@@ -2052,9 +2051,8 @@ async function prepareAndGenerateCards() {
       body: JSON.stringify({ notesContent: notesText })
     });
 
-    if (!response.ok) throw new Error('Generation failed');
-
     const res = await response.json();
+    if (!response.ok) throw new Error(res.error || 'Generation failed');
     const cards = res.flashcards;
 
     btn.disabled = false;
