@@ -158,10 +158,19 @@ app.post("/api/video", async (req, res) => {
 - Use headings, bullet points, and highlight key terms, formulas, or dates.
 - Be specific and accurate to what is in the video.`;
 
-  try {
-    res.json({ notes: await callGemini(prompt, [{ fileData: { mimeType: "video/mp4", fileUri: url } }], "gemini-2.0-flash-001") });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  const parts = [{ fileData: { mimeType: "video/mp4", fileUri: url } }];
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const notes = await callGemini(prompt, parts, "gemini-2.5-flash");
+      return res.json({ notes });
+    } catch (err) {
+      if (attempt < 3 && err.message.includes("high demand")) {
+        await new Promise(r => setTimeout(r, attempt * 3000));
+        continue;
+      }
+      return res.status(500).json({ error: err.message });
+    }
   }
 });
 
