@@ -153,13 +153,30 @@ app.post("/api/video", async (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: "url is required." });
 
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: "GEMINI_API_KEY not set." });
+
   const prompt = `You are "Echo", a study assistant. Watch this YouTube video and convert its content into clean, structured study notes.
 - Use ONLY information from the video.
 - Use headings, bullet points, and highlight key terms, formulas, or dates.
 - Be specific and accurate to what is in the video.`;
 
   try {
-    res.json({ notes: await callGemini(prompt, [{ fileData: { mimeType: "video/mp4", fileUri: url } }]) });
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const res2 = await fetch(apiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [
+          { fileData: { mimeType: "video/mp4", fileUri: url } },
+          { text: prompt }
+        ]}]
+      })
+    });
+    const json = await res2.json();
+    if (json.candidates?.[0]?.content) return res.json({ notes: json.candidates[0].content.parts[0].text });
+    if (json.error) throw new Error("Gemini API Error: " + json.error.message);
+    throw new Error("AI could not generate a response. Try again in a moment.");
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
