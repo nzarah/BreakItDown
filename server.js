@@ -159,7 +159,7 @@ app.post("/api/video", async (req, res) => {
 - Be specific and accurate to what is in the video.`;
 
   try {
-    res.json({ notes: await callGemini(prompt, [{ fileData: { mimeType: "video/mp4", fileUri: url } }], "gemini-1.5-flash-latest") });
+    res.json({ notes: await callGemini(prompt, [{ fileData: { mimeType: "video/mp4", fileUri: url } }], "gemini-2.0-flash") });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
