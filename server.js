@@ -2,7 +2,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 import "dotenv/config";
 import express from "express";
-import { YoutubeTranscript } from "youtube-transcript";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -151,17 +150,12 @@ app.get("/api/notes-list", (req, res) => {
 });
 
 app.post("/api/video", async (req, res) => {
-  const { url } = req.body;
-  if (!url) return res.status(400).json({ error: "url is required." });
+  const { transcript } = req.body;
+  if (!transcript) return res.status(400).json({ error: "transcript is required." });
 
-  try {
-    const chunks = await YoutubeTranscript.fetchTranscript(url);
-    const transcript = chunks.map(c => c.text).join(" ").trim();
-    if (!transcript) return res.status(400).json({ error: "No captions found for this video." });
+  const trimmed = transcript.slice(0, 12000);
 
-    const trimmed = transcript.slice(0, 12000);
-
-    const prompt = `You are "Echo", a study assistant. A student has provided the EXACT transcript of a YouTube video.
+  const prompt = `You are "Echo", a study assistant. A student has provided the EXACT transcript of a YouTube video.
 
 YOUR TASK: Convert this transcript into clean study notes.
 STRICT RULES:
@@ -174,6 +168,7 @@ TRANSCRIPT START:
 ${trimmed}
 TRANSCRIPT END`;
 
+  try {
     res.json({ notes: await callGemini(prompt) });
   } catch (err) {
     res.status(500).json({ error: err.message });
