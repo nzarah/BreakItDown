@@ -158,7 +158,7 @@ app.post("/api/video", async (req, res) => {
 - Use headings, bullet points, and highlight key terms, formulas, or dates.
 - Be specific and accurate to what is in the video.`;
 
-  const parts = [{ fileData: { mimeType: "video/mp4", fileUri: url } }];
+  const parts = [{ fileData: { fileUri: url } }];
 
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
