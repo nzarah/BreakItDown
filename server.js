@@ -187,10 +187,6 @@ TRANSCRIPT END`;
 
     res.json({ notes: await callGemini(prompt) });
   } catch (err) {
-    const msg = err.message || "";
-    if (msg.includes("Could not get") || msg.includes("disabled") || msg.includes("transcript")) {
-      return res.status(422).json({ error: "This video has no captions available. Try a different video." });
-    }
     res.status(500).json({ error: err.message });
   }
 });
