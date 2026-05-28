@@ -1515,17 +1515,17 @@ function completeSignup() {
     showPage('pg-home');
 }
 async function generateNotes(type) {
-    const inputId = type === 'text' ? 'note-input' : 'yt-url';
-    const outputId = type === 'text' ? 'note-output' : 'yt-output';
-    const loaderId = type === 'text' ? 'notes-loader' : 'yt-loader';
-    const btnId = type === 'text' ? 'btn-gen-notes' : 'btn-gen-yt';
+    const inputId  = type === 'text' ? 'note-input'    : 'yt-url';
+    const outputId = type === 'text' ? 'note-output'   : 'yt-output';
+    const loaderId = type === 'text' ? 'notes-loader'  : 'yt-loader';
+    const btnId    = type === 'text' ? 'btn-gen-notes' : 'btn-gen-yt';
 
     const val = document.getElementById(inputId).value;
     if (!val.trim()) return;
 
     const loader = document.getElementById(loaderId);
     const output = document.getElementById(outputId);
-    const btn = document.getElementById(btnId);
+    const btn    = document.getElementById(btnId);
 
     loader.classList.remove('hidden');
     btn.disabled = true;

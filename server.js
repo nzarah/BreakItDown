@@ -149,34 +149,49 @@ app.get("/api/notes-list", (req, res) => {
   res.json({ notes: Array.from(noteStore.values()) });
 });
 
+async function fetchYouTubeTranscript(videoUrl) {
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  };
+  const pageResp = await fetch(videoUrl, { headers });
+  if (!pageResp.ok) throw new Error('Could not reach YouTube');
+  const html = await pageResp.text();
+  const match = html.match(/"baseUrl":"(https:\/\/www\.youtube\.com\/api\/timedtext[^"]+)"/);
+  if (!match) throw new Error('No captions found for this video. Try a video with CC enabled.');
+  const captionUrl = match[1].replace(/\\u0026/g, '&');
+  const capResp = await fetch(captionUrl, { headers });
+  if (!capResp.ok) throw new Error('Could not fetch captions');
+  const xml = await capResp.text();
+  const texts = (xml.match(/<text[^>]*>([^<]*)<\/text>/g) || [])
+    .map(t => t.replace(/<[^>]*>/g, '')
+      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      .replace(/&#39;/g, "'").replace(/&quot;/g, '"'));
+  const transcript = texts.join(' ').trim();
+  if (!transcript) throw new Error('No captions found for this video. Try a video with CC enabled.');
+  return transcript;
+}
+
 app.post("/api/video", async (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: "url is required." });
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: "GEMINI_API_KEY not set." });
-
-  const prompt = `You are "Echo", a study assistant. Watch this YouTube video and convert its content into clean, structured study notes.
-- Use ONLY information from the video.
-- Use headings, bullet points, and highlight key terms, formulas, or dates.
-- Be specific and accurate to what is in the video.`;
-
   try {
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-    const res2 = await fetch(apiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [
-          { fileData: { mimeType: "video/mp4", fileUri: url } },
-          { text: prompt }
-        ]}]
-      })
-    });
-    const json = await res2.json();
-    if (json.candidates?.[0]?.content) return res.json({ notes: json.candidates[0].content.parts[0].text });
-    if (json.error) throw new Error("Gemini API Error: " + json.error.message);
-    throw new Error("AI could not generate a response. Try again in a moment.");
+    const transcript = await fetchYouTubeTranscript(url);
+    const trimmed = transcript.slice(0, 12000);
+    const prompt = `You are "Echo", a study assistant. A student has provided the EXACT transcript of a YouTube video.
+
+YOUR TASK: Convert this transcript into clean study notes.
+STRICT RULES:
+- Use ONLY information explicitly stated in the transcript below.
+- Do NOT use any outside knowledge or guess the topic.
+- Use headings, bullet points, and highlight key terms, formulas, or dates from the transcript.
+
+TRANSCRIPT START:
+${trimmed}
+TRANSCRIPT END`;
+    res.json({ notes: await callGemini(prompt) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
