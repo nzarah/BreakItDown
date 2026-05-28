@@ -187,6 +187,13 @@ TRANSCRIPT END`;
 
     res.json({ notes: await callGemini(prompt) });
   } catch (err) {
+    const msg = err.message || "";
+    if (msg.includes("disabled")) {
+      return res.status(422).json({ error: "The owner of this video has disabled transcript access. Try a different video." });
+    }
+    if (msg.includes("Could not get") || msg.includes("transcript")) {
+      return res.status(422).json({ error: "This video has no captions available. Try a video with subtitles enabled." });
+    }
     res.status(500).json({ error: err.message });
   }
 });
