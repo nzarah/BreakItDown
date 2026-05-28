@@ -9,7 +9,7 @@ app.use(express.json());
 
 const noteStore = new Map();
 
-async function callGemini(prompt) {
+async function callGemini(prompt, extraParts = []) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY not found in environment variables.");
 
@@ -18,7 +18,7 @@ async function callGemini(prompt) {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+    body: JSON.stringify({ contents: [{ parts: [...extraParts, { text: prompt }] }] }),
   });
 
   const json = await res.json();
@@ -150,26 +150,16 @@ app.get("/api/notes-list", (req, res) => {
 });
 
 app.post("/api/video", async (req, res) => {
-  const { transcript } = req.body;
-  if (!transcript) return res.status(400).json({ error: "transcript is required." });
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ error: "url is required." });
 
-  const trimmed = transcript.slice(0, 12000);
-
-  const prompt = `You are "Echo", a study assistant. A student has provided the EXACT transcript of a YouTube video.
-
-YOUR TASK: Convert this transcript into clean study notes.
-STRICT RULES:
-- Use ONLY information explicitly stated in the transcript below.
-- Do NOT use any outside knowledge or guess the topic.
-- If the transcript discusses topic X, your notes must be about topic X only.
-- Use headings, bullet points, and highlight key terms, formulas, or dates from the transcript.
-
-TRANSCRIPT START:
-${trimmed}
-TRANSCRIPT END`;
+  const prompt = `You are "Echo", a study assistant. Watch this YouTube video and convert its content into clean, structured study notes.
+- Use ONLY information from the video.
+- Use headings, bullet points, and highlight key terms, formulas, or dates.
+- Be specific and accurate to what is in the video.`;
 
   try {
-    res.json({ notes: await callGemini(prompt) });
+    res.json({ notes: await callGemini(prompt, [{ fileData: { mimeType: "video/mp4", fileUri: url } }]) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
