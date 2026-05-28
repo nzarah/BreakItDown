@@ -162,7 +162,7 @@ app.post("/api/video", async (req, res) => {
 - Be specific and accurate to what is in the video.`;
 
   try {
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
     const res2 = await fetch(apiUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
