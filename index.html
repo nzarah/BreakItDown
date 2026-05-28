@@ -1515,22 +1515,38 @@ function completeSignup() {
     showPage('pg-home');
 }
 async function fetchYouTubeTranscript(videoId) {
-    const proxy = 'https://corsproxy.io/?';
-    const pageResp = await fetch(proxy + encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`));
-    if (!pageResp.ok) throw new Error('Could not reach YouTube');
-    const pageHtml = await pageResp.text();
-    const match = pageHtml.match(/"baseUrl":"(https:\/\/www\.youtube\.com\/api\/timedtext[^"]+)"/);
-    if (!match) throw new Error('No captions available for this video. Try a video with CC enabled.');
-    const captionUrl = match[1].replace(/\\u0026/g, '&');
-    const capResp = await fetch(proxy + encodeURIComponent(captionUrl));
-    const capXml = await capResp.text();
-    const texts = (capXml.match(/<text[^>]*>([^<]*)<\/text>/g) || [])
-        .map(t => t.replace(/<[^>]*>/g, '')
-            .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-            .replace(/&#39;/g, "'").replace(/&quot;/g, '"'));
-    const transcript = texts.join(' ').trim();
-    if (!transcript) throw new Error('No captions available for this video. Try a video with CC enabled.');
-    return transcript;
+    const proxies = [
+        { url: u => `https://corsproxy.io/?${encodeURIComponent(u)}`, json: false },
+        { url: u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`, json: true },
+    ];
+
+    const pageUrl    = `https://www.youtube.com/watch?v=${videoId}`;
+    let lastError    = 'Could not reach YouTube';
+
+    for (const proxy of proxies) {
+        try {
+            const pageResp = await fetch(proxy.url(pageUrl));
+            if (!pageResp.ok) continue;
+            const pageContent = proxy.json ? (await pageResp.json()).contents : await pageResp.text();
+
+            const match = pageContent.match(/"baseUrl":"(https:\/\/www\.youtube\.com\/api\/timedtext[^"]+)"/);
+            if (!match) { lastError = 'No captions available for this video. Try a video with CC enabled.'; continue; }
+
+            const captionUrl = match[1].replace(/\\u0026/g, '&');
+            const capResp    = await fetch(proxy.url(captionUrl));
+            if (!capResp.ok) continue;
+            const capContent = proxy.json ? (await capResp.json()).contents : await capResp.text();
+
+            const texts = (capContent.match(/<text[^>]*>([^<]*)<\/text>/g) || [])
+                .map(t => t.replace(/<[^>]*>/g, '')
+                    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+                    .replace(/&#39;/g, "'").replace(/&quot;/g, '"'));
+            const transcript = texts.join(' ').trim();
+            if (transcript) return transcript;
+            lastError = 'No captions available for this video. Try a video with CC enabled.';
+        } catch (e) { continue; }
+    }
+    throw new Error(lastError);
 }
 
 async function generateNotes(type) {
