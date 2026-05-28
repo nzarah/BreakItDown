@@ -2,7 +2,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import "dotenv/config";
 import express from "express";
-import { YoutubeTranscript } from "youtube-transcript";
+import { Innertube } from "youtubei.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -155,21 +155,25 @@ app.post("/api/video", async (req, res) => {
   if (!url) return res.status(400).json({ error: "url is required." });
 
   try {
-    const transcriptData = await YoutubeTranscript.fetchTranscript(url);
-    const transcriptText = transcriptData.map(t => t.text).join(" ").trim();
+    const videoId = url.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)?.[1];
+    if (!videoId) return res.status(400).json({ error: "Invalid YouTube URL." });
+
+    const yt = await Innertube.create();
+    const info = await yt.getInfo(videoId);
+    const transcriptInfo = await info.getTranscript();
+    const segments = transcriptInfo?.transcript?.content?.body?.initial_segments || [];
+    const transcriptText = segments.map(s => s.snippet?.text || "").join(" ").trim();
 
     if (!transcriptText || transcriptText.length < 100) {
       return res.status(422).json({ error: "This video has no usable captions. Try a video with subtitles enabled." });
     }
 
-    // Quality check: count unique words to detect garbage/auto-caption noise
     const words = transcriptText.toLowerCase().split(/\s+/);
     const uniqueWords = new Set(words.filter(w => w.length > 3));
     if (uniqueWords.size < 30) {
       return res.status(422).json({ error: "This video's captions don't contain enough readable content to generate notes from." });
     }
 
-    // Trim to avoid token limits
     const trimmed = transcriptText.slice(0, 12000);
 
     const prompt = `You are "Echo", a study assistant. A student has provided the EXACT transcript of a YouTube video.
@@ -187,6 +191,10 @@ TRANSCRIPT END`;
 
     res.json({ notes: await callGemini(prompt) });
   } catch (err) {
+    const msg = err.message || "";
+    if (msg.includes("disabled") || msg.includes("transcript") || msg.includes("captions")) {
+      return res.status(422).json({ error: "No captions found for this video. Try a different one." });
+    }
     res.status(500).json({ error: err.message });
   }
 });
