@@ -9,11 +9,11 @@ app.use(express.json());
 
 const noteStore = new Map();
 
-async function callGemini(prompt, extraParts = []) {
+async function callGemini(prompt, extraParts = [], model = "gemini-2.5-flash") {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY not found in environment variables.");
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const res = await fetch(url, {
     method: "POST",
@@ -159,7 +159,7 @@ app.post("/api/video", async (req, res) => {
 - Be specific and accurate to what is in the video.`;
 
   try {
-    res.json({ notes: await callGemini(prompt, [{ fileData: { mimeType: "video/mp4", fileUri: url } }]) });
+    res.json({ notes: await callGemini(prompt, [{ fileData: { mimeType: "video/mp4", fileUri: url } }], "gemini-1.5-flash-latest") });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
