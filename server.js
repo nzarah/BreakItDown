@@ -150,27 +150,25 @@ app.get("/api/notes-list", (req, res) => {
 });
 
 app.post("/api/video", async (req, res) => {
-  const { transcript } = req.body;
-  if (!transcript) return res.status(400).json({ error: "transcript is required." });
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ error: "url is required." });
 
-  const trimmed = transcript.slice(0, 12000);
+  const prompt = `You are "Echo", a study assistant. Watch this YouTube video and convert its content into clean, structured study notes.
+- Use ONLY information from the video.
+- Use headings, bullet points, and highlight key terms, formulas, or dates.
+- Be specific and accurate to what is in the video.`;
 
-  const prompt = `You are "Echo", a study assistant. A student has provided the EXACT transcript of a YouTube video.
-
-YOUR TASK: Convert this transcript into clean study notes.
-STRICT RULES:
-- Use ONLY information explicitly stated in the transcript below.
-- Do NOT use any outside knowledge or guess the topic.
-- Use headings, bullet points, and highlight key terms, formulas, or dates from the transcript.
-
-TRANSCRIPT START:
-${trimmed}
-TRANSCRIPT END`;
-
-  try {
-    res.json({ notes: await callGemini(prompt) });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const notes = await callGemini(prompt, [{ fileData: { fileUri: url } }]);
+      return res.json({ notes });
+    } catch (err) {
+      if (attempt < 3 && err.message.includes("high demand")) {
+        await new Promise(r => setTimeout(r, attempt * 3000));
+        continue;
+      }
+      return res.status(500).json({ error: err.message });
+    }
   }
 });
 

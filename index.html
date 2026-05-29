@@ -1514,62 +1514,31 @@ function completeSignup() {
     app.style.display = 'flex';
     showPage('pg-home');
 }
-async function fetchYouTubeTranscript(videoId) {
-    const proxy = 'https://api.allorigins.win/get?url=';
-    const pageResp = await fetch(proxy + encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`));
-    if (!pageResp.ok) throw new Error('Could not reach YouTube');
-    const pageData = await pageResp.json();
-    const match = pageData.contents.match(/"baseUrl":"(https:\/\/www\.youtube\.com\/api\/timedtext[^"]+)"/);
-    if (!match) throw new Error('No captions available for this video. Try a video with CC enabled.');
-    const captionUrl = match[1].replace(/\\u0026/g, '&');
-    const capResp = await fetch(proxy + encodeURIComponent(captionUrl));
-    const capData = await capResp.json();
-    const texts = (capData.contents.match(/<text[^>]*>([^<]*)<\/text>/g) || [])
-        .map(t => t.replace(/<[^>]*>/g, '')
-            .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-            .replace(/&#39;/g, "'").replace(/&quot;/g, '"'));
-    const transcript = texts.join(' ').trim();
-    if (!transcript) throw new Error('No captions available for this video. Try a video with CC enabled.');
-    return transcript;
-}
-
 async function generateNotes(type) {
-    const inputId  = type === 'text' ? 'note-input'    : 'yt-url';
-    const outputId = type === 'text' ? 'note-output'   : 'yt-output';
-    const loaderId = type === 'text' ? 'notes-loader'  : 'yt-loader';
-    const btnId    = type === 'text' ? 'btn-gen-notes' : 'btn-gen-yt';
+    const inputId = type === 'text' ? 'note-input' : 'yt-url';
+    const outputId = type === 'text' ? 'note-output' : 'yt-output';
+    const loaderId = type === 'text' ? 'notes-loader' : 'yt-loader';
+    const btnId = type === 'text' ? 'btn-gen-notes' : 'btn-gen-yt';
 
     const val = document.getElementById(inputId).value;
     if (!val.trim()) return;
 
     const loader = document.getElementById(loaderId);
     const output = document.getElementById(outputId);
-    const btn    = document.getElementById(btnId);
+    const btn = document.getElementById(btnId);
 
     loader.classList.remove('hidden');
     btn.disabled = true;
+    output.innerHTML = '<div class="text-zinc-500">Echo is analyzing your content...</div>';
 
     try {
-        let response;
-        if (type === 'yt') {
-            const videoId = val.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)?.[1];
-            if (!videoId) throw new Error('Invalid YouTube URL');
-            output.innerHTML = '<div class="text-zinc-500">Fetching video captions...</div>';
-            const transcript = await fetchYouTubeTranscript(videoId);
-            output.innerHTML = '<div class="text-zinc-500">Echo is analyzing your content...</div>';
-            response = await fetch('/api/video', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ transcript })
-            });
-        } else {
-            output.innerHTML = '<div class="text-zinc-500">Echo is analyzing your content...</div>';
-            response = await fetch('/api/notes', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: val })
-            });
-        }
+        const endpoint = type === 'yt' ? '/api/video' : '/api/notes';
+        const body     = type === 'yt' ? { url: val } : { text: val };
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
 
         const res = await response.json();
         if (!response.ok) throw new Error(res.error || 'Network response was not ok');
