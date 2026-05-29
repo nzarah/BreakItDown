@@ -87,6 +87,9 @@
         }
       }
     });
+
+    // Handle redirect result from Google sign-in
+    auth.getRedirectResult().catch(() => {});
   </script>
 
   <style>
@@ -1393,10 +1396,9 @@ function showLogin() {
 async function loginWithGoogle() {
     const provider = new firebase.auth.GoogleAuthProvider();
     try {
-        await auth.signInWithPopup(provider);
-        // onAuthStateChanged handles showing the app
+        await auth.signInWithRedirect(provider);
     } catch (err) {
-        alert('Google sign-in failed: ' + err.message);
+        showAuthError('Google sign-in failed: ' + err.message);
     }
 }
 
