@@ -905,7 +905,7 @@
         <div id="notes-loader" class="hidden"><div class="loader"></div></div>
       </div>
       <div id="notes-usage-bar" class="usage-bar-wrap hidden">
-        <span class="usage-bar-label">Notes used this month</span>
+        <span class="usage-bar-label">Notes saved this month</span>
         <span id="notes-usage-count" class="usage-bar-count">0 / 5</span>
         <button onclick="openUpgradeModal()" class="upgrade-btn-small">Go Pro</button>
       </div>
@@ -928,7 +928,7 @@
         <div id="yt-loader" class="hidden"><div class="loader"></div></div>
       </div>
       <div id="yt-usage-bar" class="usage-bar-wrap hidden">
-        <span class="usage-bar-label">Video breakdowns used this month</span>
+        <span class="usage-bar-label">Video breakdowns saved this month</span>
         <span id="yt-usage-count" class="usage-bar-count">0 / 5</span>
         <button onclick="openUpgradeModal()" class="upgrade-btn-small">Go Pro</button>
       </div>
@@ -954,7 +954,7 @@
         <div id="roadmap-loader" class="hidden"><div class="loader"></div></div>
       </div>
       <div id="roadmap-usage-bar" class="usage-bar-wrap hidden">
-        <span class="usage-bar-label">Roadmaps used this month</span>
+        <span class="usage-bar-label">Roadmaps saved this month</span>
         <span id="roadmap-usage-count" class="usage-bar-count">0 / 3</span>
         <button onclick="openUpgradeModal()" class="upgrade-btn-small">Go Pro</button>
       </div>
@@ -1770,16 +1770,6 @@ async function generateNotes(type) {
     const val = document.getElementById(inputId).value;
     if (!val.trim()) return;
 
-    // ── LIMIT CHECK ──────────────────────────────────────────────────────────
-    if (!_userIsPro) {
-      if (type === 'text' && _userUsage.notes >= FREE_LIMITS.notes) {
-        openUpgradeModal(); return;
-      }
-      if (type === 'yt' && _userUsage.ytNotes >= FREE_LIMITS.ytNotes) {
-        openUpgradeModal(); return;
-      }
-    }
-
     const loader = document.getElementById(loaderId);
     const output = document.getElementById(outputId);
     const btn = document.getElementById(btnId);
@@ -1805,8 +1795,6 @@ async function generateNotes(type) {
         output.innerHTML = formatAIResponse(res.notes);
         currentActiveOutputId = outputId;
 
-        // Increment usage counter
-        await _incrementUsage(type === 'yt' ? 'ytNotes' : 'notes');
 
     } catch (err) {
         loader.classList.add('hidden');
@@ -1820,11 +1808,6 @@ async function generateNotes(type) {
   const grade = document.getElementById('rm-grade').value;
 
   if (!subject) return;
-
-  // ── LIMIT CHECK ────────────────────────────────────────────────────────────
-  if (!_userIsPro && _userUsage.roadmaps >= FREE_LIMITS.roadmaps) {
-    openUpgradeModal(); return;
-  }
 
   const loader = document.getElementById('roadmap-loader');
   const output = document.getElementById('roadmap-output');
@@ -1845,8 +1828,6 @@ async function generateNotes(type) {
     loader.classList.add('hidden');
     output.innerHTML = formatAIResponse(res.roadmap);
     currentActiveOutputId = 'roadmap-output';
-
-    await _incrementUsage('roadmaps');
 
   } catch (err) {
     loader.classList.add('hidden');
@@ -1886,6 +1867,13 @@ async function saveCurrentNote(outputId, type = 'Note') {
     return;
   }
 
+  // ── SAVE LIMIT CHECK ────────────────────────────────────────────────────────
+  if (!_userIsPro) {
+    const usageField = type === 'Roadmap' ? 'roadmaps' : type === 'Video' ? 'ytNotes' : 'notes';
+    const limit      = FREE_LIMITS[usageField];
+    if (_userUsage[usageField] >= limit) { openUpgradeModal(); return; }
+  }
+
   const noteId = 'note-' + Date.now();
   const noteObj = {
     id: noteId,
@@ -1897,6 +1885,11 @@ async function saveCurrentNote(outputId, type = 'Note') {
 
   try {
     await db.ref('notes/' + user.uid + '/' + noteId).set(noteObj);
+
+    // Increment saved count for free users
+    const usageField = type === 'Roadmap' ? 'roadmaps' : type === 'Video' ? 'ytNotes' : 'notes';
+    await _incrementUsage(usageField);
+
     const orig = btn.innerHTML;
     btn.innerHTML = '✓ Saved!';
     btn.classList.add('text-green-400');
