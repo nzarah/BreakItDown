@@ -149,26 +149,61 @@ app.get("/api/notes-list", (req, res) => {
   res.json({ notes: Array.from(noteStore.values()) });
 });
 
+async function fetchTranscriptSupadata(url) {
+  const apiKey = process.env.SUPADATA_API_KEY;
+  if (!apiKey) throw new Error("SUPADATA_API_KEY not set.");
+  const resp = await fetch(`https://api.supadata.ai/v1/youtube/transcript?url=${encodeURIComponent(url)}`, {
+    headers: { "x-api-key": apiKey }
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.message || "Supadata could not fetch transcript.");
+  }
+  const data = await resp.json();
+  const transcript = (data.content || []).map(c => c.text).join(" ").trim();
+  if (!transcript) throw new Error("No transcript available for this video.");
+  return transcript;
+}
+
 app.post("/api/video", async (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: "url is required." });
 
-  const prompt = `You are "Echo", a study assistant. Watch this YouTube video and convert its content into clean, structured study notes.
-- Use ONLY information from the video.
-- Use headings, bullet points, and highlight key terms, formulas, or dates.
-- Be specific and accurate to what is in the video.`;
-
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  // Try Gemini video approach first (2 attempts)
+  for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      const notes = await callGemini(prompt, [{ fileData: { fileUri: url } }]);
+      const notes = await callGemini(
+        `You are "Echo", a study assistant. Watch this YouTube video and convert its content into clean, structured study notes.\n- Use ONLY information from the video.\n- Use headings, bullet points, and highlight key terms, formulas, or dates.`,
+        [{ fileData: { fileUri: url } }]
+      );
       return res.json({ notes });
     } catch (err) {
-      if (attempt < 3 && err.message.includes("high demand")) {
-        await new Promise(r => setTimeout(r, attempt * 3000));
+      if (attempt < 2 && err.message.includes("high demand")) {
+        await new Promise(r => setTimeout(r, 3000));
         continue;
       }
-      return res.status(500).json({ error: err.message });
+      break;
     }
+  }
+
+  // Fallback: Supadata transcript → Gemini text
+  try {
+    const transcript = await fetchTranscriptSupadata(url);
+    const prompt = `You are "Echo", a study assistant. A student has provided the EXACT transcript of a YouTube video.
+
+YOUR TASK: Convert this transcript into clean study notes.
+STRICT RULES:
+- Use ONLY information explicitly stated in the transcript below.
+- Do NOT use any outside knowledge or guess the topic.
+- Use headings, bullet points, and highlight key terms, formulas, or dates from the transcript.
+
+TRANSCRIPT START:
+${transcript.slice(0, 12000)}
+TRANSCRIPT END`;
+    const notes = await callGemini(prompt);
+    return res.json({ notes });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
   }
 });
 
