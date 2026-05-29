@@ -2,13 +2,36 @@ import path from "path";
 import { fileURLToPath } from "url";
 import "dotenv/config";
 import express from "express";
+import Stripe from "stripe";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-app.use(express.json());
+
+// Webhook needs raw body — everything else gets JSON
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/stripe-webhook') {
+    express.raw({ type: 'application/json' })(req, res, next);
+  } else {
+    express.json()(req, res, next);
+  }
+});
 
 const noteStore = new Map();
 
+// ── FIREBASE RTDB HELPER ────────────────────────────────────────────────────
+const DB_URL = 'https://breakitdown-b1293-default-rtdb.firebaseio.com';
+
+async function rtdbSet(path, value) {
+  const secret = process.env.FIREBASE_DB_SECRET;
+  if (!secret) return;
+  await fetch(`${DB_URL}/${path}.json?auth=${secret}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(value)
+  });
+}
+
+// ── GEMINI ──────────────────────────────────────────────────────────────────
 async function callGemini(prompt, extraParts = [], model = "gemini-2.5-flash") {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY not found in environment variables.");
@@ -28,6 +51,7 @@ async function callGemini(prompt, extraParts = [], model = "gemini-2.5-flash") {
   throw new Error("AI could not generate a response. Try again in a moment.");
 }
 
+// ── ROUTES ──────────────────────────────────────────────────────────────────
 app.get("/", (req, res) => res.json({ status: "BreakItDown backend running." }));
 
 app.get("/app", (req, res) => {
@@ -169,7 +193,6 @@ app.post("/api/video", async (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: "url is required." });
 
-  // Try Gemini video approach first (2 attempts)
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
       const notes = await callGemini(
@@ -186,7 +209,6 @@ app.post("/api/video", async (req, res) => {
     }
   }
 
-  // Fallback: Supadata transcript → Gemini text
   try {
     const transcript = await fetchTranscriptSupadata(url);
     const prompt = `You are "Echo", a study assistant. A student has provided the EXACT transcript of a YouTube video.
@@ -207,6 +229,61 @@ TRANSCRIPT END`;
   }
 });
 
+// ── STRIPE CHECKOUT ──────────────────────────────────────────────────────────
+app.post('/api/create-checkout-session', async (req, res) => {
+  const { uid, email } = req.body;
+  if (!uid) return res.status(400).json({ error: 'uid required' });
+
+  const stripeKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeKey) return res.status(500).json({ error: 'Stripe not configured yet.' });
+
+  try {
+    const stripe = new Stripe(stripeKey);
+    const appUrl = process.env.APP_URL || 'https://breakitdown-o75k.onrender.com';
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'subscription',
+      line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
+      customer_email: email || undefined,
+      client_reference_id: uid,
+      success_url: `${appUrl}/app?pro=success`,
+      cancel_url: `${appUrl}/app`,
+    });
+    res.json({ url: session.url });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── STRIPE WEBHOOK ───────────────────────────────────────────────────────────
+app.post('/api/stripe-webhook', async (req, res) => {
+  const stripeKey     = process.env.STRIPE_SECRET_KEY;
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!stripeKey || !webhookSecret) return res.status(500).json({ error: 'Stripe not configured.' });
+
+  const stripe = new Stripe(stripeKey);
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], webhookSecret);
+  } catch (err) {
+    return res.status(400).json({ error: 'Webhook signature invalid: ' + err.message });
+  }
+
+  const obj = event.data.object;
+  const uid = obj.client_reference_id || obj.metadata?.uid;
+
+  if (event.type === 'checkout.session.completed' && uid) {
+    await rtdbSet(`users/${uid}/pro`, true);
+  } else if (event.type === 'customer.subscription.deleted' && uid) {
+    await rtdbSet(`users/${uid}/pro`, false);
+  } else if (event.type === 'customer.subscription.updated' && uid) {
+    await rtdbSet(`users/${uid}/pro`, obj.status === 'active');
+  }
+
+  res.json({ received: true });
+});
+
+// ── ERROR HANDLER ────────────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
 });

@@ -453,12 +453,102 @@
     [data-theme="light"] #post-group-modal > div { background: #f5f3ff !important; border-color: rgba(0,0,0,0.1) !important; }
   </style>
 
+  <style>
+    /* ── PRO THEMES ── */
+    [data-theme="ocean"] body { background:#0a1628 !important; }
+    [data-theme="ocean"] .sidebar { background:#0d1f38 !important; border-color:rgba(14,165,233,0.1) !important; }
+    [data-theme="ocean"] .bg-\[\#13111C\] { background:#0f2540 !important; }
+    [data-theme="ocean"] .bg-\[\#0B0A10\] { background:#0a1628 !important; }
+    [data-theme="ocean"] #app-interface { background:#0a1628 !important; }
+    [data-theme="ocean"] .action-card-landing { background:#0f2540 !important; }
+    [data-theme="ocean"] .action-card-landing:hover { background:#142e50 !important; }
+    [data-theme="ocean"] .nav-item:hover, [data-theme="ocean"] .nav-item.active { background:rgba(14,165,233,0.1) !important; }
+    [data-theme="ocean"] .premium-btn { background:linear-gradient(135deg,#0ea5e9,#0284c7) !important; }
+    [data-theme="ocean"] .text-violet-500 { color:#0ea5e9 !important; }
+    [data-theme="ocean"] .text-violet-400 { color:#38bdf8 !important; }
+
+    [data-theme="forest"] body { background:#0a1a0f !important; }
+    [data-theme="forest"] .sidebar { background:#0d2214 !important; border-color:rgba(34,197,94,0.1) !important; }
+    [data-theme="forest"] .bg-\[\#13111C\] { background:#0f2818 !important; }
+    [data-theme="forest"] .bg-\[\#0B0A10\] { background:#0a1a0f !important; }
+    [data-theme="forest"] #app-interface { background:#0a1a0f !important; }
+    [data-theme="forest"] .action-card-landing { background:#0f2818 !important; }
+    [data-theme="forest"] .action-card-landing:hover { background:#143220 !important; }
+    [data-theme="forest"] .nav-item:hover, [data-theme="forest"] .nav-item.active { background:rgba(34,197,94,0.1) !important; }
+    [data-theme="forest"] .premium-btn { background:linear-gradient(135deg,#22c55e,#16a34a) !important; }
+    [data-theme="forest"] .text-violet-500 { color:#22c55e !important; }
+    [data-theme="forest"] .text-violet-400 { color:#4ade80 !important; }
+
+    [data-theme="sunset"] body { background:#1a0f0a !important; }
+    [data-theme="sunset"] .sidebar { background:#221408 !important; border-color:rgba(249,115,22,0.1) !important; }
+    [data-theme="sunset"] .bg-\[\#13111C\] { background:#281a0d !important; }
+    [data-theme="sunset"] .bg-\[\#0B0A10\] { background:#1a0f0a !important; }
+    [data-theme="sunset"] #app-interface { background:#1a0f0a !important; }
+    [data-theme="sunset"] .action-card-landing { background:#281a0d !important; }
+    [data-theme="sunset"] .action-card-landing:hover { background:#322010 !important; }
+    [data-theme="sunset"] .nav-item:hover, [data-theme="sunset"] .nav-item.active { background:rgba(249,115,22,0.1) !important; }
+    [data-theme="sunset"] .premium-btn { background:linear-gradient(135deg,#f97316,#ea580c) !important; }
+    [data-theme="sunset"] .text-violet-500 { color:#f97316 !important; }
+    [data-theme="sunset"] .text-violet-400 { color:#fb923c !important; }
+
+    [data-theme="rose"] body { background:#1a0a0f !important; }
+    [data-theme="rose"] .sidebar { background:#220d14 !important; border-color:rgba(244,63,94,0.1) !important; }
+    [data-theme="rose"] .bg-\[\#13111C\] { background:#28101a !important; }
+    [data-theme="rose"] .bg-\[\#0B0A10\] { background:#1a0a0f !important; }
+    [data-theme="rose"] #app-interface { background:#1a0a0f !important; }
+    [data-theme="rose"] .action-card-landing { background:#28101a !important; }
+    [data-theme="rose"] .action-card-landing:hover { background:#321420 !important; }
+    [data-theme="rose"] .nav-item:hover, [data-theme="rose"] .nav-item.active { background:rgba(244,63,94,0.1) !important; }
+    [data-theme="rose"] .premium-btn { background:linear-gradient(135deg,#f43f5e,#e11d48) !important; }
+    [data-theme="rose"] .text-violet-500 { color:#f43f5e !important; }
+    [data-theme="rose"] .text-violet-400 { color:#fb7185 !important; }
+
+    [data-theme="midnight"] body { background:#060409 !important; }
+    [data-theme="midnight"] .sidebar { background:#0a0612 !important; border-color:rgba(168,85,247,0.12) !important; }
+    [data-theme="midnight"] .bg-\[\#13111C\] { background:#0d0916 !important; }
+    [data-theme="midnight"] .bg-\[\#0B0A10\] { background:#060409 !important; }
+    [data-theme="midnight"] #app-interface { background:#060409 !important; }
+    [data-theme="midnight"] .action-card-landing { background:#0d0916 !important; }
+    [data-theme="midnight"] .action-card-landing:hover { background:#120d1e !important; }
+    [data-theme="midnight"] .nav-item:hover, [data-theme="midnight"] .nav-item.active { background:rgba(168,85,247,0.12) !important; }
+    [data-theme="midnight"] .premium-btn { background:linear-gradient(135deg,#a855f7,#9333ea) !important; }
+    [data-theme="midnight"] .text-violet-500 { color:#a855f7 !important; }
+    [data-theme="midnight"] .text-violet-400 { color:#c084fc !important; }
+
+    /* ── PRO BADGE ── */
+    .pro-badge { display:inline-flex; align-items:center; gap:4px; background:linear-gradient(135deg,rgba(139,92,246,0.2),rgba(168,85,247,0.15)); border:1px solid rgba(139,92,246,0.35); border-radius:999px; padding:2px 8px; font-size:0.65rem; font-weight:800; color:#c4b5fd; letter-spacing:0.05em; flex-shrink:0; }
+    .upgrade-btn-small { padding:4px 10px; background:linear-gradient(135deg,#7c3aed,#a855f7); border:none; border-radius:8px; color:white; font-size:0.65rem; font-weight:700; cursor:pointer; font-family:inherit; flex-shrink:0; letter-spacing:0.02em; }
+
+    /* ── USAGE COUNTER ── */
+    .usage-bar-wrap { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+    .usage-bar-label { font-size:0.72rem; color:#71717a; font-weight:600; }
+    .usage-bar-count { font-size:0.72rem; font-weight:700; color:#a78bfa; }
+    .usage-bar-count.at-limit { color:#f87171; }
+
+    /* ── UPGRADE MODAL ── */
+    .upgrade-modal-overlay { position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.85); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; padding:24px; }
+    .upgrade-modal-card { background:linear-gradient(135deg,#13111C,#1a1825); border:1px solid rgba(139,92,246,0.3); border-radius:28px; padding:40px; max-width:440px; width:100%; box-shadow:0 24px 80px rgba(0,0,0,0.5); text-align:center; }
+    .upgrade-feature-list { list-style:none; padding:0; margin:20px 0 28px; text-align:left; display:flex; flex-direction:column; gap:10px; }
+    .upgrade-feature-list li { display:flex; align-items:center; gap:10px; font-size:0.875rem; color:#d4d4d8; }
+    .upgrade-feature-list li::before { content:'✓'; color:#a78bfa; font-weight:800; flex-shrink:0; }
+
+    /* ── THEME SWATCHES ── */
+    .theme-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:12px; }
+    .theme-swatch { border-radius:12px; padding:10px 8px; border:2px solid transparent; cursor:pointer; transition:all 0.2s; display:flex; flex-direction:column; align-items:center; gap:6px; font-size:0.65rem; font-weight:700; color:#a1a1aa; text-transform:uppercase; letter-spacing:0.04em; }
+    .theme-swatch:hover { border-color:rgba(139,92,246,0.4); }
+    .theme-swatch.active { border-color:#7c3aed; color:white; }
+    .theme-swatch.locked { opacity:0.45; cursor:not-allowed; position:relative; }
+    .theme-swatch .swatch-dot { width:28px; height:28px; border-radius:50%; border:2px solid rgba(255,255,255,0.1); }
+    .theme-lock-icon { position:absolute; top:6px; right:6px; font-size:0.6rem; }
+  </style>
+
   <script>
     /* Apply persisted appearance settings before first paint to avoid flash */
     (function(){
       try{
         var s=JSON.parse(localStorage.getItem('bid_settings')||'{}');
-        if(s.lightMode)    document.documentElement.setAttribute('data-theme','light');
+        if(s.theme)        document.documentElement.setAttribute('data-theme', s.theme);
+        else if(s.lightMode) document.documentElement.setAttribute('data-theme','light');
         if(s.dyslexiaFont) document.documentElement.classList.add('dyslexia-font');
         if(s.fontSize)     document.documentElement.style.fontSize=s.fontSize+'px';
       }catch(e){}
@@ -766,8 +856,10 @@
         <div class="bg-white/5 rounded-xl p-4 border border-white/5 flex items-center gap-3">
             <img id="sidebar-avatar" src="https://www.google.com/favicon.ico" class="w-7 h-7 rounded-full object-cover hidden">
             <span id="sidebar-username" class="text-xs text-zinc-300 font-semibold flex-1 truncate">Student</span>
+            <span id="sidebar-pro-badge" class="pro-badge hidden">✦ Pro</span>
             <button onclick="signOut()" title="Sign out" class="text-zinc-500 hover:text-red-400 transition-colors text-xs font-bold">Sign out</button>
         </div>
+        <button id="sidebar-upgrade-btn" onclick="openUpgradeModal()" class="hidden w-full py-2.5 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90" style="background:linear-gradient(135deg,#7c3aed,#a855f7);box-shadow:0 4px 15px rgba(124,58,237,0.3);">✦ Upgrade to Pro — $3.99/mo</button>
     </div>
   </aside>
 
@@ -812,6 +904,11 @@
         <h2 class="text-2xl font-bold">Smart Intake Editor</h2>
         <div id="notes-loader" class="hidden"><div class="loader"></div></div>
       </div>
+      <div id="notes-usage-bar" class="usage-bar-wrap hidden">
+        <span class="usage-bar-label">Notes used this month</span>
+        <span id="notes-usage-count" class="usage-bar-count">0 / 5</span>
+        <button onclick="openUpgradeModal()" class="upgrade-btn-small">Go Pro</button>
+      </div>
       <div class="grid grid-cols-1 gap-6">
         <textarea id="note-input" placeholder="Paste your study material here..." 
           class="w-full h-48 bg-[#13111C] border border-white/10 rounded-2xl p-6 text-zinc-300 focus:border-violet-500 outline-none resize-none"></textarea>
@@ -829,6 +926,11 @@
       <div class="flex justify-between items-center mb-8">
         <h2 class="text-2xl font-bold">Video Insights</h2>
         <div id="yt-loader" class="hidden"><div class="loader"></div></div>
+      </div>
+      <div id="yt-usage-bar" class="usage-bar-wrap hidden">
+        <span class="usage-bar-label">Video breakdowns used this month</span>
+        <span id="yt-usage-count" class="usage-bar-count">0 / 5</span>
+        <button onclick="openUpgradeModal()" class="upgrade-btn-small">Go Pro</button>
       </div>
       <div class="grid grid-cols-1 gap-6">
         <div class="bg-[#13111C] border border-white/10 rounded-2xl p-6">
@@ -850,6 +952,11 @@
       <div class="flex justify-between items-center mb-8">
         <h2 class="text-2xl font-bold">Pathfinder Roadmaps</h2>
         <div id="roadmap-loader" class="hidden"><div class="loader"></div></div>
+      </div>
+      <div id="roadmap-usage-bar" class="usage-bar-wrap hidden">
+        <span class="usage-bar-label">Roadmaps used this month</span>
+        <span id="roadmap-usage-count" class="usage-bar-count">0 / 3</span>
+        <button onclick="openUpgradeModal()" class="upgrade-btn-small">Go Pro</button>
       </div>
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div class="lg:col-span-1 space-y-6">
@@ -992,13 +1099,57 @@
       <!-- Appearance -->
       <div class="settings-card">
         <div class="settings-section-title">Appearance</div>
+
+        <!-- Theme picker -->
+        <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:12px;">
+          <div>
+            <div class="settings-row-label">Color Theme</div>
+            <div class="settings-row-desc">Free: Dark &amp; Light. Pro unlocks 5 extra themes.</div>
+          </div>
+          <div class="theme-grid" style="width:100%;">
+            <div class="theme-swatch" id="theme-dark" onclick="applyTheme('dark')" title="Dark">
+              <div class="swatch-dot" style="background:#0B0A10;"></div>
+              Dark
+            </div>
+            <div class="theme-swatch" id="theme-light" onclick="applyTheme('light')" title="Light">
+              <div class="swatch-dot" style="background:#f5f3ff;border-color:rgba(0,0,0,0.15);"></div>
+              Light
+            </div>
+            <div class="theme-swatch" id="theme-ocean" onclick="applyTheme('ocean')" title="Ocean" style="position:relative;">
+              <div class="swatch-dot" style="background:#0a1628;"></div>
+              Ocean
+              <span id="theme-ocean-lock" class="theme-lock-icon">🔒</span>
+            </div>
+            <div class="theme-swatch" id="theme-forest" onclick="applyTheme('forest')" title="Forest" style="position:relative;">
+              <div class="swatch-dot" style="background:#0a1a0f;"></div>
+              Forest
+              <span id="theme-forest-lock" class="theme-lock-icon">🔒</span>
+            </div>
+            <div class="theme-swatch" id="theme-sunset" onclick="applyTheme('sunset')" title="Sunset" style="position:relative;">
+              <div class="swatch-dot" style="background:#1a0f0a;"></div>
+              Sunset
+              <span id="theme-sunset-lock" class="theme-lock-icon">🔒</span>
+            </div>
+            <div class="theme-swatch" id="theme-rose" onclick="applyTheme('rose')" title="Rose" style="position:relative;">
+              <div class="swatch-dot" style="background:#1a0a0f;"></div>
+              Rose
+              <span id="theme-rose-lock" class="theme-lock-icon">🔒</span>
+            </div>
+            <div class="theme-swatch" id="theme-midnight" onclick="applyTheme('midnight')" title="Midnight" style="position:relative;">
+              <div class="swatch-dot" style="background:#060409;"></div>
+              Midnight
+              <span id="theme-midnight-lock" class="theme-lock-icon">🔒</span>
+            </div>
+          </div>
+        </div>
+
         <div class="settings-row">
           <div>
             <div class="settings-row-label">Light Mode</div>
             <div class="settings-row-desc">Switch to a light interface</div>
           </div>
           <label class="sett-toggle">
-            <input type="checkbox" id="sett-light-mode" onchange="applyTheme(this.checked)">
+            <input type="checkbox" id="sett-light-mode" onchange="applyTheme(this.checked ? 'light' : 'dark')">
             <span class="sett-track"></span>
           </label>
         </div>
@@ -1343,6 +1494,100 @@
   <script>
     let currentActiveOutputId = 'note-output';
 
+    // ── PRO & USAGE STATE ─────────────────────────────────────────────────────
+    let _userIsPro  = false;
+    let _userUsage  = { notes: 0, roadmaps: 0, ytNotes: 0 };
+    const FREE_LIMITS  = { notes: 5, roadmaps: 3, ytNotes: 5 };
+    const GROUP_LIMIT  = 8;
+    const PRO_THEMES   = ['ocean', 'forest', 'sunset', 'rose', 'midnight'];
+
+    function _currentMonth() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    }
+
+    function _updateUsageUI() {
+      const isPro = _userIsPro;
+      // Show/hide usage bars
+      ['notes-usage-bar','yt-usage-bar','roadmap-usage-bar'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('hidden', isPro);
+      });
+      // Update counts
+      const nc = document.getElementById('notes-usage-count');
+      const yc = document.getElementById('yt-usage-count');
+      const rc = document.getElementById('roadmap-usage-count');
+      if (nc) { nc.textContent = `${_userUsage.notes} / ${FREE_LIMITS.notes}`; nc.classList.toggle('at-limit', _userUsage.notes >= FREE_LIMITS.notes); }
+      if (yc) { yc.textContent = `${_userUsage.ytNotes} / ${FREE_LIMITS.ytNotes}`; yc.classList.toggle('at-limit', _userUsage.ytNotes >= FREE_LIMITS.ytNotes); }
+      if (rc) { rc.textContent = `${_userUsage.roadmaps} / ${FREE_LIMITS.roadmaps}`; rc.classList.toggle('at-limit', _userUsage.roadmaps >= FREE_LIMITS.roadmaps); }
+      // Pro badge / upgrade button
+      const badge  = document.getElementById('sidebar-pro-badge');
+      const upBtn  = document.getElementById('sidebar-upgrade-btn');
+      if (badge)  badge.classList.toggle('hidden', !isPro);
+      if (upBtn)  upBtn.classList.toggle('hidden', isPro);
+      // Theme swatches
+      PRO_THEMES.forEach(t => {
+        const sw   = document.getElementById('theme-' + t);
+        const lock = document.getElementById('theme-' + t + '-lock');
+        if (!sw) return;
+        sw.classList.toggle('locked', !isPro);
+        if (lock) lock.style.display = isPro ? 'none' : '';
+      });
+    }
+
+    async function _incrementUsage(field) {
+      const user = _appUser;
+      if (!user || _userIsPro) return;
+      _userUsage[field] = (_userUsage[field] || 0) + 1;
+      _updateUsageUI();
+      const month = _currentMonth();
+      try {
+        await db.ref(`users/${user.uid}/usage/${month}/${field}`).set(_userUsage[field]);
+      } catch(_) {}
+    }
+
+    function openUpgradeModal(msg) {
+      const m = document.getElementById('upgrade-modal');
+      if (!m) return;
+      m.classList.remove('js-hidden');
+      m.style.display = 'flex';
+    }
+
+    function closeUpgradeModal() {
+      const m = document.getElementById('upgrade-modal');
+      if (!m) return;
+      m.classList.add('js-hidden');
+      m.style.display = 'none';
+    }
+
+    async function startCheckout() {
+      const user = _appUser;
+      if (!user) { alert('Please sign in first.'); return; }
+      const btn = document.getElementById('checkout-btn');
+      if (btn) { btn.textContent = 'Loading…'; btn.disabled = true; }
+      try {
+        const resp = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uid: user.uid, email: user.email || '' })
+        });
+        const data = await resp.json();
+        if (data.url) { window.location.href = data.url; }
+        else { throw new Error(data.error || 'Could not start checkout.'); }
+      } catch (err) {
+        alert('Checkout error: ' + err.message);
+        if (btn) { btn.textContent = 'Upgrade Now →'; btn.disabled = false; }
+      }
+    }
+
+    // Handle pro=success redirect from Stripe
+    (function() {
+      if (window.location.search.includes('pro=success')) {
+        history.replaceState({}, '', window.location.pathname);
+        setTimeout(() => alert('🎉 Welcome to Pro! Your account has been upgraded.'), 800);
+      }
+    })();
+
     // Returns a per-user localStorage key so each account has its own saved notes
     function vaultKey() {
       const user = _appUser;
@@ -1525,6 +1770,16 @@ async function generateNotes(type) {
     const val = document.getElementById(inputId).value;
     if (!val.trim()) return;
 
+    // ── LIMIT CHECK ──────────────────────────────────────────────────────────
+    if (!_userIsPro) {
+      if (type === 'text' && _userUsage.notes >= FREE_LIMITS.notes) {
+        openUpgradeModal(); return;
+      }
+      if (type === 'yt' && _userUsage.ytNotes >= FREE_LIMITS.ytNotes) {
+        openUpgradeModal(); return;
+      }
+    }
+
     const loader = document.getElementById(loaderId);
     const output = document.getElementById(outputId);
     const btn = document.getElementById(btnId);
@@ -1550,6 +1805,9 @@ async function generateNotes(type) {
         output.innerHTML = formatAIResponse(res.notes);
         currentActiveOutputId = outputId;
 
+        // Increment usage counter
+        await _incrementUsage(type === 'yt' ? 'ytNotes' : 'notes');
+
     } catch (err) {
         loader.classList.add('hidden');
         btn.disabled = false;
@@ -1560,18 +1818,21 @@ async function generateNotes(type) {
   async function generateRoadmap() {
   const subject = document.getElementById('rm-subject').value;
   const grade = document.getElementById('rm-grade').value;
-  
+
   if (!subject) return;
+
+  // ── LIMIT CHECK ────────────────────────────────────────────────────────────
+  if (!_userIsPro && _userUsage.roadmaps >= FREE_LIMITS.roadmaps) {
+    openUpgradeModal(); return;
+  }
 
   const loader = document.getElementById('roadmap-loader');
   const output = document.getElementById('roadmap-output');
-  
-  // UI Feedback: Show loader and initial message
+
   loader.classList.remove('hidden');
   output.innerHTML = '<div class="text-zinc-500 text-center py-20">Echo is mapping your educational journey...</div>';
 
   try {
-    // Replace with your Firebase Function URL or your specific API endpoint
     const response = await fetch('/api/roadmap', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1585,8 +1846,9 @@ async function generateNotes(type) {
     output.innerHTML = formatAIResponse(res.roadmap);
     currentActiveOutputId = 'roadmap-output';
 
+    await _incrementUsage('roadmaps');
+
   } catch (err) {
-    // Failure Logic: Hide loader and show error
     loader.classList.add('hidden');
     output.innerHTML = `<div class="text-red-400 p-4 text-center">Error: ${err.message}</div>`;
     console.error("Roadmap Logic Error:", err);
@@ -2112,6 +2374,13 @@ function loadSettings() {
   document.getElementById('sett-dyslexia-font').checked = !!s.dyslexiaFont;
   if (s.fontSize) document.getElementById('sett-font-size').value = s.fontSize;
 
+  // Highlight active theme swatch
+  const activeTheme = s.theme || (s.lightMode ? 'light' : 'dark');
+  document.querySelectorAll('.theme-swatch').forEach(sw => sw.classList.remove('active'));
+  const activeSw = document.getElementById('theme-' + activeTheme);
+  if (activeSw) activeSw.classList.add('active');
+  _updateUsageUI();
+
   if (user) {
     // Pull full profile from RTDB, merge into form fields
     db.ref('users/' + user.uid).once('value').then(snap => {
@@ -2221,11 +2490,27 @@ function saveStudyPrefs() {
   flashSettBtn(event.target);
 }
 
-function applyTheme(isLight) {
-  document.documentElement.setAttribute('data-theme', isLight ? 'light' : 'dark');
+function applyTheme(theme) {
+  // Accept boolean (legacy light-mode toggle) or string theme name
+  if (typeof theme === 'boolean') theme = theme ? 'light' : 'dark';
+
+  // Block pro themes for free users
+  if (PRO_THEMES.includes(theme) && !_userIsPro) { openUpgradeModal(); return; }
+
+  document.documentElement.setAttribute('data-theme', theme);
   const s = JSON.parse(localStorage.getItem('bid_settings') || '{}');
-  s.lightMode = isLight;
+  s.theme     = theme;
+  s.lightMode = (theme === 'light');
   localStorage.setItem('bid_settings', JSON.stringify(s));
+
+  // Sync light mode toggle
+  const toggle = document.getElementById('sett-light-mode');
+  if (toggle) toggle.checked = (theme === 'light');
+
+  // Update active swatch
+  document.querySelectorAll('.theme-swatch').forEach(sw => sw.classList.remove('active'));
+  const active = document.getElementById('theme-' + theme);
+  if (active) active.classList.add('active');
 }
 
 function applyDyslexiaFont(isOn) {
@@ -2358,6 +2643,18 @@ function loadUserProfile(user) {
       }
     }
     listenForReceivedNotes(user.uid);
+
+    // Load pro status + usage
+    db.ref('users/' + user.uid + '/pro').on('value', snap => {
+      _userIsPro = !!snap.val();
+      _updateUsageUI();
+    });
+    const month = _currentMonth();
+    db.ref('users/' + user.uid + '/usage/' + month).once('value').then(snap => {
+      const u = snap.val() || {};
+      _userUsage = { notes: u.notes || 0, roadmaps: u.roadmaps || 0, ytNotes: u.ytNotes || 0 };
+      _updateUsageUI();
+    });
   }).catch(() => {});
 }
 
@@ -2696,6 +2993,14 @@ async function createGroup() {
   const name = document.getElementById('cg-name').value.trim();
   const desc = document.getElementById('cg-desc').value.trim();
   if (!name) { alert('Please enter a group name.'); return; }
+
+  // ── LIMIT CHECK ────────────────────────────────────────────────────────────
+  if (!_userIsPro) {
+    const countSnap = await db.ref('userGroups/' + user.uid).once('value');
+    const groupCount = countSnap.exists() ? Object.keys(countSnap.val()).length : 0;
+    if (groupCount >= GROUP_LIMIT) { closeCreateGroupModal(); openUpgradeModal(); return; }
+  }
+
   const members = { [user.uid]: true };
   document.querySelectorAll('.cg-friend-check:checked').forEach(cb => { members[cb.value] = true; });
   try {
@@ -2892,5 +3197,23 @@ function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
   </script>
+
+  <!-- ── UPGRADE MODAL ── -->
+  <div id="upgrade-modal" class="upgrade-modal-overlay js-hidden" style="display:none;">
+    <div class="upgrade-modal-card">
+      <div style="width:56px;height:56px;background:linear-gradient(135deg,rgba(139,92,246,0.2),rgba(168,85,247,0.1));border:1px solid rgba(139,92,246,0.3);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:1.5rem;">✦</div>
+      <h2 style="font-size:1.6rem;font-weight:800;color:white;margin:0 0 6px;letter-spacing:-0.02em;">Upgrade to Pro</h2>
+      <p style="color:#71717a;font-size:0.875rem;margin:0 0 4px;">$3.99 / month — cancel anytime</p>
+      <ul class="upgrade-feature-list">
+        <li>Unlimited notes, roadmaps &amp; video breakdowns</li>
+        <li>5 exclusive color themes (Ocean, Forest, Sunset, Rose, Midnight)</li>
+        <li>Unlimited study groups</li>
+        <li>Priority AI processing</li>
+      </ul>
+      <button onclick="startCheckout()" style="width:100%;padding:14px;background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;border-radius:14px;color:white;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 8px 24px rgba(124,58,237,0.35);margin-bottom:10px;" id="checkout-btn">Upgrade Now →</button>
+      <button onclick="closeUpgradeModal()" style="width:100%;padding:10px;background:transparent;border:none;color:#52525b;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Maybe later</button>
+    </div>
+  </div>
+
 </body>
 </html>
