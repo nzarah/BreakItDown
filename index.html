@@ -1603,6 +1603,7 @@
       const upBtn  = document.getElementById('sidebar-upgrade-btn');
       if (badge)  badge.classList.toggle('hidden', !isPro);
       if (upBtn)  upBtn.classList.toggle('hidden', isPro);
+      if (isPro)  closeUpgradeModal();
       // Theme swatches
       PRO_THEMES.forEach(t => {
         const sw   = document.getElementById('theme-' + t);
