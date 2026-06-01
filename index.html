@@ -1465,6 +1465,12 @@
           <button class="echo-chip" onclick="echoQuickAction('Explain the most difficult concept in this note in simple terms')">Explain</button>
         </div>
 
+        <!-- Free usage bar (hidden for pro) -->
+        <div id="echo-usage-bar" class="hidden" style="padding:8px 14px;border-top:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+          <span style="font-size:0.68rem;color:#71717a;font-weight:600;">Echo messages this month</span>
+          <span id="echo-usage-count" class="usage-bar-count" style="font-size:0.68rem;">0 / 10</span>
+        </div>
+
         <!-- Input -->
         <div style="padding:10px 12px 14px;border-top:1px solid rgba(255,255,255,0.05);display:flex;gap:8px;align-items:flex-end;flex-shrink:0;">
           <textarea id="echo-input" rows="2" placeholder="Ask Echo anything…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendEchoMessage();}" style="flex:1;resize:none;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:8px 12px;color:white;font-size:0.82rem;outline:none;font-family:inherit;line-height:1.4;"></textarea>
@@ -1566,8 +1572,8 @@
 
     // ── PRO & USAGE STATE ─────────────────────────────────────────────────────
     let _userIsPro  = false;
-    let _userUsage  = { notes: 0, roadmaps: 0, ytNotes: 0 };
-    const FREE_LIMITS  = { notes: 5, roadmaps: 3, ytNotes: 3 };
+    let _userUsage  = { notes: 0, roadmaps: 0, ytNotes: 0, echoMessages: 0 };
+    const FREE_LIMITS  = { notes: 5, roadmaps: 3, ytNotes: 3, echoMessages: 10 };
     const GROUP_LIMIT  = 8;
     const PRO_THEMES   = ['ocean', 'forest', 'sunset', 'rose', 'midnight'];
 
@@ -1579,7 +1585,7 @@
     function _updateUsageUI() {
       const isPro = _userIsPro;
       // Show/hide usage bars
-      ['notes-usage-bar','yt-usage-bar','roadmap-usage-bar'].forEach(id => {
+      ['notes-usage-bar','yt-usage-bar','roadmap-usage-bar','echo-usage-bar'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.toggle('hidden', isPro);
       });
@@ -1587,9 +1593,11 @@
       const nc = document.getElementById('notes-usage-count');
       const yc = document.getElementById('yt-usage-count');
       const rc = document.getElementById('roadmap-usage-count');
+      const ec = document.getElementById('echo-usage-count');
       if (nc) { nc.textContent = `${_userUsage.notes} / ${FREE_LIMITS.notes}`; nc.classList.toggle('at-limit', _userUsage.notes >= FREE_LIMITS.notes); }
       if (yc) { yc.textContent = `${_userUsage.ytNotes} / ${FREE_LIMITS.ytNotes}`; yc.classList.toggle('at-limit', _userUsage.ytNotes >= FREE_LIMITS.ytNotes); }
       if (rc) { rc.textContent = `${_userUsage.roadmaps} / ${FREE_LIMITS.roadmaps}`; rc.classList.toggle('at-limit', _userUsage.roadmaps >= FREE_LIMITS.roadmaps); }
+      if (ec) { ec.textContent = `${_userUsage.echoMessages} / ${FREE_LIMITS.echoMessages}`; ec.classList.toggle('at-limit', _userUsage.echoMessages >= FREE_LIMITS.echoMessages); }
       // Pro badge / upgrade button
       const badge  = document.getElementById('sidebar-pro-badge');
       const upBtn  = document.getElementById('sidebar-upgrade-btn');
@@ -2039,6 +2047,10 @@ async function sendEchoMessage() {
   const input = document.getElementById('echo-input');
   const text  = input.value.trim();
   if (!text) return;
+  if (!_userIsPro && _userUsage.echoMessages >= FREE_LIMITS.echoMessages) {
+    openUpgradeModal('You\'ve used all 10 free Echo messages this month. Upgrade to Pro for unlimited.');
+    return;
+  }
   input.value = '';
 
   const msgs = document.getElementById('echo-messages');
@@ -2071,6 +2083,8 @@ async function sendEchoMessage() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error');
+
+    await _incrementUsage('echoMessages');
 
     let reply = data.reply;
     msgs.removeChild(thinking);
@@ -2715,7 +2729,7 @@ function loadUserProfile(user) {
     const month = _currentMonth();
     db.ref('users/' + user.uid + '/usage/' + month).once('value').then(snap => {
       const u = snap.val() || {};
-      _userUsage = { notes: u.notes || 0, roadmaps: u.roadmaps || 0, ytNotes: u.ytNotes || 0 };
+      _userUsage = { notes: u.notes || 0, roadmaps: u.roadmaps || 0, ytNotes: u.ytNotes || 0, echoMessages: u.echoMessages || 0 };
       _updateUsageUI();
     });
   }).catch(() => {});
