@@ -1510,6 +1510,13 @@
         <h3 class="font-bold text-white text-lg">Post to Group</h3>
         <button onclick="closePostModal()" class="text-zinc-500 hover:text-white transition-colors text-xl">&#x2715;</button>
       </div>
+
+      <!-- Mode toggle -->
+      <div class="flex gap-2 mb-5">
+        <button onclick="setPmMode('new')" id="pm-mode-new" class="chart-type-btn active-ct">Write New</button>
+        <button onclick="setPmMode('saved')" id="pm-mode-saved" class="chart-type-btn">From My Stuff</button>
+      </div>
+
       <div class="space-y-4">
         <div id="pm-group-selector-row" class="hidden">
           <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Post to Group</label>
@@ -1517,24 +1524,36 @@
             <option value="">Select a group…</option>
           </select>
         </div>
-        <div>
-          <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Title</label>
-          <input type="text" id="pm-title" placeholder="e.g. My Biology notes" class="settings-input">
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Type</label>
-          <div class="flex gap-2">
-            <button onclick="setPostType('text')"    id="pt-text"    class="chart-type-btn active-ct">Text</button>
-            <button onclick="setPostType('note')"    id="pt-note"    class="chart-type-btn">Note</button>
-            <button onclick="setPostType('roadmap')" id="pt-roadmap" class="chart-type-btn">Roadmap</button>
+
+        <!-- Saved notes picker (shown in "From My Stuff" mode) -->
+        <div id="pm-saved-picker" class="hidden">
+          <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Choose a saved note or roadmap</label>
+          <div id="pm-saved-list" class="space-y-2 max-h-56 overflow-y-auto pr-1">
+            <div class="text-zinc-600 text-sm italic text-center py-6">Loading…</div>
           </div>
         </div>
-        <div>
-          <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Content</label>
-          <textarea id="pm-content" rows="6" placeholder="Share your notes, ideas, or questions..." class="settings-input" style="resize:vertical;"></textarea>
-          <div class="flex gap-2 mt-2">
-            <button onclick="useLastNoteOutput()" style="padding:6px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#a1a1aa;font-size:0.75rem;font-weight:600;cursor:pointer;font-family:inherit;" onmouseover="this.style.color='white';" onmouseout="this.style.color='#a1a1aa';">Use last Smart Note</button>
-            <button onclick="useLastRoadmapOutput()" style="padding:6px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#a1a1aa;font-size:0.75rem;font-weight:600;cursor:pointer;font-family:inherit;" onmouseover="this.style.color='white';" onmouseout="this.style.color='#a1a1aa';">Use last Roadmap</button>
+
+        <!-- Write fields (shown in both modes after selection) -->
+        <div id="pm-write-fields">
+          <div class="mb-4">
+            <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Title</label>
+            <input type="text" id="pm-title" placeholder="e.g. My Biology notes" class="settings-input">
+          </div>
+          <div class="mb-4">
+            <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Type</label>
+            <div class="flex gap-2">
+              <button onclick="setPostType('text')"    id="pt-text"    class="chart-type-btn active-ct">Text</button>
+              <button onclick="setPostType('note')"    id="pt-note"    class="chart-type-btn">Note</button>
+              <button onclick="setPostType('roadmap')" id="pt-roadmap" class="chart-type-btn">Roadmap</button>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Content</label>
+            <textarea id="pm-content" rows="6" placeholder="Share your notes, ideas, or questions..." class="settings-input" style="resize:vertical;"></textarea>
+            <div id="pm-quick-fill-btns" class="flex gap-2 mt-2">
+              <button onclick="useLastNoteOutput()" style="padding:6px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#a1a1aa;font-size:0.75rem;font-weight:600;cursor:pointer;font-family:inherit;" onmouseover="this.style.color='white';" onmouseout="this.style.color='#a1a1aa';">Use last Smart Note</button>
+              <button onclick="useLastRoadmapOutput()" style="padding:6px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#a1a1aa;font-size:0.75rem;font-weight:600;cursor:pointer;font-family:inherit;" onmouseover="this.style.color='white';" onmouseout="this.style.color='#a1a1aa';">Use last Roadmap</button>
+            </div>
           </div>
         </div>
       </div>
@@ -3090,9 +3109,70 @@ function closePostModal() {
   document.getElementById('pm-group-select').value = '';
   document.getElementById('pm-group-selector-row').classList.add('hidden');
   setPostType('text');
+  setPmMode('new');
 }
 function useLastNoteOutput()    { const el = document.getElementById('note-output');    if(el){ document.getElementById('pm-content').value = el.innerText; setPostType('note'); } }
 function useLastRoadmapOutput() { const el = document.getElementById('roadmap-output'); if(el){ document.getElementById('pm-content').value = el.innerText; setPostType('roadmap'); } }
+
+function setPmMode(mode) {
+  const isNew = mode === 'new';
+  document.getElementById('pm-mode-new').classList.toggle('active-ct', isNew);
+  document.getElementById('pm-mode-saved').classList.toggle('active-ct', !isNew);
+  document.getElementById('pm-saved-picker').classList.toggle('hidden', isNew);
+  document.getElementById('pm-quick-fill-btns').classList.toggle('hidden', !isNew);
+  if (!isNew) {
+    loadSavedNotesForModal();
+    document.getElementById('pm-title').value   = '';
+    document.getElementById('pm-content').value = '';
+    setPostType('text');
+  }
+}
+
+async function loadSavedNotesForModal() {
+  const user = auth.currentUser;
+  const list = document.getElementById('pm-saved-list');
+  if (!user) { list.innerHTML = '<div class="text-zinc-600 text-sm italic text-center py-6">Sign in to see your saved notes.</div>'; return; }
+  list.innerHTML = '<div class="text-zinc-600 text-sm italic text-center py-6">Loading…</div>';
+  try {
+    const snap  = await db.ref('notes/' + user.uid).once('value');
+    const notes = Object.values(snap.val() || {}).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+    if (notes.length === 0) {
+      list.innerHTML = '<div class="text-zinc-600 text-sm italic text-center py-6">No saved notes or roadmaps yet.</div>';
+      return;
+    }
+    const typeColors = { Note:'#c4b5fd', Roadmap:'#6ee7b7', Video:'#fca5a5' };
+    const typeBgs    = { Note:'rgba(124,58,237,0.12)', Roadmap:'rgba(16,185,129,0.1)', Video:'rgba(239,68,68,0.1)' };
+    const typeMap    = { Note:'note', Roadmap:'roadmap', Video:'note' };
+    list.innerHTML = notes.map((n, i) => {
+      const preview  = (n.content||'').replace(/<[^>]+>/g,'').slice(0,80);
+      const safeType = typeMap[n.type] || 'note';
+      return `<div class="pm-saved-item" data-idx="${i}"
+        style="cursor:pointer;padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.03);transition:all 0.15s;display:flex;align-items:center;gap:12px;"
+        onmouseover="this.style.borderColor='rgba(124,58,237,0.35)';this.style.background='rgba(124,58,237,0.07)';"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.07)';this.style.background='rgba(255,255,255,0.03)';">
+        <span style="display:inline-flex;padding:3px 10px;border-radius:999px;font-size:0.65rem;font-weight:800;background:${typeBgs[n.type]||typeBgs.Note};color:${typeColors[n.type]||typeColors.Note};white-space:nowrap;flex-shrink:0;">${escHtml(n.type||'Note')}</span>
+        <div style="min-width:0;flex:1;">
+          <div style="font-weight:700;color:#e4e4e7;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(n.title||'Untitled')}</div>
+          <div style="color:#71717a;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(preview)}</div>
+        </div>
+      </div>`;
+    }).join('');
+    // Attach click handlers via JS to safely pass title/content without escaping issues
+    list.querySelectorAll('.pm-saved-item').forEach(el => {
+      const n = notes[parseInt(el.dataset.idx)];
+      el.addEventListener('click', () => fillFromSaved(n.title||'', n.content||'', typeMap[n.type]||'note'));
+    });
+  } catch(_) {
+    list.innerHTML = '<div class="text-zinc-600 text-sm italic text-center py-6">Could not load notes.</div>';
+  }
+}
+
+function fillFromSaved(title, content, type) {
+  document.getElementById('pm-title').value   = title;
+  document.getElementById('pm-content').value = (content||'').replace(/<[^>]+>/g,'');
+  setPostType(type);
+  document.getElementById('pm-write-fields').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
 
 async function openPostToGroupModalFromNote(noteId) {
   const user = auth.currentUser;
