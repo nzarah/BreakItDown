@@ -1947,6 +1947,9 @@ async function saveCurrentNote(outputId, type = 'Note') {
   }
 
   // ── SAVE LIMIT CHECK ────────────────────────────────────────────────────────
+  // Always read pro status directly from Firebase at save time to avoid stale state
+  const proSnap = await db.ref('users/' + user.uid + '/pro').once('value');
+  _userIsPro = !!proSnap.val();
   if (!_userIsPro) {
     const usageField = type === 'Roadmap' ? 'roadmaps' : type === 'Video' ? 'ytNotes' : 'notes';
     const limit      = FREE_LIMITS[usageField];
@@ -2048,6 +2051,8 @@ async function sendEchoMessage() {
   const input = document.getElementById('echo-input');
   const text  = input.value.trim();
   if (!text) return;
+  const _echoProSnap = await db.ref('users/' + (auth.currentUser||{}).uid + '/pro').once('value');
+  _userIsPro = !!_echoProSnap.val();
   if (!_userIsPro && _userUsage.echoMessages >= FREE_LIMITS.echoMessages) {
     openUpgradeModal('You\'ve used all 10 free Echo messages this month. Upgrade to Pro for unlimited.');
     return;
@@ -3077,6 +3082,8 @@ async function createGroup() {
   if (!name) { alert('Please enter a group name.'); return; }
 
   // ── LIMIT CHECK ────────────────────────────────────────────────────────────
+  const _grpProSnap = await db.ref('users/' + user.uid + '/pro').once('value');
+  _userIsPro = !!_grpProSnap.val();
   if (!_userIsPro) {
     const countSnap = await db.ref('userGroups/' + user.uid).once('value');
     const groupCount = countSnap.exists() ? Object.keys(countSnap.val()).length : 0;
