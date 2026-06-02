@@ -3,23 +3,24 @@ import { fileURLToPath } from "url";
 import "dotenv/config";
 import express from "express";
 import Stripe from "stripe";
-import admin from "firebase-admin";
+import { initializeApp, cert, getApps } from "firebase-admin/app";
+import { getDatabase } from "firebase-admin/database";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
 // ── FIREBASE ADMIN ──────────────────────────────────────────────────────────
-if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+if (process.env.FIREBASE_SERVICE_ACCOUNT && getApps().length === 0) {
   const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
+  initializeApp({
+    credential: cert(serviceAccount),
     databaseURL: 'https://breakitdown-b1293-default-rtdb.firebaseio.com'
   });
 }
 
 async function rtdbSet(path, value) {
-  if (!admin.apps.length) return;
-  await admin.database().ref(path).set(value);
+  if (getApps().length === 0) return;
+  await getDatabase().ref(path).set(value);
 }
 
 // Webhook needs raw body — everything else gets JSON
