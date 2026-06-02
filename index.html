@@ -1661,9 +1661,33 @@
 
     // Handle pro=success redirect from Stripe
     (function() {
-      if (window.location.search.includes('pro=success')) {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('pro') === 'success') {
         history.replaceState({}, '', window.location.pathname);
-        setTimeout(() => alert('🎉 Welcome to Pro! Your account has been upgraded.'), 800);
+        const sessionId = params.get('session_id');
+        if (sessionId) {
+          // Verify payment server-side and write pro:true to Firebase
+          // (fallback in case the webhook missed due to server sleep)
+          const pollUid = () => {
+            const u = firebase.auth().currentUser;
+            if (u) {
+              fetch('/api/verify-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId, uid: u.uid })
+              }).then(r => r.json()).then(d => {
+                if (d.pro) {
+                  _userIsPro = true;
+                  _updateUsageUI();
+                  alert('🎉 Welcome to Pro! Your account has been upgraded.');
+                }
+              }).catch(() => {});
+            } else {
+              setTimeout(pollUid, 500);
+            }
+          };
+          setTimeout(pollUid, 500);
+        }
       }
     })();
 

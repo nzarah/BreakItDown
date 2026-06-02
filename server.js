@@ -246,10 +246,29 @@ app.post('/api/create-checkout-session', async (req, res) => {
       line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
       customer_email: email || undefined,
       client_reference_id: uid,
-      success_url: `${appUrl}/app?pro=success`,
+      success_url: `${appUrl}/app?pro=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/app`,
     });
     res.json({ url: session.url });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── VERIFY SESSION (fallback for when webhook misses due to server sleep) ────
+app.post('/api/verify-session', async (req, res) => {
+  const { sessionId, uid } = req.body;
+  if (!sessionId || !uid) return res.status(400).json({ error: 'sessionId and uid required' });
+  const stripeKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeKey) return res.status(500).json({ error: 'Stripe not configured.' });
+  try {
+    const stripe = new Stripe(stripeKey);
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    if (session.payment_status === 'paid' && session.client_reference_id === uid) {
+      await rtdbSet(`users/${uid}/pro`, true);
+      return res.json({ pro: true });
+    }
+    res.json({ pro: false });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
