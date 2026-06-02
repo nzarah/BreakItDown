@@ -3,9 +3,24 @@ import { fileURLToPath } from "url";
 import "dotenv/config";
 import express from "express";
 import Stripe from "stripe";
+import admin from "firebase-admin";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
+
+// ── FIREBASE ADMIN ──────────────────────────────────────────────────────────
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    databaseURL: 'https://breakitdown-b1293-default-rtdb.firebaseio.com'
+  });
+}
+
+async function rtdbSet(path, value) {
+  if (!admin.apps.length) return;
+  await admin.database().ref(path).set(value);
+}
 
 // Webhook needs raw body — everything else gets JSON
 app.use((req, res, next) => {
@@ -17,19 +32,6 @@ app.use((req, res, next) => {
 });
 
 const noteStore = new Map();
-
-// ── FIREBASE RTDB HELPER ────────────────────────────────────────────────────
-const DB_URL = 'https://breakitdown-b1293-default-rtdb.firebaseio.com';
-
-async function rtdbSet(path, value) {
-  const secret = process.env.FIREBASE_DB_SECRET;
-  if (!secret) return;
-  await fetch(`${DB_URL}/${path}.json?auth=${secret}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(value)
-  });
-}
 
 // ── GEMINI ──────────────────────────────────────────────────────────────────
 async function callGemini(prompt, extraParts = [], model = "gemini-2.5-flash") {
