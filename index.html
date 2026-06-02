@@ -2721,19 +2721,19 @@ function loadUserProfile(user) {
       }
     }
     listenForReceivedNotes(user.uid);
-
-    // Load pro status + usage
-    db.ref('users/' + user.uid + '/pro').on('value', snap => {
-      _userIsPro = !!snap.val();
-      _updateUsageUI();
-    });
-    const month = _currentMonth();
-    db.ref('users/' + user.uid + '/usage/' + month).once('value').then(snap => {
-      const u = snap.val() || {};
-      _userUsage = { notes: u.notes || 0, roadmaps: u.roadmaps || 0, ytNotes: u.ytNotes || 0, echoMessages: u.echoMessages || 0 };
-      _updateUsageUI();
-    });
   }).catch(() => {});
+
+  // Load pro status + usage — runs independently so a profile read error can't block it
+  db.ref('users/' + user.uid + '/pro').on('value', snap => {
+    _userIsPro = !!snap.val();
+    _updateUsageUI();
+  });
+  const month = _currentMonth();
+  db.ref('users/' + user.uid + '/usage/' + month).once('value').then(snap => {
+    const u = snap.val() || {};
+    _userUsage = { notes: u.notes || 0, roadmaps: u.roadmaps || 0, ytNotes: u.ytNotes || 0, echoMessages: u.echoMessages || 0 };
+    _updateUsageUI();
+  });
 }
 
 // ── USERNAME AVAILABILITY CHECK ───────────────────────────────────────────────
