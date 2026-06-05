@@ -1926,6 +1926,7 @@ async function generateNotes(type) {
         output.innerHTML = formatAIResponse(res.notes);
         currentActiveOutputId = outputId;
 
+        if (type === 'text') appendAIDiagram(val, output);
 
     } catch (err) {
         loader.classList.add('hidden');
@@ -1934,6 +1935,100 @@ async function generateNotes(type) {
         console.error('Notes Error:', err);
     }
 }
+  async function appendAIDiagram(sourceText, outputEl) {
+    const placeholder = document.createElement('div');
+    placeholder.className = 'ai-diagram-wrap';
+    placeholder.innerHTML = '<div class="text-zinc-600 text-xs italic text-center py-4">Generating visual diagram…</div>';
+    outputEl.appendChild(placeholder);
+    try {
+      const res = await fetch('/api/diagram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: sourceText })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.diagram) { placeholder.remove(); return; }
+      const svg = buildAIDiagramSVG(data.diagram);
+      if (!svg) { placeholder.remove(); return; }
+      placeholder.innerHTML = `
+        <div style="margin-top:2rem;padding-top:1.5rem;border-top:1px solid rgba(255,255,255,0.06);">
+          <div class="text-[10px] font-bold text-violet-400 uppercase tracking-widest mb-3">Visual Summary</div>
+          ${svg}
+        </div>`;
+    } catch(_) { placeholder.remove(); }
+  }
+
+  function buildAIDiagramSVG(d) {
+    if (d.type === 'mindmap') return buildAIMindMap(d);
+    if (d.type === 'timeline') return buildAITimeline(d);
+    if (d.type === 'flow') return buildAIFlow(d);
+    return null;
+  }
+
+  function buildAIMindMap(d) {
+    const center = (d.center || 'Topic').slice(0, 14);
+    const branches = (d.branches || []).slice(0, 7);
+    if (!branches.length) return null;
+    const W = 560, H = 320, cx = W / 2, cy = H / 2, r = 105, nodeR = 42;
+    const colors = ['#7c3aed','#8b5cf6','#a78bfa','#6d28d9','#c4b5fd','#4c1d95','#5b21b6'];
+    let lines = '', nodes = '';
+    branches.forEach((b, i) => {
+      const angle = (2 * Math.PI * i / branches.length) - Math.PI / 2;
+      const bx = cx + r * Math.cos(angle), by = cy + r * Math.sin(angle);
+      const col = colors[i % colors.length];
+      lines += `<line x1="${cx}" y1="${cy}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}" stroke="${col}" stroke-width="2" opacity="0.5"/>`;
+      nodes += `<ellipse cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" rx="${nodeR}" ry="19" fill="${col}" opacity="0.85"/>`;
+      const lbl = b.length > 12 ? b.slice(0, 11) + '…' : b;
+      nodes += `<text x="${bx.toFixed(1)}" y="${(by + 0.5).toFixed(1)}" text-anchor="middle" dominant-baseline="middle" fill="white" font-size="10" font-weight="600">${lbl}</text>`;
+    });
+    const cLabel = center.length > 10 ? center.slice(0, 9) + '…' : center;
+    return `<svg class="inserted-chart" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="background:#1a1825;">${lines}<circle cx="${cx}" cy="${cy}" r="50" fill="#7c3aed"/><text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle" fill="white" font-size="12" font-weight="700">${cLabel}</text>${nodes}</svg>`;
+  }
+
+  function buildAITimeline(d) {
+    const events = (d.events || []).slice(0, 7);
+    if (!events.length) return null;
+    const W = 560, H = 140, pad = 50, cy = H / 2;
+    const step = (W - pad * 2) / Math.max(events.length - 1, 1);
+    const colors = ['#7c3aed','#8b5cf6','#a78bfa','#6d28d9','#c4b5fd','#5b21b6','#4c1d95'];
+    let els = `<line x1="${pad}" y1="${cy}" x2="${W - pad}" y2="${cy}" stroke="rgba(255,255,255,0.1)" stroke-width="2"/>`;
+    events.forEach((ev, i) => {
+      const x = events.length === 1 ? W / 2 : pad + i * step;
+      const col = colors[i % colors.length];
+      const above = i % 2 === 0;
+      const lbl = (ev.label || '').length > 14 ? (ev.label || '').slice(0, 13) + '…' : (ev.label || '');
+      const yr  = (ev.year  || '').length > 10 ? (ev.year  || '').slice(0, 9)  + '…' : (ev.year  || '');
+      els += `<circle cx="${x}" cy="${cy}" r="6" fill="${col}"/>`;
+      els += `<text x="${x}" y="${above ? cy - 14 : cy + 22}" text-anchor="middle" fill="white" font-size="9" font-weight="700">${yr}</text>`;
+      els += `<text x="${x}" y="${above ? cy - 26 : cy + 34}" text-anchor="middle" fill="#a1a1aa" font-size="9">${lbl}</text>`;
+    });
+    return `<svg class="inserted-chart" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="background:#1a1825;">${els}</svg>`;
+  }
+
+  function buildAIFlow(d) {
+    const steps = (d.steps || []).slice(0, 6);
+    if (!steps.length) return null;
+    const bW = 110, bH = 40, gap = 28, pad = 20;
+    const W = steps.length * (bW + gap) - gap + pad * 2;
+    const H = bH + 60;
+    const cy = H / 2;
+    const colors = ['#7c3aed','#6d28d9','#8b5cf6','#5b21b6','#a78bfa','#4c1d95'];
+    let els = '';
+    steps.forEach((s, i) => {
+      const x = pad + i * (bW + gap);
+      const col = colors[i % colors.length];
+      const lbl = s.length > 17 ? s.slice(0, 16) + '…' : s;
+      els += `<rect x="${x}" y="${cy - bH / 2}" width="${bW}" height="${bH}" rx="10" fill="${col}" opacity="0.85"/>`;
+      els += `<text x="${x + bW / 2}" y="${cy}" text-anchor="middle" dominant-baseline="middle" fill="white" font-size="10" font-weight="600">${lbl}</text>`;
+      if (i < steps.length - 1) {
+        const ax = x + bW + 4, ay = cy;
+        els += `<line x1="${ax}" y1="${ay}" x2="${ax + gap - 8}" y2="${ay}" stroke="rgba(255,255,255,0.25)" stroke-width="1.5"/>`;
+        els += `<polygon points="${ax + gap - 8},${ay - 4} ${ax + gap - 8},${ay + 4} ${ax + gap},${ay}" fill="rgba(255,255,255,0.25)"/>`;
+      }
+    });
+    return `<svg class="inserted-chart" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="background:#1a1825;">${els}</svg>`;
+  }
+
   async function generateRoadmap() {
   const subject = document.getElementById('rm-subject').value;
   const grade = document.getElementById('rm-grade').value;

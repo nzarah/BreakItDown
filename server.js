@@ -98,6 +98,42 @@ app.post("/api/notes", async (req, res) => {
   }
 });
 
+app.post("/api/diagram", async (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: "text is required." });
+
+  const prompt = `Analyze this study content and generate the most suitable diagram to help a student understand it visually.
+
+Choose ONE diagram type:
+- "mindmap": best for topics with distinct concepts or categories
+- "timeline": best for historical events or sequential dates
+- "flow": best for processes, steps, or cause-and-effect chains
+
+Return ONLY valid JSON — no markdown, no explanation.
+
+Formats:
+mindmap → {"type":"mindmap","center":"Main Topic","branches":["Concept 1","Concept 2","Concept 3","Concept 4","Concept 5"]}
+timeline → {"type":"timeline","title":"Topic","events":[{"year":"1900","label":"Event Name"},{"year":"1950","label":"Event Name"}]}
+flow → {"type":"flow","title":"Process Name","steps":["Step 1","Step 2","Step 3","Step 4"]}
+
+Rules:
+- mindmap branches: max 12 chars each, 4–7 branches
+- timeline labels: max 15 chars, 4–7 events, year can be a short era like "Early 1900s"
+- flow steps: max 18 chars each, 3–6 steps
+- Pick whichever type best fits the content
+
+CONTENT:
+${text}`;
+
+  try {
+    const raw = await callGemini(prompt);
+    const diagram = JSON.parse(raw.replace(/```json|```/g, "").trim());
+    res.json({ diagram });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post("/api/flashcards", async (req, res) => {
   const { notesContent } = req.body;
   if (!notesContent) return res.status(400).json({ error: "notesContent is required." });
