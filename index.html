@@ -968,6 +968,7 @@
         <div class="flex gap-4">
           <button id="btn-gen-notes" onclick="generateNotes('text')" class="premium-btn flex-1 py-4 rounded-xl font-bold">Process Content</button>
           <button onclick="saveCurrentNote('note-output')" class="bg-white/5 border border-white/10 px-8 rounded-xl font-bold hover:bg-white/10 transition-colors">Save Result</button>
+          <button onclick="generateCardsFromCurrentNotes()" class="bg-pink-500/10 border border-pink-500/20 px-6 rounded-xl font-bold hover:bg-pink-500/20 transition-colors text-pink-400">Make Cards</button>
         </div>
         <div id="note-output" class="mt-8 bg-[#13111C] border border-white/5 p-8 rounded-3xl min-h-[200px] text-zinc-300 leading-relaxed">
           <div class="text-zinc-600 italic">Echo is waiting for your input...</div>
@@ -1035,18 +1036,27 @@
     </section>
 
     <section id="pg-cards" class="page-section p-10 max-w-6xl mx-auto">
-      <div class="flex justify-between items-end mb-10">
+      <div class="flex justify-between items-end mb-6">
         <div>
           <h2 class="text-4xl font-bold mb-2 text-pink-400">Retain Center</h2>
           <p class="text-zinc-500">Echo transforms your notes into high-recall cards.</p>
         </div>
-        <button id="btn-gen-cards" onclick="prepareAndGenerateCards()" class="premium-btn px-8 py-3 rounded-xl font-bold transition-all hover:scale-105">
-          ✨ AI Generate from Notes
-        </button>
+        <div class="flex gap-3">
+          <button onclick="openMyStuffPicker()" class="bg-white/5 border border-white/10 px-5 py-3 rounded-xl font-bold hover:bg-white/10 transition-colors text-zinc-300">📚 From My Stuff</button>
+          <button id="btn-gen-cards" onclick="prepareAndGenerateCards()" class="premium-btn px-8 py-3 rounded-xl font-bold transition-all hover:scale-105">✨ AI Generate from Notes</button>
+        </div>
+      </div>
+      <div id="flashcards-usage-bar" class="usage-bar-wrap hidden">
+        <span class="usage-bar-label">Saved card sets this month</span>
+        <span id="flashcards-usage-count" class="usage-bar-count">0 / 5</span>
+        <button onclick="openUpgradeModal()" class="upgrade-btn-small">Go Pro</button>
+      </div>
+      <div id="cards-save-area" class="hidden flex justify-end mb-4">
+        <button id="btn-save-cards" onclick="saveFlashcardSet()" class="bg-white/5 border border-white/10 px-6 py-2 rounded-xl font-bold hover:bg-white/10 transition-colors text-sm">💾 Save Set</button>
       </div>
       <div id="cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div class="col-span-full text-center py-20 text-zinc-600 italic">
-          Generate notes first, then click AI Generate!
+          Generate notes first, then click AI Generate — or pick a saved note from My Stuff!
         </div>
       </div>
     </section>
@@ -1567,13 +1577,29 @@
     </div>
   </div>
 
+  <!-- ── MY STUFF PICKER MODAL (for flashcard generation) ── -->
+  <div id="mystuff-picker-modal" class="js-hidden fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+    <div class="bg-[#1a1825] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl p-6" style="max-height:80vh;display:flex;flex-direction:column;">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="font-bold text-white text-lg">Generate Cards from My Stuff</h3>
+        <button onclick="closeMyStuffPicker()" class="text-zinc-500 hover:text-white transition-colors text-xl">&#x2715;</button>
+      </div>
+      <p class="text-zinc-500 text-sm mb-4">Pick a saved note or roadmap to generate flashcards from.</p>
+      <div id="msp-list" class="space-y-2 overflow-y-auto flex-1 pr-1">
+        <div class="text-zinc-600 text-sm italic text-center py-6">Loading…</div>
+      </div>
+    </div>
+  </div>
+
   <script>
     let currentActiveOutputId = 'note-output';
+    let _currentCards = null;
+    let _currentCardSourceTitle = '';
 
     // ── PRO & USAGE STATE ─────────────────────────────────────────────────────
     let _userIsPro  = false;
-    let _userUsage  = { notes: 0, roadmaps: 0, ytNotes: 0, echoMessages: 0 };
-    const FREE_LIMITS  = { notes: 5, roadmaps: 3, ytNotes: 3, echoMessages: 10 };
+    let _userUsage  = { notes: 0, roadmaps: 0, ytNotes: 0, echoMessages: 0, flashcards: 0 };
+    const FREE_LIMITS  = { notes: 5, roadmaps: 3, ytNotes: 3, echoMessages: 10, flashcards: 5 };
     const GROUP_LIMIT  = 8;
     const PRO_THEMES   = ['ocean', 'forest', 'sunset', 'rose', 'midnight'];
 
@@ -1585,7 +1611,7 @@
     function _updateUsageUI() {
       const isPro = _userIsPro;
       // Show/hide usage bars
-      ['notes-usage-bar','yt-usage-bar','roadmap-usage-bar','echo-usage-bar'].forEach(id => {
+      ['notes-usage-bar','yt-usage-bar','roadmap-usage-bar','echo-usage-bar','flashcards-usage-bar'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.toggle('hidden', isPro);
       });
@@ -1594,10 +1620,12 @@
       const yc = document.getElementById('yt-usage-count');
       const rc = document.getElementById('roadmap-usage-count');
       const ec = document.getElementById('echo-usage-count');
+      const fc = document.getElementById('flashcards-usage-count');
       if (nc) { nc.textContent = `${_userUsage.notes} / ${FREE_LIMITS.notes}`; nc.classList.toggle('at-limit', _userUsage.notes >= FREE_LIMITS.notes); }
       if (yc) { yc.textContent = `${_userUsage.ytNotes} / ${FREE_LIMITS.ytNotes}`; yc.classList.toggle('at-limit', _userUsage.ytNotes >= FREE_LIMITS.ytNotes); }
       if (rc) { rc.textContent = `${_userUsage.roadmaps} / ${FREE_LIMITS.roadmaps}`; rc.classList.toggle('at-limit', _userUsage.roadmaps >= FREE_LIMITS.roadmaps); }
       if (ec) { ec.textContent = `${_userUsage.echoMessages} / ${FREE_LIMITS.echoMessages}`; ec.classList.toggle('at-limit', _userUsage.echoMessages >= FREE_LIMITS.echoMessages); }
+      if (fc) { fc.textContent = `${_userUsage.flashcards} / ${FREE_LIMITS.flashcards}`; fc.classList.toggle('at-limit', _userUsage.flashcards >= FREE_LIMITS.flashcards); }
       // Pro badge / upgrade button
       const badge  = document.getElementById('sidebar-pro-badge');
       const upBtn  = document.getElementById('sidebar-upgrade-btn');
@@ -2036,6 +2064,7 @@ async function loadMyStuff() {
         <p class="text-zinc-500 text-sm leading-relaxed flex-1">${preview}</p>
         <div class="flex gap-2 mt-2">
           <button onclick="openEditor('${n.id}')" class="flex-1 py-2 rounded-lg bg-white/5 hover:bg-violet-500/20 text-zinc-300 hover:text-white text-sm font-semibold transition-colors">Edit</button>
+          <button onclick="generateCardsFromSaved('${n.id}')" class="flex-1 py-2 rounded-lg bg-pink-500/10 hover:bg-pink-500/25 text-pink-400 hover:text-pink-300 text-sm font-semibold transition-colors">Make Cards</button>
           <button onclick="openPostToGroupModalFromNote('${n.id}')" class="flex-1 py-2 rounded-lg bg-violet-500/10 hover:bg-violet-500/25 text-violet-400 hover:text-violet-300 text-sm font-semibold transition-colors">Post in Group</button>
           <button onclick="deleteNote('${n.id}')" class="py-2 px-4 rounded-lg bg-white/5 hover:bg-red-500/20 text-zinc-500 hover:text-red-400 text-sm font-semibold transition-colors">Delete</button>
         </div>
@@ -2390,11 +2419,11 @@ function deleteNoteFromEditor() {
   deleteNote(currentEditingId);
   closeEditor();
 }
-async function prepareAndGenerateCards() {
-  const notesText = document.getElementById('note-output').innerText;
-  
+async function prepareAndGenerateCards(overrideContent) {
+  const notesText = overrideContent || document.getElementById('note-output').innerText;
+
   // Validation logic from your original code
-  if (notesText.includes('Echo is waiting') || notesText.length < 20) {
+  if (!overrideContent && (notesText.includes('Echo is waiting') || notesText.length < 20)) {
     alert("Wait! You need to generate some notes in the Smart Editor first.");
     showPage('pg-notes');
     return;
@@ -2402,7 +2431,10 @@ async function prepareAndGenerateCards() {
 
   const container = document.getElementById('cards-container');
   const btn = document.getElementById('btn-gen-cards');
-  
+  const saveArea = document.getElementById('cards-save-area');
+  if (saveArea) saveArea.classList.add('hidden');
+  _currentCards = null;
+
   // UI State: Loading
   btn.disabled = true;
   btn.innerHTML = "Echo is Studying...";
@@ -2422,15 +2454,19 @@ async function prepareAndGenerateCards() {
 
     btn.disabled = false;
     btn.innerHTML = "✨ AI Generate from Notes";
-    
+
     if (!cards || cards.length === 0) {
       container.innerHTML = '<div class="col-span-full text-center text-zinc-500">No cards could be generated.</div>';
       return;
     }
 
+    _currentCards = cards;
+    const saveArea = document.getElementById('cards-save-area');
+    if (saveArea) saveArea.classList.remove('hidden');
+
     // Modernized card rendering using your established styles
     container.innerHTML = cards.map(c => `
-      <div class="action-card-landing group relative border-l-4 border-l-pink-500 cursor-pointer transition-all duration-300" 
+      <div class="action-card-landing group relative border-l-4 border-l-pink-500 cursor-pointer transition-all duration-300"
            onclick="toggleCard(this)">
         <div class="card-content">
           <div class="text-[10px] font-bold text-pink-500 uppercase tracking-widest mb-2">Question</div>
@@ -2456,6 +2492,102 @@ async function prepareAndGenerateCards() {
 function toggleCard(cardElement) {
   const back = cardElement.querySelector('.card-back');
   back.classList.toggle('hidden');
+}
+
+// ── FLASHCARD HELPERS ─────────────────────────────────────────────────────────
+
+function generateCardsFromCurrentNotes() {
+  showPage('pg-cards');
+  prepareAndGenerateCards();
+}
+
+async function generateCardsFromSaved(noteId) {
+  const user = _appUser;
+  if (!user) { alert('Sign in first.'); return; }
+  showPage('pg-cards');
+  const snap = await db.ref('notes/' + user.uid + '/' + noteId).once('value');
+  const note = snap.val();
+  if (!note) { alert('Note not found.'); return; }
+  const text = note.content ? note.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : '';
+  if (!text || text.length < 20) { alert('This note has too little content to generate cards from.'); return; }
+  _currentCardSourceTitle = note.title || 'Flashcard Set';
+  await prepareAndGenerateCards(text);
+}
+
+async function saveFlashcardSet() {
+  const user = _appUser;
+  if (!user) { alert('Sign in to save.'); return; }
+  if (!_currentCards || _currentCards.length === 0) { alert('No cards to save.'); return; }
+
+  if (!_userIsPro) {
+    if (_userUsage.flashcards >= FREE_LIMITS.flashcards) { openUpgradeModal(); return; }
+  }
+
+  const btn = document.getElementById('btn-save-cards');
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = 'Saving…';
+
+  try {
+    const setId = 'fc-' + Date.now();
+    const setObj = {
+      id: setId,
+      title: _currentCardSourceTitle || ('Card Set: ' + new Date().toLocaleDateString()),
+      cards: _currentCards,
+      timestamp: new Date().toISOString()
+    };
+    await db.ref('flashcards/' + user.uid + '/' + setId).set(setObj);
+    await _incrementUsage('flashcards');
+    btn.innerHTML = '✓ Saved!';
+    btn.classList.add('text-green-400');
+    setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('text-green-400'); btn.disabled = false; }, 2000);
+  } catch (err) {
+    btn.innerHTML = orig;
+    btn.disabled = false;
+    alert('Could not save. Try again.');
+  }
+}
+
+async function openMyStuffPicker() {
+  const user = _appUser;
+  const modal = document.getElementById('mystuff-picker-modal');
+  modal.classList.remove('js-hidden');
+  modal.style.display = 'flex';
+
+  const list = document.getElementById('msp-list');
+  list.innerHTML = '<div class="text-zinc-600 text-sm italic text-center py-6">Loading…</div>';
+
+  if (!user) {
+    list.innerHTML = '<div class="text-zinc-600 text-sm italic text-center py-6">Sign in to see your saved notes.</div>';
+    return;
+  }
+
+  const snap = await db.ref('notes/' + user.uid).once('value');
+  const raw = snap.val() || {};
+  const notes = Object.values(raw).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  if (notes.length === 0) {
+    list.innerHTML = '<div class="text-zinc-600 text-sm italic text-center py-6">No saved notes or roadmaps yet.</div>';
+    return;
+  }
+
+  const typeColors = { 'Note': 'violet', 'Roadmap': 'emerald', 'Video': 'red' };
+  list.innerHTML = notes.map(n => {
+    const color = typeColors[n.type] || 'violet';
+    const date = new Date(n.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return `<button onclick="closeMyStuffPicker();generateCardsFromSaved('${n.id}')"
+      class="w-full text-left p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-${color}-500/30 transition-colors flex items-center gap-3">
+      <span class="text-[10px] font-bold text-${color}-400 uppercase tracking-widest w-14 flex-shrink-0">${n.type || 'Note'}</span>
+      <span class="text-white font-semibold text-sm flex-1 truncate">${n.title}</span>
+      <span class="text-zinc-600 text-xs flex-shrink-0">${date}</span>
+    </button>`;
+  }).join('');
+}
+
+function closeMyStuffPicker() {
+  const modal = document.getElementById('mystuff-picker-modal');
+  modal.classList.add('js-hidden');
+  modal.style.display = 'none';
 }
     // Add this line to make the flip animation work
     var s=document.createElement('style');s.textContent='.flipped .card-front{opacity:0.3;}.flipped .card-back{display:block!important;}';document.head.appendChild(s);
@@ -2755,7 +2887,7 @@ function loadUserProfile(user) {
   const month = _currentMonth();
   db.ref('users/' + user.uid + '/usage/' + month).once('value').then(snap => {
     const u = snap.val() || {};
-    _userUsage = { notes: u.notes || 0, roadmaps: u.roadmaps || 0, ytNotes: u.ytNotes || 0, echoMessages: u.echoMessages || 0 };
+    _userUsage = { notes: u.notes || 0, roadmaps: u.roadmaps || 0, ytNotes: u.ytNotes || 0, echoMessages: u.echoMessages || 0, flashcards: u.flashcards || 0 };
     _updateUsageUI();
   });
 }
