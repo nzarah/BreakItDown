@@ -54,6 +54,7 @@
         // If a different account just signed in, wipe the stale profile cache
         if (_lastSignedInUid !== user.uid) {
           _clearProfileCache();
+          _clearCardsState();
           _lastSignedInUid = user.uid;
         }
 
@@ -76,6 +77,7 @@
         _appUser = null;
         // Signed out — clear profile cache and show landing
         _clearProfileCache();
+        _clearCardsState();
         _lastSignedInUid = null;
         appInterface.classList.add('hidden');
         appInterface.style.display = 'none';
@@ -1595,6 +1597,15 @@
     let currentActiveOutputId = 'note-output';
     let _currentCards = null;
     let _currentCardSourceTitle = '';
+
+    function _clearCardsState() {
+      _currentCards = null;
+      _currentCardSourceTitle = '';
+      const c = document.getElementById('cards-container');
+      if (c) c.innerHTML = '<div class="col-span-full text-center py-20 text-zinc-600 italic">Generate notes first, then click AI Generate — or pick a saved note from My Stuff!</div>';
+      const sa = document.getElementById('cards-save-area');
+      if (sa) sa.classList.add('hidden');
+    }
 
     // ── PRO & USAGE STATE ─────────────────────────────────────────────────────
     let _userIsPro  = false;
