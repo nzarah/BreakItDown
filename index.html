@@ -2033,13 +2033,20 @@ async function saveCurrentNote(outputId, type = 'Note') {
 async function loadMyStuff() {
   const user = _appUser;
   if (!user) return;
-  const snap = await db.ref('notes/' + user.uid).once('value');
-  const raw  = snap.val() || {};
-  const notes = Object.values(raw).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  const [notesSnap, fcSnap] = await Promise.all([
+    db.ref('notes/' + user.uid).once('value'),
+    db.ref('flashcards/' + user.uid).once('value')
+  ]);
+
+  const notes = Object.values(notesSnap.val() || {}).map(n => ({ ...n, _kind: 'note' }));
+  const fcSets = Object.values(fcSnap.val() || {}).map(s => ({ ...s, _kind: 'flashcards' }));
+  const all = [...notes, ...fcSets].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
   const list = document.getElementById('mystuff-list');
   const empty = document.getElementById('mystuff-empty');
 
-  if (notes.length === 0) {
+  if (all.length === 0) {
     list.innerHTML = '';
     empty.classList.remove('hidden');
     return;
@@ -2048,10 +2055,32 @@ async function loadMyStuff() {
 
   const typeColors = { 'Note': 'violet', 'Roadmap': 'emerald', 'Video': 'red' };
 
-  list.innerHTML = notes.map(n => {
+  list.innerHTML = all.map(item => {
+    const date = new Date(item.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+    if (item._kind === 'flashcards') {
+      const count = (item.cards || []).length;
+      return `
+        <div class="action-card-landing group flex flex-col gap-3 border-l-4 border-l-pink-500">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <span class="text-[10px] font-bold text-pink-400 uppercase tracking-widest">Flashcards</span>
+              <h3 class="text-white font-bold mt-0.5 leading-tight">${item.title}</h3>
+            </div>
+            <span class="text-[10px] text-zinc-600 whitespace-nowrap mt-1">${date}</span>
+          </div>
+          <p class="text-zinc-500 text-sm flex-1">${count} card${count !== 1 ? 's' : ''}</p>
+          <div class="flex gap-2 mt-2">
+            <button onclick="studyFlashcardSet('${item.id}')" class="flex-1 py-2 rounded-lg bg-pink-500/10 hover:bg-pink-500/25 text-pink-400 hover:text-pink-300 text-sm font-semibold transition-colors">Study</button>
+            <button onclick="openPostToGroupModalFromFlashcards('${item.id}')" class="flex-1 py-2 rounded-lg bg-violet-500/10 hover:bg-violet-500/25 text-violet-400 hover:text-violet-300 text-sm font-semibold transition-colors">Post in Group</button>
+            <button onclick="deleteFlashcardSet('${item.id}')" class="py-2 px-4 rounded-lg bg-white/5 hover:bg-red-500/20 text-zinc-500 hover:text-red-400 text-sm font-semibold transition-colors">Delete</button>
+          </div>
+        </div>`;
+    }
+
+    const n = item;
     const color = typeColors[n.type] || 'violet';
     const preview = (n.content || '').replace(/<[^>]+>/g, '').slice(0, 120) + '...';
-    const date = new Date(n.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     return `
       <div class="action-card-landing group flex flex-col gap-3 border-l-4 border-l-${color}-500">
         <div class="flex items-start justify-between gap-2">
@@ -2542,9 +2571,10 @@ async function saveFlashcardSet() {
     btn.classList.add('text-green-400');
     setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('text-green-400'); btn.disabled = false; }, 2000);
   } catch (err) {
+    console.error('saveFlashcardSet error:', err);
     btn.innerHTML = orig;
     btn.disabled = false;
-    alert('Could not save. Try again.');
+    alert('Could not save: ' + (err.message || err));
   }
 }
 
@@ -2588,6 +2618,75 @@ function closeMyStuffPicker() {
   const modal = document.getElementById('mystuff-picker-modal');
   modal.classList.add('js-hidden');
   modal.style.display = 'none';
+}
+
+async function studyFlashcardSet(setId) {
+  const user = _appUser;
+  if (!user) return;
+  showPage('pg-cards');
+  const snap = await db.ref('flashcards/' + user.uid + '/' + setId).once('value');
+  const set = snap.val();
+  if (!set || !set.cards || set.cards.length === 0) { alert('Could not load cards.'); return; }
+  _currentCards = set.cards;
+  _currentCardSourceTitle = set.title || 'Flashcard Set';
+  const container = document.getElementById('cards-container');
+  const saveArea = document.getElementById('cards-save-area');
+  if (saveArea) saveArea.classList.add('hidden');
+  container.innerHTML = set.cards.map(c => `
+    <div class="action-card-landing group relative border-l-4 border-l-pink-500 cursor-pointer transition-all duration-300" onclick="toggleCard(this)">
+      <div class="card-content">
+        <div class="text-[10px] font-bold text-pink-500 uppercase tracking-widest mb-2">Question</div>
+        <div class="text-white font-bold mb-4 card-front">${c.front}</div>
+        <div class="card-back hidden pt-4 border-t border-white/5">
+          <div class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Answer</div>
+          <div class="text-zinc-400 text-sm">${c.back}</div>
+        </div>
+      </div>
+      <div class="text-[9px] text-zinc-600 mt-4 uppercase">Click to reveal answer</div>
+    </div>
+  `).join('');
+}
+
+async function deleteFlashcardSet(setId) {
+  if (!confirm('Delete this flashcard set? This cannot be undone.')) return;
+  const user = _appUser;
+  if (!user) return;
+  await db.ref('flashcards/' + user.uid + '/' + setId).remove();
+  loadMyStuff();
+}
+
+async function openPostToGroupModalFromFlashcards(setId) {
+  const user = auth.currentUser;
+  if (!user) return;
+  const snap = await db.ref('flashcards/' + user.uid + '/' + setId).once('value');
+  const set = snap.val();
+  if (!set) return;
+  const content = (set.cards || []).map((c, i) => `Q${i+1}: ${c.front}\nA: ${c.back}`).join('\n\n');
+  document.getElementById('pm-title').value = set.title || 'Flashcard Set';
+  document.getElementById('pm-content').value = content;
+  setPostType('note');
+  const select = document.getElementById('pm-group-select');
+  select.innerHTML = '<option value="">Select a group…</option>';
+  try {
+    const ugSnap = await db.ref('userGroups/' + user.uid).once('value');
+    const groupIds = Object.keys(ugSnap.val() || {});
+    if (groupIds.length === 0) {
+      select.innerHTML = '<option value="">You have no groups yet.</option>';
+    } else {
+      await Promise.all(groupIds.map(async gid => {
+        const gSnap = await db.ref('studyGroups/' + gid).once('value');
+        const g = gSnap.val();
+        if (g && g.name) {
+          const opt = document.createElement('option');
+          opt.value = gid; opt.textContent = g.name;
+          select.appendChild(opt);
+        }
+      }));
+    }
+  } catch(_) {}
+  document.getElementById('pm-group-selector-row').classList.remove('hidden');
+  const m = document.getElementById('post-group-modal');
+  m.classList.remove('js-hidden'); m.style.display = 'flex';
 }
     // Add this line to make the flip animation work
     var s=document.createElement('style');s.textContent='.flipped .card-front{opacity:0.3;}.flipped .card-back{display:block!important;}';document.head.appendChild(s);
