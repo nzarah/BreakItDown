@@ -214,6 +214,23 @@ app.post("/api/save-shared-note", async (req, res) => {
   }
 });
 
+app.post("/api/get-shared-note", async (req, res) => {
+  const { idToken, ownerUid, noteId } = req.body;
+  if (!idToken || !ownerUid || !noteId) return res.status(400).json({ error: 'Missing fields.' });
+  try {
+    const decoded = await verifyToken(idToken);
+    const callerUid = decoded.uid;
+    const db = getDatabase();
+    const permSnap = await db.ref(`sharedNotes/${ownerUid}/${noteId}/sharedWith/${callerUid}`).once('value');
+    if (!permSnap.exists()) return res.status(403).json({ error: 'No access.' });
+    const noteSnap = await db.ref(`notes/${ownerUid}/${noteId}`).once('value');
+    if (!noteSnap.exists()) return res.status(404).json({ error: 'Note not found.' });
+    res.json({ note: noteSnap.val() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post("/api/flashcards", async (req, res) => {
   const { notesContent } = req.body;
   if (!notesContent) return res.status(400).json({ error: "notesContent is required." });
