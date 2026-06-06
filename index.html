@@ -2786,8 +2786,21 @@ async function _renderShareModal(user, noteId) {
   currentList.innerHTML = '<div class="text-zinc-600 text-xs italic">Loading…</div>';
   friendsList.innerHTML = '<div class="text-zinc-600 text-xs italic">Loading…</div>';
 
-  const sharesSnap = await db.ref('sharedNotes/' + user.uid + '/' + noteId + '/sharedWith').once('value');
-  const shares = sharesSnap.val() || {};
+  let shares = {}, friendEntries = [];
+  try {
+    const [sharesSnap, friendsSnap] = await Promise.all([
+      db.ref('sharedNotes/' + user.uid + '/' + noteId + '/sharedWith').once('value'),
+      db.ref('friends/' + user.uid).once('value')
+    ]);
+    shares = sharesSnap.val() || {};
+    const friendsData = friendsSnap.val() || {};
+    // Merge with cache so either source works
+    friendEntries = Object.entries({ ...(_friendsCache || {}), ...friendsData });
+  } catch (err) {
+    currentList.innerHTML = '<div class="text-red-400 text-xs">Could not load shares: ' + escHtml(err.message) + '</div>';
+    friendsList.innerHTML = '';
+    return;
+  }
 
   // Currently shared with
   const sharedUids = Object.keys(shares);
@@ -2807,8 +2820,7 @@ async function _renderShareModal(user, noteId) {
       }).join('');
   }
 
-  // Friends list — _friendsCache is { uid: { username, displayName, ... } }
-  const friendEntries = Object.entries(_friendsCache || {});
+  // Friends list
   if (friendEntries.length === 0) {
     friendsList.innerHTML = '<div class="text-zinc-600 text-xs italic text-center py-4">Add friends first to share notes.</div>';
     return;
