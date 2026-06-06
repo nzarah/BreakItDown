@@ -5,6 +5,7 @@ import express from "express";
 import Stripe from "stripe";
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getDatabase } from "firebase-admin/database";
+import { getAuth } from "firebase-admin/auth";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -129,6 +130,85 @@ ${text}`;
     const raw = await callGemini(prompt);
     const diagram = JSON.parse(raw.replace(/```json|```/g, "").trim());
     res.json({ diagram });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── NOTE SHARING ─────────────────────────────────────────────────────────────
+
+async function verifyToken(idToken) {
+  if (getApps().length === 0) throw new Error('Firebase not initialised');
+  return await getAuth().verifyIdToken(idToken);
+}
+
+app.post("/api/share-note", async (req, res) => {
+  const { idToken, noteId, recipientUid, recipientUsername, role } = req.body;
+  if (!idToken || !noteId || !recipientUid || !role) return res.status(400).json({ error: 'Missing fields.' });
+  if (!['editor','viewer'].includes(role)) return res.status(400).json({ error: 'Invalid role.' });
+  try {
+    const decoded = await verifyToken(idToken);
+    const ownerUid = decoded.uid;
+    const db = getDatabase();
+    // Confirm note exists and belongs to caller
+    const noteSnap = await db.ref(`notes/${ownerUid}/${noteId}`).once('value');
+    if (!noteSnap.exists()) return res.status(404).json({ error: 'Note not found.' });
+    const note = noteSnap.val();
+    // Fetch sharer's username
+    const ownerSnap = await db.ref(`users/${ownerUid}/username`).once('value');
+    const sharedByUsername = ownerSnap.val() || 'unknown';
+    const shareId = `share-${ownerUid}-${noteId}`;
+    await db.ref(`sharedNotes/${ownerUid}/${noteId}/sharedWith/${recipientUid}`).set({
+      role, sharedAt: Date.now(), recipientUsername: recipientUsername || '', shareId
+    });
+    await db.ref(`userSharedWithMe/${recipientUid}/${shareId}`).set({
+      ownerUid, noteId, title: note.title || 'Untitled', type: note.type || 'Note',
+      role, sharedByUsername, sharedAt: Date.now(), shareId
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/unshare-note", async (req, res) => {
+  const { idToken, noteId, recipientUid } = req.body;
+  if (!idToken || !noteId || !recipientUid) return res.status(400).json({ error: 'Missing fields.' });
+  try {
+    const decoded = await verifyToken(idToken);
+    const ownerUid = decoded.uid;
+    const db = getDatabase();
+    const shareId = `share-${ownerUid}-${noteId}`;
+    await db.ref(`sharedNotes/${ownerUid}/${noteId}/sharedWith/${recipientUid}`).remove();
+    await db.ref(`userSharedWithMe/${recipientUid}/${shareId}`).remove();
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/save-shared-note", async (req, res) => {
+  const { idToken, ownerUid, noteId, title, content } = req.body;
+  if (!idToken || !ownerUid || !noteId) return res.status(400).json({ error: 'Missing fields.' });
+  try {
+    const decoded = await verifyToken(idToken);
+    const callerUid = decoded.uid;
+    const db = getDatabase();
+    // Verify editor permission
+    const permSnap = await db.ref(`sharedNotes/${ownerUid}/${noteId}/sharedWith/${callerUid}`).once('value');
+    const perm = permSnap.val();
+    if (!perm || perm.role !== 'editor') return res.status(403).json({ error: 'No editor permission.' });
+    // Update the owner's note
+    const noteSnap = await db.ref(`notes/${ownerUid}/${noteId}`).once('value');
+    if (!noteSnap.exists()) return res.status(404).json({ error: 'Note not found.' });
+    const existing = noteSnap.val();
+    await db.ref(`notes/${ownerUid}/${noteId}`).set({
+      ...existing,
+      title: title || existing.title,
+      content: content || existing.content,
+      timestamp: new Date().toISOString()
+    });
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -1064,16 +1064,22 @@
     </section>
 
     <section id="pg-mystuff" class="page-section p-10 max-w-5xl mx-auto">
-      <div class="flex justify-between items-center mb-8">
+      <div class="flex justify-between items-center mb-6">
         <div>
           <h2 class="text-2xl font-bold">My Stuff</h2>
           <p class="text-zinc-500 text-sm mt-1">All your saved notes, roadmaps, and video breakdowns.</p>
         </div>
       </div>
+      <div class="flex gap-2 mb-6">
+        <button id="btn-mystuff-mine" onclick="setMyStuffTab('mine')" class="chart-type-btn active-ct">My Stuff</button>
+        <button id="btn-mystuff-shared" onclick="setMyStuffTab('shared')" class="chart-type-btn">Shared with me</button>
+      </div>
       <div id="mystuff-empty" class="hidden text-center py-24 text-zinc-600 italic">
         Nothing saved yet. Generate some notes or a roadmap and hit Save!
       </div>
       <div id="mystuff-list" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+      <div id="sharedwithme-empty" class="hidden text-center py-24 text-zinc-600 italic">No notes have been shared with you yet.</div>
+      <div id="sharedwithme-list" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6"></div>
     </section>
 
     <!-- ── SETTINGS PAGE ── -->
@@ -1388,7 +1394,8 @@
         <!-- Title row -->
         <div class="flex items-center gap-3 px-6 pt-5 pb-4 border-b border-white/5">
           <input id="editor-title" class="bg-transparent text-xl font-bold text-white outline-none flex-1" placeholder="Note title...">
-          <button onclick="saveEditorNote()" class="px-4 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-lg transition-colors flex-shrink-0">Save</button>
+          <button id="editor-save-btn" onclick="saveEditorNote()" class="px-4 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-lg transition-colors flex-shrink-0">Save</button>
+          <button id="editor-share-btn" onclick="openShareModal()" class="px-4 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 text-sm font-bold rounded-lg transition-colors flex-shrink-0 hidden">Share</button>
           <button onclick="toggleEchoSidebar()" id="echo-toggle-btn" class="echo-toggle-btn" title="Chat with Echo AI">✦ Echo</button>
           <button onclick="closeEditor()" class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 transition-colors flex-shrink-0">&#x2715;</button>
         </div>
@@ -1579,6 +1586,19 @@
     </div>
   </div>
 
+  <!-- ── SHARE NOTE MODAL ── -->
+  <div id="share-note-modal" class="js-hidden fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+    <div class="bg-[#1a1825] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl p-6" style="max-height:80vh;display:flex;flex-direction:column;">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="font-bold text-white text-lg">Share Note</h3>
+        <button onclick="closeShareModal()" class="text-zinc-500 hover:text-white transition-colors text-xl">&#x2715;</button>
+      </div>
+      <div id="share-current-list" class="mb-4 space-y-2"></div>
+      <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Share with a friend</p>
+      <div id="share-friends-list" class="space-y-2 overflow-y-auto flex-1 pr-1"></div>
+    </div>
+  </div>
+
   <!-- ── MY STUFF PICKER MODAL (for flashcard generation) ── -->
   <div id="mystuff-picker-modal" class="js-hidden fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
     <div class="bg-[#1a1825] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl p-6" style="max-height:80vh;display:flex;flex-direction:column;">
@@ -1597,14 +1617,19 @@
     let currentActiveOutputId = 'note-output';
     let _currentCards = null;
     let _currentCardSourceTitle = '';
+    let _currentSharedNoteContext = null; // { ownerUid, noteId, role, shareId }
+    let _myStuffTab = 'mine';
 
     function _clearCardsState() {
       _currentCards = null;
       _currentCardSourceTitle = '';
+      _currentSharedNoteContext = null;
+      _myStuffTab = 'mine';
       const c = document.getElementById('cards-container');
       if (c) c.innerHTML = '<div class="col-span-full text-center py-20 text-zinc-600 italic">Generate notes first, then click AI Generate — or pick a saved note from My Stuff!</div>';
       const sa = document.getElementById('cards-save-area');
       if (sa) sa.classList.add('hidden');
+      closeShareModal();
     }
 
     // ── PRO & USAGE STATE ─────────────────────────────────────────────────────
@@ -2335,10 +2360,17 @@ async function openEditor(id) {
   const note = snap.val();
   if (!note) return;
 
+  _currentSharedNoteContext = null;
   currentEditingId = id;
   document.getElementById('editor-title').value = note.title;
+  document.getElementById('editor-title').removeAttribute('readonly');
   document.getElementById('editor-body').innerHTML = note.content;
+  document.getElementById('editor-body').contentEditable = 'true';
   document.getElementById('editor-meta').textContent = 'Last saved: ' + new Date(note.timestamp).toLocaleString();
+  const saveBtn = document.getElementById('editor-save-btn');
+  const shareBtn = document.getElementById('editor-share-btn');
+  if (saveBtn) { saveBtn.classList.remove('hidden'); saveBtn.textContent = 'Save'; }
+  if (shareBtn) shareBtn.classList.remove('hidden');
 
   // Reset Echo on each note open
   _echoChatHistory = [];
@@ -2365,9 +2397,13 @@ function closeEditor() {
   modal.classList.add('js-hidden');
   modal.style.display = 'none';
   currentEditingId = null;
+  _currentSharedNoteContext = null;
 }
 
 async function saveEditorNote() {
+  // Shared note editor path
+  if (_currentSharedNoteContext) { await saveSharedNote(); return; }
+
   if (!currentEditingId) return;
   const user = _appUser;
   if (!user) return;
@@ -2724,6 +2760,232 @@ function closeMyStuffPicker() {
   const modal = document.getElementById('mystuff-picker-modal');
   modal.classList.add('js-hidden');
   modal.style.display = 'none';
+}
+
+// ── NOTE SHARING ──────────────────────────────────────────────────────────────
+
+function closeShareModal() {
+  const m = document.getElementById('share-note-modal');
+  if (!m) return;
+  m.classList.add('js-hidden');
+  m.style.display = 'none';
+}
+
+async function openShareModal() {
+  const user = _appUser;
+  if (!user || !currentEditingId) return;
+  const m = document.getElementById('share-note-modal');
+  m.classList.remove('js-hidden');
+  m.style.display = 'flex';
+  await _renderShareModal(user, currentEditingId);
+}
+
+async function _renderShareModal(user, noteId) {
+  const currentList = document.getElementById('share-current-list');
+  const friendsList = document.getElementById('share-friends-list');
+  currentList.innerHTML = '<div class="text-zinc-600 text-xs italic">Loading…</div>';
+  friendsList.innerHTML = '<div class="text-zinc-600 text-xs italic">Loading…</div>';
+
+  const sharesSnap = await db.ref('sharedNotes/' + user.uid + '/' + noteId + '/sharedWith').once('value');
+  const shares = sharesSnap.val() || {};
+
+  // Currently shared with
+  const sharedUids = Object.keys(shares);
+  if (sharedUids.length === 0) {
+    currentList.innerHTML = '<div class="text-zinc-500 text-xs italic mb-1">Not shared with anyone yet.</div>';
+  } else {
+    currentList.innerHTML = '<p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Currently shared</p>' +
+      sharedUids.map(uid => {
+        const s = shares[uid];
+        return `<div class="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5">
+          <div class="flex-1 min-w-0">
+            <span class="text-white text-sm font-semibold">@${escHtml(s.recipientUsername || uid)}</span>
+            <span class="ml-2 text-[10px] font-bold uppercase tracking-widest ${s.role === 'editor' ? 'text-violet-400' : 'text-zinc-500'}">${s.role}</span>
+          </div>
+          <button onclick="unshareNote('${uid}','${s.shareId || ''}')" class="text-xs text-red-400 hover:text-red-300 font-semibold flex-shrink-0">Remove</button>
+        </div>`;
+      }).join('');
+  }
+
+  // Friends list — _friendsCache is { uid: { username, displayName, ... } }
+  const friendEntries = Object.entries(_friendsCache || {});
+  if (friendEntries.length === 0) {
+    friendsList.innerHTML = '<div class="text-zinc-600 text-xs italic text-center py-4">Add friends first to share notes.</div>';
+    return;
+  }
+  friendsList.innerHTML = friendEntries.map(([fUid, f]) => {
+    const alreadyShared = shares[fUid];
+    const safeId = fUid.replace(/[^a-zA-Z0-9]/g, '_');
+    return `<div class="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5">
+      <div class="flex-1 min-w-0">
+        <div class="text-white text-sm font-semibold truncate">${escHtml(f.displayName || f.username || 'Friend')}</div>
+        <div class="text-zinc-500 text-xs">@${escHtml(f.username || '')}</div>
+      </div>
+      <select id="share-role-${safeId}" class="settings-select" style="width:90px;padding:5px 8px;font-size:0.75rem;">
+        <option value="viewer" ${alreadyShared && alreadyShared.role==='viewer' ? 'selected' : ''}>Viewer</option>
+        <option value="editor" ${alreadyShared && alreadyShared.role==='editor' ? 'selected' : ''}>Editor</option>
+      </select>
+      <button onclick="shareNoteWithFriend('${escHtml(fUid)}','${escHtml(f.username||'')}',document.getElementById('share-role-${safeId}').value)"
+        class="text-xs font-bold px-3 py-1.5 rounded-lg ${alreadyShared ? 'bg-white/5 text-zinc-400 hover:bg-white/10' : 'bg-violet-600 hover:bg-violet-500 text-white'} transition-colors flex-shrink-0">
+        ${alreadyShared ? 'Update' : 'Share'}
+      </button>
+    </div>`;
+  }).join('');
+}
+
+async function shareNoteWithFriend(friendUid, friendUsername, role) {
+  const user = _appUser;
+  if (!user || !currentEditingId) return;
+  try {
+    const idToken = await auth.currentUser.getIdToken();
+    const res = await fetch('/api/share-note', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, noteId: currentEditingId, recipientUid: friendUid, recipientUsername: friendUsername, role })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Share failed');
+    await _renderShareModal(user, currentEditingId);
+  } catch (err) {
+    alert('Could not share: ' + err.message);
+  }
+}
+
+async function unshareNote(recipientUid, shareId) {
+  const user = _appUser;
+  if (!user || !currentEditingId) return;
+  if (!confirm('Remove access for this person?')) return;
+  try {
+    const idToken = await auth.currentUser.getIdToken();
+    const res = await fetch('/api/unshare-note', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, noteId: currentEditingId, recipientUid })
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+    await _renderShareModal(user, currentEditingId);
+  } catch (err) {
+    alert('Could not remove: ' + err.message);
+  }
+}
+
+// ── MY STUFF TABS ─────────────────────────────────────────────────────────────
+
+function setMyStuffTab(tab) {
+  _myStuffTab = tab;
+  document.getElementById('btn-mystuff-mine').classList.toggle('active-ct', tab === 'mine');
+  document.getElementById('btn-mystuff-shared').classList.toggle('active-ct', tab === 'shared');
+  document.getElementById('mystuff-list').classList.toggle('hidden', tab !== 'mine');
+  document.getElementById('mystuff-empty').classList.toggle('hidden', true);
+  document.getElementById('sharedwithme-list').classList.toggle('hidden', tab !== 'shared');
+  document.getElementById('sharedwithme-empty').classList.toggle('hidden', true);
+  if (tab === 'shared') loadSharedWithMe();
+  else loadMyStuff();
+}
+
+async function loadSharedWithMe() {
+  const user = _appUser;
+  const list = document.getElementById('sharedwithme-list');
+  const empty = document.getElementById('sharedwithme-empty');
+  if (!user) return;
+  const snap = await db.ref('userSharedWithMe/' + user.uid).once('value');
+  const raw = snap.val() || {};
+  const items = Object.values(raw).sort((a, b) => b.sharedAt - a.sharedAt);
+  if (items.length === 0) {
+    list.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  const typeColors = { 'Note': 'violet', 'Roadmap': 'emerald', 'Video': 'red' };
+  list.innerHTML = items.map(item => {
+    const color = typeColors[item.type] || 'violet';
+    const date = new Date(item.sharedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const roleBadge = item.role === 'editor'
+      ? '<span class="text-[10px] font-bold text-violet-400 uppercase tracking-widest ml-2">Editor</span>'
+      : '<span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-2">Viewer</span>';
+    return `<div class="action-card-landing group flex flex-col gap-3 border-l-4 border-l-${color}-500">
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <span class="text-[10px] font-bold text-${color}-400 uppercase tracking-widest">${escHtml(item.type || 'Note')}</span>${roleBadge}
+          <h3 class="text-white font-bold mt-0.5 leading-tight">${escHtml(item.title)}</h3>
+          <div class="text-zinc-600 text-xs mt-0.5">from @${escHtml(item.sharedByUsername || '?')}</div>
+        </div>
+        <span class="text-[10px] text-zinc-600 whitespace-nowrap mt-1">${date}</span>
+      </div>
+      <div class="flex gap-2 mt-2">
+        <button onclick="openSharedNote(${JSON.stringify(item).replace(/</g,'\\u003c').replace(/"/g,'&quot;')})"
+          class="flex-1 py-2 rounded-lg bg-white/5 hover:bg-violet-500/20 text-zinc-300 hover:text-white text-sm font-semibold transition-colors">
+          ${item.role === 'editor' ? 'Edit' : 'View'}
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function openSharedNote(shareEntry) {
+  const user = _appUser;
+  if (!user) return;
+  const snap = await db.ref('notes/' + shareEntry.ownerUid + '/' + shareEntry.noteId).once('value');
+  const note = snap.val();
+  if (!note) { alert('This note no longer exists.'); return; }
+
+  _currentSharedNoteContext = { ownerUid: shareEntry.ownerUid, noteId: shareEntry.noteId, role: shareEntry.role };
+  currentEditingId = shareEntry.noteId;
+
+  document.getElementById('editor-title').value = note.title || '';
+  document.getElementById('editor-body').innerHTML = note.content || '';
+  document.getElementById('editor-meta').textContent = (shareEntry.role === 'viewer' ? 'View only · ' : '') + 'Shared by @' + escHtml(shareEntry.sharedByUsername || '?');
+
+  const saveBtn = document.getElementById('editor-save-btn');
+  const shareBtn = document.getElementById('editor-share-btn');
+  if (shareEntry.role === 'viewer') {
+    document.getElementById('editor-body').contentEditable = 'false';
+    document.getElementById('editor-title').setAttribute('readonly', true);
+    if (saveBtn) saveBtn.classList.add('hidden');
+  } else {
+    document.getElementById('editor-body').contentEditable = 'true';
+    document.getElementById('editor-title').removeAttribute('readonly');
+    if (saveBtn) { saveBtn.classList.remove('hidden'); saveBtn.textContent = 'Save'; }
+  }
+  if (shareBtn) shareBtn.classList.add('hidden'); // only owner can share
+
+  _echoChatHistory = [];
+  const msgs = document.getElementById('echo-messages');
+  if (msgs) msgs.innerHTML = '<div class="echo-msg-echo">Hi! I\'m Echo. I know your note — ask me anything, or use the quick actions below.</div>';
+
+  const modal = document.getElementById('editor-modal');
+  modal.classList.remove('js-hidden');
+  modal.style.display = 'flex';
+}
+
+async function saveSharedNote() {
+  const ctx = _currentSharedNoteContext;
+  if (!ctx || ctx.role !== 'editor') return;
+  const btn = document.getElementById('editor-save-btn');
+  const orig = btn ? btn.innerHTML : 'Save';
+  if (btn) { btn.disabled = true; btn.innerHTML = 'Saving…'; }
+  try {
+    const idToken = await auth.currentUser.getIdToken();
+    const res = await fetch('/api/save-shared-note', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idToken,
+        ownerUid: ctx.ownerUid,
+        noteId: ctx.noteId,
+        title: document.getElementById('editor-title').value,
+        content: document.getElementById('editor-body').innerHTML
+      })
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+    document.getElementById('editor-meta').textContent = 'Saved · ' + new Date().toLocaleString();
+    if (btn) { btn.innerHTML = '✓ Saved'; btn.classList.add('text-green-400'); }
+    setTimeout(() => { if (btn) { btn.innerHTML = orig; btn.classList.remove('text-green-400'); btn.disabled = false; } }, 1500);
+  } catch (err) {
+    if (btn) { btn.innerHTML = orig; btn.disabled = false; }
+    alert('Could not save: ' + err.message);
+  }
 }
 
 async function studyFlashcardSet(setId) {
