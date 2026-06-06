@@ -32,15 +32,11 @@
     let _appUser = null;
 
     function _clearProfileCache() {
-      // Strip per-user profile fields; keep only device-level appearance prefs
-      try {
-        const s = JSON.parse(localStorage.getItem('bid_settings') || '{}');
-        const kept = {};
-        if (s.lightMode    !== undefined) kept.lightMode    = s.lightMode;
-        if (s.dyslexiaFont !== undefined) kept.dyslexiaFont = s.dyslexiaFont;
-        if (s.fontSize     !== undefined) kept.fontSize     = s.fontSize;
-        localStorage.setItem('bid_settings', JSON.stringify(kept));
-      } catch(_) {}
+      try { localStorage.removeItem('bid_settings'); } catch(_) {}
+      // Reset DOM appearance to defaults so sign-out screen and next account start clean
+      document.documentElement.setAttribute('data-theme', 'dark');
+      document.documentElement.classList.remove('dyslexia-font');
+      document.documentElement.style.fontSize = '';
     }
 
     // Keep app hidden until auth state is known
