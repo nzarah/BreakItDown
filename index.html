@@ -2241,16 +2241,19 @@ async function loadMyStuff() {
   const user = _appUser;
   if (!user) return;
 
-  const [notesSnap, fcSnap, slidesSnap] = await Promise.all([
+  const [notesSnap, fcSnap] = await Promise.all([
     db.ref('notes/' + user.uid).once('value'),
-    db.ref('flashcards/' + user.uid).once('value'),
-    db.ref('slideshows/' + user.uid).once('value')
+    db.ref('flashcards/' + user.uid).once('value')
   ]);
+
+  // Slideshows fetched separately so a missing security-rule doesn't break existing items
+  let slidesSnap = null;
+  try { slidesSnap = await db.ref('slideshows/' + user.uid).once('value'); } catch (_) {}
 
   // Skip note-mirror entries written for slideshow sharing (type: 'Slideshow' in notes/)
   const notes  = Object.values(notesSnap.val() || {}).filter(n => n.type !== 'Slideshow').map(n => ({ ...n, _kind: 'note' }));
   const fcSets = Object.values(fcSnap.val() || {}).map(s => ({ ...s, _kind: 'flashcards' }));
-  const slides = Object.values(slidesSnap.val() || {}).map(s => ({ ...s, _kind: 'slideshow' }));
+  const slides = slidesSnap ? Object.values(slidesSnap.val() || {}).map(s => ({ ...s, _kind: 'slideshow' })) : [];
   const all = [...notes, ...fcSets, ...slides].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
   const list = document.getElementById('mystuff-list');
