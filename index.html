@@ -69,6 +69,7 @@
 
         showPage('pg-home');
         loadUserProfile(user);
+        if (typeof renderTemplateGallery === 'function') renderTemplateGallery();
       } else {
         _appUser = null;
         // Signed out — clear profile cache and show landing
@@ -593,6 +594,67 @@
     .theme-lock-icon { position:absolute; top:6px; right:6px; font-size:0.6rem; }
   </style>
 
+  <style>
+  /* ── SLIDE TEMPLATES ──────────────────────────────────────────────────────── */
+  .templates-section { margin-top: 56px; }
+  .templates-section-title { font-size: 1.35rem; font-weight: 800; margin-bottom: 4px; letter-spacing: -0.01em; }
+  .templates-section-sub { color: #71717a; font-size: 0.875rem; margin-bottom: 20px; }
+  .templates-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+  .template-card { background: #13111C; border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; overflow: hidden; cursor: pointer; transition: all 0.25s ease; display: flex; flex-direction: column; }
+  .template-card:hover { border-color: rgba(139,92,246,0.4); transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+  .template-card-header { height: 68px; display: flex; align-items: center; justify-content: center; font-size: 2rem; }
+  .template-card-body { padding: 12px 14px 14px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .template-card-subject { font-size: 0.82rem; font-weight: 700; color: #e4e4e7; }
+  .template-card-count { font-size: 0.7rem; color: #71717a; }
+  .template-card-btn { margin-top: 10px; width: 100%; padding: 7px; border-radius: 9px; background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2); color: #a78bfa; font-size: 0.77rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: background 0.2s; }
+  .template-card-btn:hover { background: rgba(139,92,246,0.25); }
+  [data-theme="light"] .template-card { background: #fff; border-color: rgba(0,0,0,0.08); }
+  [data-theme="light"] .template-card:hover { border-color: rgba(124,58,237,0.3); }
+  /* Slide editor modal */
+  .slide-modal-overlay { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,0.93); backdrop-filter: blur(14px); display: flex; flex-direction: column; }
+  .slide-editor-topbar { display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-bottom: 1px solid rgba(255,255,255,0.07); flex-shrink: 0; }
+  .slide-editor-title-input { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 7px 13px; color: #fff; font-size: 0.95rem; font-weight: 600; font-family: inherit; outline: none; }
+  .slide-editor-title-input:focus { border-color: rgba(139,92,246,0.5); }
+  .slide-editor-body { display: flex; flex: 1; overflow: hidden; }
+  .slide-thumb-panel { width: 160px; flex-shrink: 0; border-right: 1px solid rgba(255,255,255,0.07); display: flex; flex-direction: column; overflow-y: auto; padding: 10px 8px; gap: 7px; }
+  .slide-thumb { border-radius: 8px; padding: 7px 10px; cursor: pointer; border: 2px solid transparent; font-size: 0.7rem; color: #71717a; transition: all 0.15s; background: rgba(255,255,255,0.03); line-height: 1.4; }
+  .slide-thumb:hover { background: rgba(255,255,255,0.06); }
+  .slide-thumb.active { border-color: #7c3aed; color: #fff; background: rgba(124,58,237,0.12); }
+  .slide-thumb-num { font-size: 0.6rem; font-weight: 800; color: #71717a; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .slide-thumb-add { text-align: center; padding: 7px; border-radius: 8px; border: 1px dashed rgba(255,255,255,0.14); color: #71717a; font-size: 0.75rem; cursor: pointer; transition: all 0.15s; margin-top: 2px; }
+  .slide-thumb-add:hover { border-color: rgba(139,92,246,0.4); color: #a78bfa; }
+  .slide-main-area { flex: 1; display: flex; flex-direction: column; padding: 24px 32px; overflow-y: auto; gap: 16px; }
+  .slide-heading-input { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 11px 16px; color: #fff; font-size: 1.2rem; font-weight: 700; font-family: inherit; outline: none; width: 100%; }
+  .slide-heading-input:focus { border-color: rgba(139,92,246,0.5); }
+  .slide-body-textarea { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 13px 16px; color: #d4d4d8; font-size: 0.95rem; font-family: inherit; outline: none; resize: none; width: 100%; min-height: 160px; line-height: 1.7; }
+  .slide-body-textarea:focus { border-color: rgba(139,92,246,0.5); }
+  .slide-controls-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .slide-controls-label { font-size: 0.72rem; font-weight: 700; color: #71717a; text-transform: uppercase; letter-spacing: 0.05em; }
+  .slide-color-dot { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.15s, border-color 0.15s; flex-shrink: 0; }
+  .slide-color-dot:hover { transform: scale(1.2); }
+  .slide-color-dot.active { border-color: #fff; transform: scale(1.15); }
+  .slide-layout-btn { padding: 5px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: #71717a; font-size: 0.75rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+  .slide-layout-btn.active, .slide-layout-btn:hover { background: rgba(124,58,237,0.15); border-color: rgba(124,58,237,0.35); color: #a78bfa; }
+  .slide-editor-footer { display: flex; align-items: center; justify-content: space-between; padding: 9px 28px; border-top: 1px solid rgba(255,255,255,0.07); flex-shrink: 0; }
+  .slide-nav-btn { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #d4d4d8; padding: 5px 14px; font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.15s; }
+  .slide-nav-btn:hover:not(:disabled) { background: rgba(255,255,255,0.12); }
+  .slide-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .slide-del-btn { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.15); border-radius: 8px; color: #f87171; padding: 5px 13px; font-size: 0.76rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.15s; }
+  .slide-del-btn:hover { background: rgba(239,68,68,0.2); }
+  /* Slide preview modal */
+  .slide-preview-overlay { position: fixed; inset: 0; z-index: 1100; background: rgba(0,0,0,0.96); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
+  .slide-preview-card { width: min(700px, 92vw); border-radius: 22px; padding: 48px 56px; display: flex; flex-direction: column; gap: 18px; min-height: 320px; justify-content: center; box-shadow: 0 32px 80px rgba(0,0,0,0.6); }
+  .slide-preview-heading { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.2; }
+  .slide-preview-body { font-size: 1rem; line-height: 1.8; white-space: pre-wrap; opacity: 0.85; }
+  .slide-preview-nav { display: flex; align-items: center; gap: 16px; }
+  .slide-preview-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; color: #fff; padding: 9px 22px; font-size: 0.88rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.15s; }
+  .slide-preview-btn:hover:not(:disabled) { background: rgba(255,255,255,0.2); }
+  .slide-preview-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .slide-preview-counter { color: #71717a; font-size: 0.82rem; min-width: 70px; text-align: center; }
+  .slide-preview-close { position: absolute; top: 20px; right: 24px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; color: #d4d4d8; padding: 6px 14px; font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .slide-preview-close:hover { background: rgba(255,255,255,0.14); }
+  </style>
+
   <script>
     /* Apply persisted appearance settings before first paint to avoid flash */
     (function(){
@@ -948,6 +1010,22 @@
           <p class="text-zinc-500 leading-relaxed">Transform notes into high-recall flashcards.</p>
         </div>
       </div>
+
+      <!-- ── SLIDE TEMPLATES GALLERY ── -->
+      <div class="templates-section">
+        <div class="flex items-end justify-between mb-1">
+          <div>
+            <p class="templates-section-title">Slide Templates</p>
+            <p class="templates-section-sub">Free school-subject presentations — customize and save up to 3/month.</p>
+          </div>
+        </div>
+        <div id="slides-usage-bar" class="usage-bar-wrap hidden">
+          <span class="usage-bar-label">Slideshows saved this month</span>
+          <span id="slides-usage-count" class="usage-bar-count">0 / 3</span>
+          <button onclick="openUpgradeModal()" class="upgrade-btn-small">Go Pro</button>
+        </div>
+        <div id="templates-grid" class="templates-grid"></div>
+      </div>
     </section>
 
     <section id="pg-notes" class="page-section p-10 max-w-5xl mx-auto">
@@ -1063,7 +1141,7 @@
       <div class="flex justify-between items-center mb-6">
         <div>
           <h2 class="text-2xl font-bold">My Stuff</h2>
-          <p class="text-zinc-500 text-sm mt-1">All your saved notes, roadmaps, and video breakdowns.</p>
+          <p class="text-zinc-500 text-sm mt-1">All your saved notes, roadmaps, video breakdowns, and slideshows.</p>
         </div>
       </div>
       <div class="flex gap-2 mb-6">
@@ -1630,8 +1708,8 @@
 
     // ── PRO & USAGE STATE ─────────────────────────────────────────────────────
     let _userIsPro  = false;
-    let _userUsage  = { notes: 0, roadmaps: 0, ytNotes: 0, echoMessages: 0, flashcards: 0 };
-    const FREE_LIMITS  = { notes: 5, roadmaps: 3, ytNotes: 3, echoMessages: 10, flashcards: 5 };
+    let _userUsage  = { notes: 0, roadmaps: 0, ytNotes: 0, echoMessages: 0, flashcards: 0, slideshows: 0 };
+    const FREE_LIMITS  = { notes: 5, roadmaps: 3, ytNotes: 3, echoMessages: 10, flashcards: 5, slideshows: 3 };
     const GROUP_LIMIT  = 8;
     const PRO_THEMES   = ['ocean', 'forest', 'sunset', 'rose', 'midnight'];
 
@@ -1643,7 +1721,7 @@
     function _updateUsageUI() {
       const isPro = _userIsPro;
       // Show/hide usage bars
-      ['notes-usage-bar','yt-usage-bar','roadmap-usage-bar','echo-usage-bar','flashcards-usage-bar'].forEach(id => {
+      ['notes-usage-bar','yt-usage-bar','roadmap-usage-bar','echo-usage-bar','flashcards-usage-bar','slides-usage-bar'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.toggle('hidden', isPro);
       });
@@ -1653,11 +1731,13 @@
       const rc = document.getElementById('roadmap-usage-count');
       const ec = document.getElementById('echo-usage-count');
       const fc = document.getElementById('flashcards-usage-count');
+      const sc = document.getElementById('slides-usage-count');
       if (nc) { nc.textContent = `${_userUsage.notes} / ${FREE_LIMITS.notes}`; nc.classList.toggle('at-limit', _userUsage.notes >= FREE_LIMITS.notes); }
       if (yc) { yc.textContent = `${_userUsage.ytNotes} / ${FREE_LIMITS.ytNotes}`; yc.classList.toggle('at-limit', _userUsage.ytNotes >= FREE_LIMITS.ytNotes); }
       if (rc) { rc.textContent = `${_userUsage.roadmaps} / ${FREE_LIMITS.roadmaps}`; rc.classList.toggle('at-limit', _userUsage.roadmaps >= FREE_LIMITS.roadmaps); }
       if (ec) { ec.textContent = `${_userUsage.echoMessages} / ${FREE_LIMITS.echoMessages}`; ec.classList.toggle('at-limit', _userUsage.echoMessages >= FREE_LIMITS.echoMessages); }
       if (fc) { fc.textContent = `${_userUsage.flashcards} / ${FREE_LIMITS.flashcards}`; fc.classList.toggle('at-limit', _userUsage.flashcards >= FREE_LIMITS.flashcards); }
+      if (sc) { sc.textContent = `${_userUsage.slideshows} / ${FREE_LIMITS.slideshows}`; sc.classList.toggle('at-limit', _userUsage.slideshows >= FREE_LIMITS.slideshows); }
       // Pro badge / upgrade button
       const badge  = document.getElementById('sidebar-pro-badge');
       const upBtn  = document.getElementById('sidebar-upgrade-btn');
@@ -2161,14 +2241,17 @@ async function loadMyStuff() {
   const user = _appUser;
   if (!user) return;
 
-  const [notesSnap, fcSnap] = await Promise.all([
+  const [notesSnap, fcSnap, slidesSnap] = await Promise.all([
     db.ref('notes/' + user.uid).once('value'),
-    db.ref('flashcards/' + user.uid).once('value')
+    db.ref('flashcards/' + user.uid).once('value'),
+    db.ref('slideshows/' + user.uid).once('value')
   ]);
 
-  const notes = Object.values(notesSnap.val() || {}).map(n => ({ ...n, _kind: 'note' }));
+  // Skip note-mirror entries written for slideshow sharing (type: 'Slideshow' in notes/)
+  const notes  = Object.values(notesSnap.val() || {}).filter(n => n.type !== 'Slideshow').map(n => ({ ...n, _kind: 'note' }));
   const fcSets = Object.values(fcSnap.val() || {}).map(s => ({ ...s, _kind: 'flashcards' }));
-  const all = [...notes, ...fcSets].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  const slides = Object.values(slidesSnap.val() || {}).map(s => ({ ...s, _kind: 'slideshow' }));
+  const all = [...notes, ...fcSets, ...slides].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
   const list = document.getElementById('mystuff-list');
   const empty = document.getElementById('mystuff-empty');
@@ -2184,6 +2267,29 @@ async function loadMyStuff() {
 
   list.innerHTML = all.map(item => {
     const date = new Date(item.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+    if (item._kind === 'slideshow') {
+      const count = (item.slides || []).length;
+      const preview = item.slides && item.slides[0] ? item.slides[0].heading || '' : '';
+      return `
+        <div class="action-card-landing group flex flex-col gap-3 border-l-4 border-l-violet-500">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <span class="text-[10px] font-bold text-violet-400 uppercase tracking-widest">Slideshow · ${escHtml(item.subject || '')}</span>
+              <h3 class="text-white font-bold mt-0.5 leading-tight">${escHtml(item.title || 'Untitled Slideshow')}</h3>
+            </div>
+            <span class="text-[10px] text-zinc-600 whitespace-nowrap mt-1">${date}</span>
+          </div>
+          <p class="text-zinc-500 text-sm flex-1">${count} slide${count !== 1 ? 's' : ''}${preview ? ' · ' + escHtml(preview.slice(0, 60)) : ''}</p>
+          <div class="flex gap-2 mt-2 flex-wrap">
+            <button onclick="openSlideEditor(null,'${item.id}')" class="flex-1 py-2 rounded-lg bg-white/5 hover:bg-violet-500/20 text-zinc-300 hover:text-white text-sm font-semibold transition-colors">Edit</button>
+            <button onclick="openSlidePreview('${item.id}')" class="flex-1 py-2 rounded-lg bg-violet-500/10 hover:bg-violet-500/25 text-violet-400 hover:text-violet-300 text-sm font-semibold transition-colors">Preview</button>
+            <button onclick="openPostToGroupModalFromSlideshow('${item.id}')" class="flex-1 py-2 rounded-lg bg-violet-500/10 hover:bg-violet-500/25 text-violet-400 hover:text-violet-300 text-sm font-semibold transition-colors">Post</button>
+            <button onclick="shareSlideshow('${item.id}')" class="flex-1 py-2 rounded-lg bg-white/5 hover:bg-violet-500/20 text-zinc-300 hover:text-white text-sm font-semibold transition-colors">Share</button>
+            <button onclick="deleteSavedSlideshow('${item.id}')" class="py-2 px-4 rounded-lg bg-white/5 hover:bg-red-500/20 text-zinc-500 hover:text-red-400 text-sm font-semibold transition-colors">Delete</button>
+          </div>
+        </div>`;
+    }
 
     if (item._kind === 'flashcards') {
       const count = (item.cards || []).length;
@@ -3405,7 +3511,7 @@ function loadUserProfile(user) {
   const month = _currentMonth();
   db.ref('users/' + user.uid + '/usage/' + month).once('value').then(snap => {
     const u = snap.val() || {};
-    _userUsage = { notes: u.notes || 0, roadmaps: u.roadmaps || 0, ytNotes: u.ytNotes || 0, echoMessages: u.echoMessages || 0, flashcards: u.flashcards || 0 };
+    _userUsage = { notes: u.notes || 0, roadmaps: u.roadmaps || 0, ytNotes: u.ytNotes || 0, echoMessages: u.echoMessages || 0, flashcards: u.flashcards || 0, slideshows: u.slideshows || 0 };
     _updateUsageUI();
   });
 }
@@ -4007,6 +4113,522 @@ function listenForReceivedNotes(uid) {
   });
 }
 
+// ── SLIDE TEMPLATES ───────────────────────────────────────────────────────────
+
+const SLIDE_BG_MAP = {
+  violet: { bg:'#130e2a', accent:'#7c3aed', text:'#ede9fe' },
+  emerald:{ bg:'#091a10', accent:'#10b981', text:'#d1fae5' },
+  sky:    { bg:'#071828', accent:'#0ea5e9', text:'#e0f2fe' },
+  blue:   { bg:'#07122a', accent:'#3b82f6', text:'#dbeafe' },
+  rose:   { bg:'#1f0710', accent:'#f43f5e', text:'#ffe4e6' },
+  indigo: { bg:'#0c0b24', accent:'#6366f1', text:'#e0e7ff' },
+  teal:   { bg:'#071a18', accent:'#14b8a6', text:'#ccfbf1' },
+  amber:  { bg:'#1a1000', accent:'#f59e0b', text:'#fef3c7' },
+  pink:   { bg:'#1a0714', accent:'#ec4899', text:'#fce7f3' },
+  yellow: { bg:'#151100', accent:'#eab308', text:'#fefce8' },
+  orange: { bg:'#1a0c00', accent:'#f97316', text:'#ffedd5' },
+  green:  { bg:'#061408', accent:'#22c55e', text:'#dcfce7' },
+};
+
+const SLIDE_TEMPLATES = [
+  { id:'biology',   subject:'Biology',              emoji:'🧬', color:'emerald', headerBg:'rgba(16,185,129,0.15)',  slides:[
+    { heading:'Introduction to Biology',    body:'Biology is the scientific study of life and living organisms, including their structure, function, growth, origin, evolution, and distribution.',  bgColor:'emerald', layout:'title' },
+    { heading:'Cell Theory',                body:'• All living things are made of cells\n• The cell is the basic structural and functional unit of life\n• All cells arise from pre-existing cells', bgColor:'emerald', layout:'bullets' },
+    { heading:'DNA & Genetics',             body:'DNA carries the genetic instructions for the growth, development, and reproduction of all known organisms. Genes determine inherited traits.',       bgColor:'teal',    layout:'text' },
+    { heading:'Natural Selection',          body:'Organisms with favorable traits survive and reproduce more successfully, passing those traits to offspring. Over generations this drives evolution.', bgColor:'emerald', layout:'text' },
+    { heading:'Ecosystems & Ecology',       body:'• Producers convert sunlight to energy via photosynthesis\n• Consumers obtain energy by eating other organisms\n• Decomposers recycle nutrients\n• Energy flows through food chains', bgColor:'teal', layout:'bullets' },
+    { heading:'Key Vocabulary',             body:'Mitosis · Meiosis · Osmosis · Photosynthesis · Homeostasis · Mutation · Phenotype · Genotype · Allele · Chromosome · Enzyme · Ribosome',           bgColor:'emerald', layout:'text' },
+  ]},
+  { id:'chemistry', subject:'Chemistry',            emoji:'⚗️', color:'sky',     headerBg:'rgba(14,165,233,0.15)',  slides:[
+    { heading:'Introduction to Chemistry',  body:'Chemistry explores the composition, structure, properties, and changes of matter. It connects atomic theory to the observable world.',               bgColor:'sky',     layout:'title' },
+    { heading:'Atomic Structure',           body:'• Protons: positively charged, found in the nucleus\n• Neutrons: neutral, found in the nucleus\n• Electrons: negatively charged, in orbitals\n• Atomic number = number of protons', bgColor:'sky', layout:'bullets' },
+    { heading:'The Periodic Table',         body:'Elements are arranged by increasing atomic number. Groups (columns) share chemical properties; periods (rows) reflect the number of electron shells.', bgColor:'blue',  layout:'text' },
+    { heading:'Chemical Bonding',           body:'• Ionic: electron transfer between metals and non-metals\n• Covalent: electron sharing between non-metals\n• Metallic: delocalized electrons in metal lattices', bgColor:'sky', layout:'bullets' },
+    { heading:'Reactions & Equations',      body:'Chemical equations must be balanced — atoms are conserved. Types include synthesis, decomposition, single/double replacement, and combustion.',       bgColor:'blue',   layout:'text' },
+    { heading:'Key Formulas',               body:'PV = nRT  (Ideal Gas Law)\npH = −log[H⁺]\nΔG = ΔH − TΔS\nMolarity = moles ÷ liters\nq = mcΔT  (Heat transfer)',                                   bgColor:'sky',    layout:'text' },
+  ]},
+  { id:'history',   subject:'History',              emoji:'🏛️', color:'amber',   headerBg:'rgba(245,158,11,0.15)',  slides:[
+    { heading:'Why Study History?',         body:'History helps us understand how past events shaped the present, recognize patterns, and develop critical thinking about societies, power, and change.',bgColor:'amber',  layout:'title' },
+    { heading:'Primary vs Secondary Sources',body:'• Primary: firsthand accounts — letters, diaries, photos, original documents\n• Secondary: analysis of primary sources — textbooks, biographies, documentaries', bgColor:'amber', layout:'bullets' },
+    { heading:'Causes & Effects',           body:'Historical events rarely have a single cause. Examine political, economic, social, and cultural factors. Distinguish short-term triggers from long-term underlying causes.', bgColor:'yellow', layout:'text' },
+    { heading:'Key Time Periods',           body:'• Ancient History: 3000 BCE – 500 CE\n• Medieval Period: 500 – 1500 CE\n• Early Modern: 1500 – 1800 CE\n• Modern Era: 1800 – present',              bgColor:'amber',  layout:'bullets' },
+    { heading:'Historical Thinking Skills', body:'Chronological reasoning · Contextualization · Comparison · Causation · Continuity and change over time · Argumentation with evidence',                bgColor:'yellow', layout:'text' },
+    { heading:'Summary & Reflection',       body:'History is not just memorizing dates — it is analyzing human decisions, understanding consequences, and applying lessons to contemporary issues.',     bgColor:'amber',  layout:'text' },
+  ]},
+  { id:'mathematics',subject:'Mathematics',         emoji:'∑',  color:'violet',  headerBg:'rgba(139,92,246,0.15)', slides:[
+    { heading:'Mathematics Overview',       body:'Mathematics is the language of patterns, structure, and logic. From arithmetic to calculus, it underpins science, technology, and everyday life.',    bgColor:'violet', layout:'title' },
+    { heading:'Algebra Fundamentals',       body:'• Variables represent unknown values\n• Linear: y = mx + b\n• Quadratic: ax² + bx + c = 0\n• Solve by isolating the variable step by step',         bgColor:'violet', layout:'bullets' },
+    { heading:'Geometry Essentials',        body:'Pythagorean Theorem: a² + b² = c²\nArea of circle: πr²\nSurface area of sphere: 4πr²\nVolume of cylinder: πr²h\nSum of angles in triangle: 180°',   bgColor:'indigo', layout:'text' },
+    { heading:'Functions & Graphs',         body:'• A function maps each input to exactly one output\n• Domain: valid inputs · Range: possible outputs\n• Key types: linear, quadratic, exponential, logarithmic', bgColor:'violet', layout:'bullets' },
+    { heading:'Calculus Concepts',          body:'Derivative: instantaneous rate of change (slope of tangent)\nIntegral: accumulated area under a curve\nd/dx(xⁿ) = nxⁿ⁻¹\n∫xⁿ dx = xⁿ⁺¹/(n+1) + C', bgColor:'indigo', layout:'text' },
+    { heading:'Problem-Solving Steps',      body:'1. Read carefully — identify what is given and what is asked\n2. Draw a diagram or write out known values\n3. Choose a strategy and solve step by step\n4. Check your answer', bgColor:'violet', layout:'text' },
+  ]},
+  { id:'literature', subject:'Literature',          emoji:'📖', color:'rose',    headerBg:'rgba(244,63,94,0.15)',   slides:[
+    { heading:'Introduction to Literature', body:'Literature uses language to express ideas, emotions, and experiences. Analyzing texts develops critical thinking, empathy, and communication skills.', bgColor:'rose',  layout:'title' },
+    { heading:'Literary Elements',          body:'• Plot: exposition, rising action, climax, falling action, resolution\n• Character: protagonist, antagonist, static vs dynamic\n• Setting: time and place\n• Theme: the central message', bgColor:'rose', layout:'bullets' },
+    { heading:'Literary Devices',           body:'Metaphor · Simile · Personification · Alliteration · Foreshadowing · Irony · Symbolism · Imagery · Tone · Mood — these tools give texts depth and meaning.', bgColor:'pink', layout:'text' },
+    { heading:'How to Analyze a Text',      body:'1. Read for comprehension\n2. Identify the author\'s purpose and audience\n3. Examine literary devices and word choice\n4. Consider historical and cultural context\n5. Form a thesis supported by textual evidence', bgColor:'rose', layout:'text' },
+    { heading:'Writing About Literature',   body:'• Strong thesis: arguable, specific, significant\n• Use direct quotes with page references\n• Analyze, don\'t just summarize\n• Connect evidence back to your central claim', bgColor:'pink', layout:'bullets' },
+    { heading:'Key Terms Glossary',         body:'Diction · Syntax · Allegory · Motif · Archetype · Soliloquy · Satire · Elegy · Sonnet · Narrative Voice · Point of View · Unreliable Narrator',    bgColor:'rose',  layout:'text' },
+  ]},
+  { id:'compsci',   subject:'Computer Science',     emoji:'💻', color:'indigo',  headerBg:'rgba(99,102,241,0.15)', slides:[
+    { heading:'Introduction to CS',         body:'Computer science studies computation, algorithms, data structures, and the design of software and hardware systems that solve real-world problems.',    bgColor:'indigo', layout:'title' },
+    { heading:'Core Programming Concepts',  body:'• Variables & Data Types: int, float, string, bool\n• Control Flow: if/else, loops (for, while)\n• Functions: reusable blocks of code\n• Arrays/Lists: ordered collections of values', bgColor:'indigo', layout:'bullets' },
+    { heading:'Algorithms & Complexity',    body:'An algorithm is a step-by-step procedure. Big-O notation measures efficiency:\n• O(1): constant · O(n): linear · O(n²): quadratic · O(log n): logarithmic', bgColor:'violet', layout:'text' },
+    { heading:'Data Structures',            body:'• Arrays: indexed, fixed-size\n• Linked Lists: nodes with pointers\n• Stacks & Queues: LIFO / FIFO ordering\n• Trees & Graphs: hierarchical / networked data\n• Hash Tables: key-value, O(1) lookup', bgColor:'indigo', layout:'bullets' },
+    { heading:'How the Internet Works',     body:'Client sends HTTP request → DNS resolves domain → Server returns response. Protocols like TCP/IP ensure reliable data delivery across networks.',        bgColor:'violet', layout:'text' },
+    { heading:'Key Principles',             body:'DRY (Don\'t Repeat Yourself) · Separation of Concerns · Abstraction · Encapsulation · Modularity — writing clean, maintainable code is as important as making it work.', bgColor:'indigo', layout:'text' },
+  ]},
+  { id:'geography', subject:'Geography',            emoji:'🌍', color:'teal',    headerBg:'rgba(20,184,166,0.15)',  slides:[
+    { heading:'Introduction to Geography',  body:'Geography studies the Earth\'s landscapes, environments, and the relationships between people and their environments across space and time.',           bgColor:'teal',   layout:'title' },
+    { heading:'Physical Geography',         body:'• Plate tectonics: Earth\'s crust in moving sections\n• Weathering & erosion shape landforms over time\n• Climate zones: tropical, arid, temperate, polar\n• Hydrosphere: oceans, rivers, glaciers, groundwater', bgColor:'teal', layout:'bullets' },
+    { heading:'Human Geography',            body:'Population distribution, urbanization, migration, cultural landscapes, economic geography, and political boundaries all reflect how humans organize space.', bgColor:'emerald', layout:'text' },
+    { heading:'Maps & Geographic Tools',    body:'• Latitude (horizontal) & Longitude (vertical) form a coordinate grid\n• Projections: Mercator, Robinson, Peters\n• GIS: Geographic Information Systems\n• Remote sensing via satellite imagery', bgColor:'teal', layout:'bullets' },
+    { heading:'Climate & Environment',      body:'Climate change, deforestation, desertification, and resource depletion are pressing global issues. Geography reveals the spatial patterns of environmental impact.', bgColor:'emerald', layout:'text' },
+    { heading:'Five Themes of Geography',   body:'Location · Place · Region · Movement · Human-Environment Interaction — these five themes provide a framework for all geographic inquiry.',             bgColor:'teal',   layout:'text' },
+  ]},
+  { id:'physics',   subject:'Physics',              emoji:'⚡', color:'blue',    headerBg:'rgba(59,130,246,0.15)',  slides:[
+    { heading:'Introduction to Physics',    body:'Physics studies matter, energy, space, and time — and the fundamental forces governing their interactions. It underpins all of the natural sciences.', bgColor:'blue',   layout:'title' },
+    { heading:'Newton\'s Laws of Motion',   body:'1. Inertia: an object at rest stays at rest unless acted upon\n2. F = ma (force = mass × acceleration)\n3. For every action there is an equal and opposite reaction', bgColor:'blue', layout:'text' },
+    { heading:'Energy & Thermodynamics',    body:'• Kinetic energy: KE = ½mv²\n• Gravitational PE: PE = mgh\n• Conservation: energy cannot be created or destroyed, only transformed\n• Entropy: disorder tends to increase', bgColor:'sky', layout:'bullets' },
+    { heading:'Waves & Electromagnetism',   body:'Waves transfer energy without transferring matter. The electromagnetic spectrum — from radio waves to gamma rays — is ordered by frequency and wavelength.', bgColor:'blue', layout:'text' },
+    { heading:'Modern Physics',             body:'• Special Relativity: E = mc², time dilation, length contraction\n• Quantum Mechanics: wave-particle duality, Heisenberg uncertainty principle\n• Atomic models: Bohr model, electron cloud', bgColor:'sky', layout:'bullets' },
+    { heading:'Key Equations',              body:'v = u + at\ns = ut + ½at²\nF = kq₁q₂/r²  (Coulomb\'s Law)\nE = hf  (Photon energy)\nλ = h/mv  (de Broglie)',                                          bgColor:'blue',   layout:'text' },
+  ]},
+  { id:'psychology',subject:'Psychology',           emoji:'🧠', color:'pink',    headerBg:'rgba(236,72,153,0.15)',  slides:[
+    { heading:'Introduction to Psychology', body:'Psychology is the scientific study of mind and behavior. It explores how people think, feel, and act — from biological roots to social influences.',   bgColor:'pink',   layout:'title' },
+    { heading:'Major Perspectives',         body:'• Biological: brain, genetics, neuroscience\n• Psychodynamic: unconscious mind (Freud)\n• Behavioral: observable actions and conditioning\n• Cognitive: mental processes and schemas\n• Humanistic: growth and self-actualization', bgColor:'pink', layout:'bullets' },
+    { heading:'Memory & Learning',          body:'Classical conditioning (Pavlov), Operant conditioning (Skinner), and Social Learning Theory (Bandura) explain how behaviors are acquired and modified.', bgColor:'rose',  layout:'text' },
+    { heading:'Development & Stages',       body:'• Piaget: four stages of cognitive development\n• Erikson: eight psychosocial stages across the lifespan\n• Kohlberg: moral development stages\n• Attachment Theory: Bowlby and Ainsworth', bgColor:'pink', layout:'bullets' },
+    { heading:'Social Psychology',          body:'Conformity (Asch), obedience (Milgram), the bystander effect, cognitive dissonance, and attribution theory explain how social context shapes behavior.', bgColor:'rose', layout:'text' },
+    { heading:'Research Methods',           body:'• Experiment: controls variables, establishes causation\n• Survey: self-report data, large samples\n• Case Study: in-depth individual analysis\n• Naturalistic Observation: behavior in real settings', bgColor:'pink', layout:'bullets' },
+  ]},
+  { id:'economics', subject:'Economics',            emoji:'📈', color:'yellow',  headerBg:'rgba(234,179,8,0.15)',   slides:[
+    { heading:'Introduction to Economics',  body:'Economics studies how individuals, firms, and governments allocate scarce resources to satisfy unlimited wants and needs.',                              bgColor:'yellow', layout:'title' },
+    { heading:'Microeconomics Basics',      body:'• Supply and demand determine market prices\n• Elasticity: how sensitive quantity is to price changes\n• Market structures: perfect competition, monopoly, oligopoly\n• Consumer and producer surplus', bgColor:'yellow', layout:'bullets' },
+    { heading:'Macroeconomics Overview',    body:'GDP measures total economic output. Unemployment, inflation, and interest rates are key indicators. Fiscal policy (government) and monetary policy (central bank) manage the economy.', bgColor:'amber', layout:'text' },
+    { heading:'Trade & Globalization',      body:'• Comparative advantage: countries benefit from specialization\n• Trade barriers: tariffs, quotas, subsidies\n• Exchange rates affect competitiveness\n• Global supply chains create interdependence', bgColor:'yellow', layout:'bullets' },
+    { heading:'Market Failures',            body:'Externalities, public goods, information asymmetry, and monopoly power cause markets to allocate resources inefficiently. Government intervention can correct — or worsen — these failures.', bgColor:'amber', layout:'text' },
+    { heading:'Key Economic Terms',         body:'Opportunity Cost · Marginal Analysis · Inflation · Deflation · Recession · GDP · CPI · Interest Rate · Equilibrium · Externality · Elasticity · Scarcity', bgColor:'yellow', layout:'text' },
+  ]},
+  { id:'arthistory',subject:'Art History',          emoji:'🎨', color:'orange',  headerBg:'rgba(249,115,22,0.15)',  slides:[
+    { heading:'Introduction to Art History',body:'Art history examines the visual arts across cultures and time periods, analyzing how artworks reflect and shape society, belief, and identity.',        bgColor:'orange', layout:'title' },
+    { heading:'Key Art Movements',          body:'• Renaissance (1400–1600): humanism, perspective, anatomy\n• Baroque (1600–1750): drama, emotion, contrast\n• Impressionism (1860–1890): light and color\n• Modernism (1900–1960): abstraction, experimentation', bgColor:'orange', layout:'bullets' },
+    { heading:'How to Analyze Artwork',     body:'Formal analysis: line, shape, color, texture, composition\nContextual analysis: artist biography, historical moment, patron intent\nIconographic analysis: symbols and deeper meaning', bgColor:'amber', layout:'text' },
+    { heading:'Famous Works & Artists',     body:'• Leonardo da Vinci: Mona Lisa, The Last Supper\n• Michelangelo: Sistine Chapel ceiling, David\n• Claude Monet: Water Lilies series\n• Pablo Picasso: Guernica\n• Frida Kahlo: Self-portraits', bgColor:'orange', layout:'bullets' },
+    { heading:'Architecture Through Time',  body:'From Greek columns and Roman arches to Gothic cathedrals, Baroque palaces, and Modernist glass towers — architecture reflects power, faith, and culture.', bgColor:'amber', layout:'text' },
+    { heading:'Writing About Art',          body:'1. Describe what you see (formal elements)\n2. Analyze how visual choices create meaning\n3. Interpret the work in its historical context\n4. Evaluate its significance and lasting impact', bgColor:'orange', layout:'text' },
+  ]},
+  { id:'envsci',    subject:'Environmental Science', emoji:'🌿', color:'green',   headerBg:'rgba(34,197,94,0.15)',   slides:[
+    { heading:'Environmental Science',      body:'Environmental science is an interdisciplinary field studying the natural world, human impacts, and pathways toward sustainability.',                      bgColor:'green',  layout:'title' },
+    { heading:'Earth\'s Four Spheres',      body:'• Atmosphere: layers of gas surrounding Earth\n• Hydrosphere: all water on, above, and below the surface\n• Lithosphere: Earth\'s rocky outer layer\n• Biosphere: all living organisms and their environments', bgColor:'green', layout:'bullets' },
+    { heading:'Ecosystems & Biodiversity',  body:'Biodiversity drives ecosystem resilience. Food webs, nutrient cycles (carbon, nitrogen, water), and energy flow through trophic levels maintain ecosystem balance.', bgColor:'emerald', layout:'text' },
+    { heading:'Human Impacts',              body:'• Deforestation: habitat loss and carbon release\n• Fossil fuels: CO₂ and greenhouse gas emissions\n• Plastic pollution: ocean and land contamination\n• Overuse of freshwater resources', bgColor:'green', layout:'bullets' },
+    { heading:'Climate Change',             body:'The greenhouse effect traps heat in the atmosphere. Rising CO₂ from fossil fuels accelerates warming, causing sea level rise, extreme weather events, and biodiversity loss.', bgColor:'emerald', layout:'text' },
+    { heading:'Sustainability Solutions',   body:'• Renewable energy: solar, wind, hydro, geothermal\n• Circular economy: reduce, reuse, recycle\n• Sustainable agriculture: crop rotation, reduced chemicals\n• Policy: carbon taxes, Paris Agreement', bgColor:'green', layout:'text' },
+  ]},
+];
+
+// ── SLIDE EDITOR STATE ────────────────────────────────────────────────────────
+
+let _slideshow       = null;   // working copy { id, title, subject, templateId, slides, type, timestamp }
+let _slideIdx        = 0;      // current slide index
+let _editingSlideshowId = null; // null = new, string = existing id
+
+function renderTemplateGallery() {
+  const grid = document.getElementById('templates-grid');
+  if (!grid) return;
+  grid.innerHTML = SLIDE_TEMPLATES.map(t => `
+    <div class="template-card" onclick="openSlideEditor('${t.id}')">
+      <div class="template-card-header" style="background:${t.headerBg};">${t.emoji}</div>
+      <div class="template-card-body">
+        <div class="template-card-subject">${escHtml(t.subject)}</div>
+        <div class="template-card-count">${t.slides.length} slides</div>
+        <button class="template-card-btn" onclick="event.stopPropagation();openSlideEditor('${t.id}')">Use Template →</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Call gallery render once auth is ready (triggered from onAuthStateChanged path)
+document.addEventListener('DOMContentLoaded', () => renderTemplateGallery());
+
+function openSlideEditor(templateId, existingId) {
+  const user = _appUser;
+  if (!user) { alert('Please sign in first.'); return; }
+
+  if (existingId) {
+    // Load existing slideshow
+    _editingSlideshowId = existingId;
+    db.ref('slideshows/' + user.uid + '/' + existingId).once('value').then(snap => {
+      const data = snap.val();
+      if (!data) return;
+      _slideshow = JSON.parse(JSON.stringify(data)); // deep clone
+      _slideIdx  = 0;
+      _openEditorModal();
+    }).catch(() => alert('Could not load slideshow.'));
+  } else {
+    // New from template
+    const tpl = SLIDE_TEMPLATES.find(t => t.id === templateId);
+    if (!tpl) return;
+    _editingSlideshowId = null;
+    _slideshow = {
+      id:         'slide-' + Date.now(),
+      title:      tpl.subject + ' Presentation',
+      subject:    tpl.subject,
+      templateId: tpl.id,
+      slides:     JSON.parse(JSON.stringify(tpl.slides)),
+      type:       'Slideshow',
+      timestamp:  new Date().toISOString(),
+    };
+    _slideIdx = 0;
+    _openEditorModal();
+  }
+}
+
+function _openEditorModal() {
+  const m = document.getElementById('slide-editor-modal');
+  m.classList.remove('js-hidden');
+  m.style.display = 'flex';
+  document.getElementById('slide-editor-title').value = _slideshow.title || '';
+  _renderEditorSlide();
+  _renderSlideThumbs();
+}
+
+function closeSlideEditor() {
+  const m = document.getElementById('slide-editor-modal');
+  m.classList.add('js-hidden');
+  m.style.display = 'none';
+}
+
+function _renderEditorSlide() {
+  if (!_slideshow) return;
+  const slide = _slideshow.slides[_slideIdx];
+  if (!slide) return;
+
+  document.getElementById('slide-heading-input').value   = slide.heading || '';
+  document.getElementById('slide-body-textarea').value   = slide.body    || '';
+
+  // Color dots
+  const dotsEl = document.getElementById('slide-color-dots');
+  const colors = Object.keys(SLIDE_BG_MAP);
+  dotsEl.innerHTML = colors.map(c => {
+    const col = SLIDE_BG_MAP[c];
+    return `<div class="slide-color-dot${slide.bgColor === c ? ' active' : ''}"
+      style="background:${col.accent};" title="${c}"
+      onclick="setSlideColor('${c}')"></div>`;
+  }).join('');
+
+  // Layout buttons
+  const layoutEl = document.getElementById('slide-layout-btns');
+  const layouts  = ['title','text','bullets'];
+  layoutEl.innerHTML = layouts.map(l =>
+    `<button class="slide-layout-btn${slide.layout === l ? ' active' : ''}" onclick="setSlideLayout('${l}')">${l.charAt(0).toUpperCase() + l.slice(1)}</button>`
+  ).join('');
+
+  // Footer counter & nav
+  const total = _slideshow.slides.length;
+  document.getElementById('slide-counter').textContent  = `Slide ${_slideIdx + 1} of ${total}`;
+  document.getElementById('slide-prev-btn').disabled    = _slideIdx === 0;
+  document.getElementById('slide-next-btn').disabled    = _slideIdx === total - 1;
+}
+
+function _renderSlideThumbs() {
+  const panel = document.getElementById('slide-thumb-panel');
+  panel.innerHTML = _slideshow.slides.map((s, i) => `
+    <div class="slide-thumb${i === _slideIdx ? ' active' : ''}" onclick="setCurrentSlide(${i})">
+      <div class="slide-thumb-num">Slide ${i + 1}</div>
+      ${escHtml((s.heading || 'Untitled').slice(0, 28))}
+    </div>
+  `).join('') + `<div class="slide-thumb-add" onclick="addSlide()">＋ Add Slide</div>`;
+}
+
+function _syncSlide() {
+  if (!_slideshow) return;
+  const slide = _slideshow.slides[_slideIdx];
+  if (!slide) return;
+  slide.heading = document.getElementById('slide-heading-input').value;
+  slide.body    = document.getElementById('slide-body-textarea').value;
+  // Update thumb label live
+  const thumbs = document.getElementById('slide-thumb-panel').querySelectorAll('.slide-thumb');
+  if (thumbs[_slideIdx]) {
+    thumbs[_slideIdx].innerHTML = `<div class="slide-thumb-num">Slide ${_slideIdx + 1}</div>${escHtml((slide.heading || 'Untitled').slice(0, 28))}`;
+  }
+}
+
+function setCurrentSlide(idx) {
+  _syncSlide();
+  _slideIdx = idx;
+  _renderEditorSlide();
+  _renderSlideThumbs();
+}
+
+function navigateSlide(dir) {
+  _syncSlide();
+  const next = _slideIdx + dir;
+  if (next < 0 || next >= _slideshow.slides.length) return;
+  _slideIdx = next;
+  _renderEditorSlide();
+  _renderSlideThumbs();
+}
+
+function setSlideColor(color) {
+  if (!_slideshow) return;
+  _slideshow.slides[_slideIdx].bgColor = color;
+  _renderEditorSlide();
+}
+
+function setSlideLayout(layout) {
+  if (!_slideshow) return;
+  _slideshow.slides[_slideIdx].layout = layout;
+  _renderEditorSlide();
+}
+
+function addSlide() {
+  _syncSlide();
+  const newSlide = { heading: 'New Slide', body: '', bgColor: _slideshow.slides[_slideIdx]?.bgColor || 'violet', layout: 'text' };
+  _slideshow.slides.splice(_slideIdx + 1, 0, newSlide);
+  _slideIdx = _slideIdx + 1;
+  _renderEditorSlide();
+  _renderSlideThumbs();
+}
+
+function deleteCurrentSlide() {
+  if (!_slideshow || _slideshow.slides.length <= 1) { alert('A slideshow must have at least one slide.'); return; }
+  _syncSlide();
+  _slideshow.slides.splice(_slideIdx, 1);
+  if (_slideIdx >= _slideshow.slides.length) _slideIdx = _slideshow.slides.length - 1;
+  _renderEditorSlide();
+  _renderSlideThumbs();
+}
+
+async function saveSlideshow() {
+  const user = _appUser;
+  if (!user) return;
+  _syncSlide();
+
+  const title = document.getElementById('slide-editor-title').value.trim();
+  if (!title) { alert('Please give your slideshow a title.'); document.getElementById('slide-editor-title').focus(); return; }
+  _slideshow.title = title;
+
+  // Check monthly limit for new slideshows only
+  const isNew = !_editingSlideshowId;
+  if (isNew && !_userIsPro && _userUsage.slideshows >= FREE_LIMITS.slideshows) {
+    openUpgradeModal();
+    return;
+  }
+
+  _slideshow.timestamp = new Date().toISOString();
+  const id = _editingSlideshowId || _slideshow.id;
+
+  try {
+    await db.ref('slideshows/' + user.uid + '/' + id).set(_slideshow);
+    if (isNew) {
+      _editingSlideshowId = id;
+      await _incrementUsage('slideshows');
+    }
+    // Flash save button feedback
+    const btn = document.querySelector('#slide-editor-modal button[onclick="saveSlideshow()"]');
+    if (btn) { const orig = btn.textContent; btn.textContent = '✓ Saved'; setTimeout(() => { btn.textContent = orig; }, 2000); }
+  } catch (e) {
+    alert('Could not save slideshow. Please try again.');
+    console.error(e);
+  }
+}
+
+async function deleteSavedSlideshow(id) {
+  const user = _appUser;
+  if (!user) return;
+  if (!confirm('Delete this slideshow? This cannot be undone.')) return;
+  await db.ref('slideshows/' + user.uid + '/' + id).remove().catch(() => {});
+  // Also remove share mirror if present
+  await db.ref('notes/' + user.uid + '/' + id).remove().catch(() => {});
+  loadMyStuff();
+}
+
+function previewFromEditor() {
+  _syncSlide();
+  if (!_slideshow || !_slideshow.slides.length) return;
+  _previewSlides = _slideshow.slides;
+  _previewIdx    = _slideIdx;
+  _openPreviewModal();
+}
+
+function postFromEditor() {
+  _syncSlide();
+  if (!_slideshow) return;
+  if (!_editingSlideshowId) { alert('Save the slideshow first before posting.'); return; }
+  openPostToGroupModalFromSlideshow(_editingSlideshowId);
+}
+
+async function shareFromEditor() {
+  _syncSlide();
+  if (!_slideshow) return;
+  if (!_editingSlideshowId) { alert('Save the slideshow first before sharing.'); return; }
+  await shareSlideshow(_editingSlideshowId);
+}
+
+// ── SLIDE PREVIEW ─────────────────────────────────────────────────────────────
+
+let _previewSlides = [];
+let _previewIdx    = 0;
+
+async function openSlidePreview(id) {
+  const user = _appUser;
+  if (!user) return;
+  const snap = await db.ref('slideshows/' + user.uid + '/' + id).once('value').catch(() => null);
+  const data = snap && snap.val();
+  if (!data || !data.slides) return;
+  _previewSlides = data.slides;
+  _previewIdx    = 0;
+  _openPreviewModal();
+}
+
+function _openPreviewModal() {
+  const m = document.getElementById('slide-preview-modal');
+  m.classList.remove('js-hidden');
+  m.style.display = 'flex';
+  _renderPreviewSlide();
+  document.addEventListener('keydown', _previewKeyHandler);
+}
+
+function closeSlidePreview() {
+  const m = document.getElementById('slide-preview-modal');
+  m.classList.add('js-hidden');
+  m.style.display = 'none';
+  document.removeEventListener('keydown', _previewKeyHandler);
+}
+
+function _previewKeyHandler(e) {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown')  navigatePreview(1);
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')    navigatePreview(-1);
+  if (e.key === 'Escape')                               closeSlidePreview();
+}
+
+function navigatePreview(dir) {
+  const next = _previewIdx + dir;
+  if (next < 0 || next >= _previewSlides.length) return;
+  _previewIdx = next;
+  _renderPreviewSlide();
+}
+
+function _renderPreviewSlide() {
+  const slide = _previewSlides[_previewIdx];
+  if (!slide) return;
+  const col = SLIDE_BG_MAP[slide.bgColor] || SLIDE_BG_MAP.violet;
+
+  const card = document.getElementById('slide-preview-card');
+  card.style.background = col.bg;
+  card.style.borderLeft = `4px solid ${col.accent}`;
+
+  const hEl = document.getElementById('slide-preview-heading');
+  hEl.textContent  = slide.heading || '';
+  hEl.style.color  = col.accent;
+
+  // Render body: lines starting with • get a bullet-list style
+  const bEl = document.getElementById('slide-preview-body');
+  bEl.style.color = col.text;
+  const body = slide.body || '';
+  const hasBullets = body.split('\n').some(l => l.trim().startsWith('•'));
+  if (hasBullets) {
+    bEl.innerHTML = body.split('\n').map(l => {
+      const t = l.trim();
+      if (!t) return '';
+      return t.startsWith('•')
+        ? `<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:4px;"><span style="color:${col.accent};flex-shrink:0;">•</span><span>${escHtml(t.slice(1).trim())}</span></div>`
+        : `<div style="margin-bottom:4px;">${escHtml(t)}</div>`;
+    }).join('');
+  } else {
+    bEl.textContent = body;
+    bEl.style.whiteSpace = 'pre-wrap';
+  }
+
+  // Title layout: larger heading, smaller body
+  if (slide.layout === 'title') {
+    hEl.style.fontSize  = '2.4rem';
+    bEl.style.fontSize  = '1.05rem';
+    bEl.style.opacity   = '0.7';
+    card.style.textAlign = 'center';
+    card.style.alignItems = 'center';
+  } else {
+    hEl.style.fontSize   = '1.7rem';
+    bEl.style.fontSize   = '0.97rem';
+    bEl.style.opacity    = '0.85';
+    card.style.textAlign = 'left';
+    card.style.alignItems = 'flex-start';
+  }
+
+  const total = _previewSlides.length;
+  document.getElementById('slide-preview-counter').textContent = `${_previewIdx + 1} / ${total}`;
+  document.getElementById('slide-preview-prev').disabled = _previewIdx === 0;
+  document.getElementById('slide-preview-next').disabled = _previewIdx === total - 1;
+}
+
+// ── SLIDESHOW SHARE & POST ────────────────────────────────────────────────────
+
+async function shareSlideshow(id) {
+  const user = _appUser;
+  if (!user) return;
+  const snap = await db.ref('slideshows/' + user.uid + '/' + id).once('value').catch(() => null);
+  const data = snap && snap.val();
+  if (!data) return;
+
+  // Serialize slideshow to HTML so the existing share infrastructure can use it
+  const html = (data.slides || []).map((s, i) =>
+    `<h3>${escHtml(s.heading || '')}</h3><p>${escHtml(s.body || '').replace(/\n/g, '<br>')}</p>`
+  ).join('<hr>');
+
+  // Mirror to notes/ path so openShareModal can find it via currentEditingId
+  await db.ref('notes/' + user.uid + '/' + id).set({
+    id, title: data.title, content: html, type: 'Slideshow', timestamp: data.timestamp
+  }).catch(() => {});
+
+  currentEditingId = id;
+  openShareModal();
+}
+
+async function openPostToGroupModalFromSlideshow(id) {
+  const user = auth.currentUser;
+  if (!user) return;
+  const snap = await db.ref('slideshows/' + user.uid + '/' + id).once('value');
+  const data = snap.val();
+  if (!data) return;
+
+  // Build a text summary from the first two slides
+  const content = (data.slides || []).slice(0, 3).map(s =>
+    (s.heading ? s.heading + '\n' : '') + (s.body || '')
+  ).join('\n\n');
+
+  document.getElementById('pm-title').value   = data.title || '';
+  document.getElementById('pm-content').value = content;
+  setPostType('note');
+
+  // Populate group selector
+  const select = document.getElementById('pm-group-select');
+  select.innerHTML = '<option value="">Select a group…</option>';
+  try {
+    const ugSnap = await db.ref('userGroups/' + user.uid).once('value');
+    const groupIds = Object.keys(ugSnap.val() || {});
+    if (groupIds.length === 0) {
+      select.innerHTML = '<option value="">You have no groups yet.</option>';
+    } else {
+      await Promise.all(groupIds.map(async gid => {
+        const gSnap = await db.ref('studyGroups/' + gid).once('value');
+        const g = gSnap.val();
+        if (g && g.name) {
+          const opt = document.createElement('option');
+          opt.value = gid; opt.textContent = g.name;
+          select.appendChild(opt);
+        }
+      }));
+    }
+  } catch(_) {}
+
+  document.getElementById('pm-group-selector-row').classList.remove('hidden');
+  setPmMode('new');
+  const m = document.getElementById('post-group-modal');
+  m.classList.remove('js-hidden'); m.style.display = 'flex';
+}
 // ── UTILITY ───────────────────────────────────────────────────────────────────
 
 function escHtml(str) {
@@ -4014,6 +4636,63 @@ function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
   </script>
+
+  <!-- ── SLIDE EDITOR MODAL ── -->
+  <div id="slide-editor-modal" class="slide-modal-overlay js-hidden" style="display:none;">
+    <div class="slide-editor-topbar">
+      <button onclick="closeSlideEditor()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#d4d4d8;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;flex-shrink:0;">✕ Close</button>
+      <input id="slide-editor-title" type="text" class="slide-editor-title-input" placeholder="Slideshow title…" />
+      <button onclick="saveSlideshow()" style="background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;border-radius:10px;color:#fff;padding:7px 20px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;box-shadow:0 4px 12px rgba(124,58,237,0.3);">Save</button>
+      <button onclick="previewFromEditor()" style="background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25);border-radius:10px;color:#a78bfa;padding:7px 16px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;">Preview</button>
+      <button onclick="shareFromEditor()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#d4d4d8;padding:7px 16px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;">Share</button>
+      <button onclick="postFromEditor()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#d4d4d8;padding:7px 16px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;">Post</button>
+    </div>
+    <div class="slide-editor-body">
+      <div class="slide-thumb-panel" id="slide-thumb-panel">
+        <!-- thumbnails rendered by JS -->
+      </div>
+      <div class="slide-main-area">
+        <div>
+          <div class="slide-controls-label" style="margin-bottom:6px;">Slide Heading</div>
+          <input id="slide-heading-input" type="text" class="slide-heading-input" placeholder="Slide heading…" oninput="_syncSlide()" />
+        </div>
+        <div>
+          <div class="slide-controls-label" style="margin-bottom:6px;">Content</div>
+          <textarea id="slide-body-textarea" class="slide-body-textarea" placeholder="Slide content… (start lines with • for bullet points)" oninput="_syncSlide()"></textarea>
+        </div>
+        <div class="slide-controls-row">
+          <span class="slide-controls-label">Background</span>
+          <div id="slide-color-dots" style="display:flex;gap:7px;flex-wrap:wrap;"></div>
+        </div>
+        <div class="slide-controls-row">
+          <span class="slide-controls-label">Layout</span>
+          <div id="slide-layout-btns" style="display:flex;gap:6px;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-editor-footer">
+      <button class="slide-nav-btn" id="slide-prev-btn" onclick="navigateSlide(-1)">← Prev</button>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span id="slide-counter" style="font-size:0.8rem;color:#71717a;"></span>
+        <button class="slide-del-btn" onclick="deleteCurrentSlide()">Delete Slide</button>
+      </div>
+      <button class="slide-nav-btn" id="slide-next-btn" onclick="navigateSlide(1)">Next →</button>
+    </div>
+  </div>
+
+  <!-- ── SLIDE PREVIEW MODAL ── -->
+  <div id="slide-preview-modal" class="slide-preview-overlay js-hidden" style="display:none;position:relative;">
+    <button class="slide-preview-close" onclick="closeSlidePreview()">✕ Close</button>
+    <div id="slide-preview-card" class="slide-preview-card">
+      <div id="slide-preview-heading" class="slide-preview-heading"></div>
+      <div id="slide-preview-body" class="slide-preview-body"></div>
+    </div>
+    <div class="slide-preview-nav">
+      <button class="slide-preview-btn" id="slide-preview-prev" onclick="navigatePreview(-1)">← Prev</button>
+      <span class="slide-preview-counter" id="slide-preview-counter"></span>
+      <button class="slide-preview-btn" id="slide-preview-next" onclick="navigatePreview(1)">Next →</button>
+    </div>
+  </div>
 
   <!-- ── UPGRADE MODAL ── -->
   <div id="upgrade-modal" class="upgrade-modal-overlay js-hidden" style="display:none;">
