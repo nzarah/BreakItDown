@@ -3233,6 +3233,11 @@ function applyTheme(theme) {
   document.querySelectorAll('.theme-swatch').forEach(sw => sw.classList.remove('active'));
   const active = document.getElementById('theme-' + theme);
   if (active) active.classList.add('active');
+
+  // Persist to RTDB so the setting survives logout/login and is account-specific
+  if (_appUser) {
+    db.ref('users/' + _appUser.uid + '/appearance').update({ theme, lightMode: s.lightMode }).catch(() => {});
+  }
 }
 
 function applyDyslexiaFont(isOn) {
@@ -3240,6 +3245,10 @@ function applyDyslexiaFont(isOn) {
   const s = JSON.parse(localStorage.getItem('bid_settings') || '{}');
   s.dyslexiaFont = isOn;
   localStorage.setItem('bid_settings', JSON.stringify(s));
+
+  if (_appUser) {
+    db.ref('users/' + _appUser.uid + '/appearance').update({ dyslexiaFont: isOn }).catch(() => {});
+  }
 }
 
 function applyFontSize(size) {
@@ -3247,6 +3256,10 @@ function applyFontSize(size) {
   const s = JSON.parse(localStorage.getItem('bid_settings') || '{}');
   s.fontSize = size;
   localStorage.setItem('bid_settings', JSON.stringify(s));
+
+  if (_appUser) {
+    db.ref('users/' + _appUser.uid + '/appearance').update({ fontSize: size }).catch(() => {});
+  }
 }
 
 function updateAvatarPreview() {
@@ -3344,6 +3357,23 @@ function loadUserProfile(user) {
       if (p.photoUrl)    s.photoUrl    = p.photoUrl;
       if (p.courses)     s.courses     = p.courses;
       if (p.studyGoal)   s.studyGoal   = p.studyGoal;
+
+      // Restore this account's appearance settings from RTDB
+      if (p.appearance) {
+        const a = p.appearance;
+        if (a.theme)                   s.theme        = a.theme;
+        if (a.lightMode !== undefined) s.lightMode    = a.lightMode;
+        if (a.dyslexiaFont !== undefined) s.dyslexiaFont = a.dyslexiaFont;
+        if (a.fontSize)                s.fontSize     = a.fontSize;
+
+        // Apply to DOM immediately
+        const theme = a.theme || (a.lightMode ? 'light' : 'dark');
+        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.classList.toggle('dyslexia-font', !!a.dyslexiaFont);
+        if (a.fontSize) document.documentElement.style.fontSize = a.fontSize + 'px';
+        else document.documentElement.style.fontSize = '';
+      }
+
       localStorage.setItem('bid_settings', JSON.stringify(s));
 
       // Update sidebar with RTDB values (more up-to-date than Firebase Auth)
