@@ -478,6 +478,23 @@
       padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
     }
     .borrow-req-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .borrow-deny-btn { padding: 6px 14px; font-size: 0.78rem; font-weight: 700; border-radius: 8px; border: 1px solid rgba(239,68,68,0.3); background: rgba(239,68,68,0.08); color: #f87171; cursor: pointer; font-family: inherit; transition: all 0.15s; flex-shrink: 0; }
+    .borrow-deny-btn:hover { background: rgba(239,68,68,0.18); border-color: rgba(239,68,68,0.5); color: #fca5a5; }
+    .borrow-accept-btn { padding: 6px 14px; font-size: 0.78rem; font-weight: 700; border-radius: 8px; border: none; background: linear-gradient(135deg,#7c3aed,#a855f7); color: white; cursor: pointer; font-family: inherit; transition: opacity 0.15s; flex-shrink: 0; }
+    .borrow-accept-btn:hover { opacity: 0.85; }
+    .borrow-revoke-btn { padding: 5px 12px; font-size: 0.75rem; font-weight: 700; border-radius: 8px; border: 1px solid rgba(245,158,11,0.3); background: rgba(245,158,11,0.07); color: #fbbf24; cursor: pointer; font-family: inherit; transition: all 0.15s; flex-shrink: 0; }
+    .borrow-revoke-btn:hover { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.5); }
+    .borrow-req-trigger-btn { display: inline-flex; align-items: center; gap: 7px; padding: 7px 15px; border-radius: 10px; border: 1px solid rgba(245,158,11,0.25); background: rgba(245,158,11,0.06); color: #fbbf24; font-size: 0.78rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: all 0.15s; position: relative; }
+    .borrow-req-trigger-btn:hover { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.4); }
+    .borrow-req-badge { background: #f59e0b; color: #1c1917; border-radius: 999px; font-size: 0.65rem; font-weight: 900; padding: 2px 7px; line-height: 1.4; }
+    .borrow-modal-overlay { position: fixed; inset: 0; z-index: 70; background: rgba(0,0,0,0.75); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .borrow-modal-inner { background: #1a1825; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; width: 100%; max-width: 520px; max-height: 82vh; display: flex; flex-direction: column; box-shadow: 0 32px 80px rgba(0,0,0,0.6); overflow: hidden; }
+    .borrow-modal-body { overflow-y: auto; flex: 1; padding: 0 22px 22px; }
+    .borrow-section-label { font-size: 0.62rem; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: #52525b; margin: 18px 0 10px; }
+    .borrowed-card { border-radius: 14px; border: 1px solid rgba(245,158,11,0.2); background: rgba(245,158,11,0.04); padding: 14px 16px; display: flex; align-items: flex-start; gap: 12px; }
+    .borrowed-label { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 999px; font-size: 0.62rem; font-weight: 800; background: rgba(245,158,11,0.15); color: #fbbf24; letter-spacing: 0.04em; white-space: nowrap; }
+    .borrow-view-modal-overlay { position: fixed; inset: 0; z-index: 80; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .borrow-view-modal-inner { background: #1a1825; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; width: 100%; max-width: 680px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 32px 80px rgba(0,0,0,0.7); overflow: hidden; }
 
     .posts-label {
       font-size: 0.65rem; font-weight: 800; color: #7c3aed;
@@ -1171,6 +1188,7 @@
       <div class="flex gap-2 mb-6">
         <button id="btn-mystuff-mine" onclick="setMyStuffTab('mine')" class="chart-type-btn active-ct">My Stuff</button>
         <button id="btn-mystuff-shared" onclick="setMyStuffTab('shared')" class="chart-type-btn">Shared with me</button>
+        <button id="btn-mystuff-borrowed" onclick="setMyStuffTab('borrowed')" class="chart-type-btn">Borrowed</button>
       </div>
       <div id="mystuff-empty" class="hidden text-center py-24 text-zinc-600 italic">
         Nothing saved yet. Generate some notes or a roadmap and hit Save!
@@ -1178,6 +1196,8 @@
       <div id="mystuff-list" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
       <div id="sharedwithme-empty" class="hidden text-center py-24 text-zinc-600 italic">No notes have been shared with you yet.</div>
       <div id="sharedwithme-list" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+      <div id="borrowed-empty" class="hidden text-center py-24 text-zinc-600 italic">You haven't borrowed anything yet. Use the Borrow button on a group post to request access.</div>
+      <div id="borrowed-list" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6"></div>
     </section>
 
     <!-- ── SETTINGS PAGE ── -->
@@ -1436,14 +1456,14 @@
           <button onclick="openPostToGroupModal()" class="sett-save-btn flex-shrink-0" style="padding:9px 20px;">+ Post to Group</button>
         </div>
 
-        <!-- Borrow requests panel (visible to post authors) -->
-        <div id="borrow-requests-panel" class="borrow-panel hidden">
-          <div class="borrow-panel-title">📥 Pending Borrow Requests</div>
-          <div id="borrow-requests-list"></div>
+        <!-- Posts header row -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <div class="posts-label" style="margin-bottom:0;flex:1;">Posts</div>
+          <button id="borrow-req-trigger" class="borrow-req-trigger-btn" onclick="openBorrowRequestsModal()">
+            📥 Borrow Requests
+            <span id="borrow-req-badge" class="borrow-req-badge" style="display:none;">0</span>
+          </button>
         </div>
-
-        <!-- Posts feed -->
-        <div class="posts-label">Posts</div>
         <div id="group-posts-feed" class="space-y-4">
           <div class="text-zinc-600 italic text-sm py-16 text-center">No posts yet. Be the first to share something!</div>
         </div>
@@ -3016,11 +3036,15 @@ function setMyStuffTab(tab) {
   _myStuffTab = tab;
   document.getElementById('btn-mystuff-mine').classList.toggle('active-ct', tab === 'mine');
   document.getElementById('btn-mystuff-shared').classList.toggle('active-ct', tab === 'shared');
+  document.getElementById('btn-mystuff-borrowed').classList.toggle('active-ct', tab === 'borrowed');
   document.getElementById('mystuff-list').classList.toggle('hidden', tab !== 'mine');
   document.getElementById('mystuff-empty').classList.toggle('hidden', true);
   document.getElementById('sharedwithme-list').classList.toggle('hidden', tab !== 'shared');
   document.getElementById('sharedwithme-empty').classList.toggle('hidden', true);
+  document.getElementById('borrowed-list').classList.toggle('hidden', tab !== 'borrowed');
+  document.getElementById('borrowed-empty').classList.toggle('hidden', true);
   if (tab === 'shared') loadSharedWithMe();
+  else if (tab === 'borrowed') loadBorrowedItems();
   else loadMyStuff();
 }
 
@@ -3062,6 +3086,73 @@ async function loadSharedWithMe() {
       </div>
     </div>`;
   }).join('');
+}
+
+async function loadBorrowedItems() {
+  const user = _appUser;
+  const list  = document.getElementById('borrowed-list');
+  const empty = document.getElementById('borrowed-empty');
+  if (!user || !list) return;
+  list.innerHTML = '<div class="col-span-full text-center py-10 text-zinc-600 italic text-sm">Loading…</div>';
+  const snap = await db.ref('borrowedItems/' + user.uid).once('value').catch(() => null);
+  const raw  = snap ? snap.val() || {} : {};
+  const items = Object.entries(raw).sort((a, b) => (b[1].borrowedAt||0) - (a[1].borrowedAt||0));
+  if (items.length === 0) {
+    list.innerHTML = '';
+    list.classList.add('hidden');
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  list.classList.remove('hidden');
+  list.innerHTML = items.map(([key, item]) => {
+    const typeColor = { Note:'violet', Roadmap:'emerald', Slideshow:'purple' }[item.type] || 'violet';
+    const date = item.borrowedAt ? new Date(item.borrowedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+    const safeItem = JSON.stringify(item).replace(/</g,'\\u003c').replace(/"/g,'&quot;');
+    return `<div class="action-card-landing flex flex-col gap-3 border-l-4 border-l-amber-500">
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-[10px] font-bold text-${typeColor}-400 uppercase tracking-widest">${escHtml(item.type||'Note')}</span>
+            <span class="borrowed-label">Borrowed</span>
+          </div>
+          <h3 class="text-white font-bold leading-tight">${escHtml(item.title||'Untitled')}</h3>
+          <div class="text-zinc-600 text-xs mt-0.5">from @${escHtml(item.fromUsername||'?')} · ${date}</div>
+        </div>
+      </div>
+      <div class="flex gap-2 mt-1">
+        <button onclick="viewBorrowedItem(${safeItem})"
+          class="flex-1 py-2 rounded-lg bg-white/5 hover:bg-violet-500/20 text-zinc-300 hover:text-white text-sm font-semibold transition-colors">
+          View
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function viewBorrowedItem(item) {
+  if (item.type === 'Slideshow' && item.slides && item.slides.length > 0) {
+    // Use existing slideshow preview modal
+    _previewSlides = item.slides;
+    _previewIdx    = 0;
+    const m = document.getElementById('slide-preview-modal');
+    m.classList.remove('js-hidden'); m.style.display = 'flex';
+    _renderPreviewSlide();
+    return;
+  }
+  // Note / Roadmap — show in borrow view modal
+  document.getElementById('borrow-view-title').textContent = item.title || 'Untitled';
+  document.getElementById('borrow-view-from').textContent  = 'from @' + (item.fromUsername || '?');
+  const body = document.getElementById('borrow-view-body');
+  const content = (item.content || '').replace(/<[^>]+>/g, '');
+  body.textContent = content || '(no content)';
+  const m = document.getElementById('borrow-view-modal');
+  m.classList.remove('js-hidden'); m.style.display = 'flex';
+}
+
+function closeBorrowViewModal() {
+  const m = document.getElementById('borrow-view-modal');
+  m.classList.add('js-hidden'); m.style.display = 'none';
 }
 
 async function openSharedNote(shareEntry) {
@@ -3785,19 +3876,19 @@ async function openGroup(groupId) {
     requestAnimationFrame(() => { requestAnimationFrame(_scaleAllSlides); _fillSlideshowPreviews(); });
   });
 
-  // Real-time borrow requests addressed to me
+  // Real-time borrow requests addressed to me — update badge + repopulate modal if open
   _borrowReqRef = db.ref('borrowRequests/' + user.uid);
   _borrowReqRef.on('value', snap => {
-    const panel   = document.getElementById('borrow-requests-panel');
-    const reqList = document.getElementById('borrow-requests-list');
-    const pending = Object.entries(snap.val() || {}).filter(([, r]) => r.status === 'pending' && r.groupId === groupId);
-    if (pending.length === 0) { panel.classList.add('hidden'); return; }
-    panel.classList.remove('hidden');
-    reqList.innerHTML = pending.map(([reqId, r]) => `
-      <div class="borrow-req-row">
-        <div class="flex-1 text-sm leading-relaxed"><span class="font-bold text-white">@${escHtml(r.requesterUsername||'?')}</span><span class="text-zinc-400"> wants to borrow </span><span class="text-violet-300 font-semibold">"${escHtml(r.postTitle||'your post')}"</span></div>
-        <button onclick="approveBorrow('${reqId}','${r.requesterUid}','${groupId}','${r.postId}')" class="sett-save-btn" style="padding:6px 16px;font-size:0.78rem;flex-shrink:0;">Approve</button>
-      </div>`).join('');
+    const all     = Object.entries(snap.val() || {});
+    const pending = all.filter(([, r]) => r.status === 'pending');
+    const badge   = document.getElementById('borrow-req-badge');
+    if (badge) {
+      badge.textContent = pending.length;
+      badge.style.display = pending.length > 0 ? '' : 'none';
+    }
+    // If the modal is currently open, refresh its content
+    const modal = document.getElementById('borrow-requests-modal');
+    if (modal && modal.style.display !== 'none') _renderBorrowModal(all, user.uid, groupId);
   });
 }
 
@@ -3880,6 +3971,7 @@ function closeGroupDetail() {
   if (_groupPostsRef) { _groupPostsRef.off(); _groupPostsRef = null; }
   if (_borrowReqRef)  { _borrowReqRef.off();  _borrowReqRef  = null; }
   _currentGroupId = null;
+  closeBorrowRequestsModal();
   document.getElementById('groups-list-view').classList.remove('hidden');
   document.getElementById('group-detail-view').classList.add('hidden');
   loadGroupsPage();
@@ -4164,32 +4256,154 @@ async function addComment(groupId, postId) {
 async function requestBorrow(postAuthorUid, groupId, postId, postTitle) {
   const user = auth.currentUser;
   if (!user || postAuthorUid === user.uid) return;
+  // Check for an existing pending request to avoid duplicates
+  const existing = await db.ref('borrowRequests/' + postAuthorUid)
+    .orderByChild('postId').equalTo(postId).once('value');
+  const alreadySent = Object.values(existing.val() || {}).some(
+    r => r.requesterUid === user.uid && r.status === 'pending'
+  );
+  if (alreadySent) { alert('You already have a pending borrow request for this post.'); return; }
   const mySnap = await db.ref('users/' + user.uid).once('value');
   const me     = mySnap.val() || {};
   await db.ref('borrowRequests/' + postAuthorUid).push({
-    requesterUid: user.uid, requesterUsername: me.username || user.displayName || 'user',
+    requesterUid: user.uid,
+    requesterUsername: me.username || user.displayName || 'user',
+    requesterPhotoUrl: me.photoUrl || user.photoURL || '',
     groupId, postId, postTitle, timestamp: Date.now(), status: 'pending'
   });
-  alert('Borrow request sent! The post author will be notified.');
+  alert('Borrow request sent! The author will be notified.');
 }
 
-async function approveBorrow(reqId, requesterUid, groupId, postId) {
-  const user   = auth.currentUser;
+async function approveBorrow(reqId, requesterUid, requesterUsername, groupId, postId) {
+  const user = auth.currentUser;
   if (!user) return;
-  const pSnap  = await db.ref('groupPosts/' + groupId + '/' + postId).once('value');
-  const post   = pSnap.val() || {};
-  const mySnap = await db.ref('users/' + user.uid + '/username').once('value');
-  await db.ref('borrowRequests/' + user.uid + '/' + reqId).update({ status: 'approved' });
-  await db.ref('receivedNotes/' + requesterUid).push({
-    title:        'Borrowed: ' + (post.title || 'Note'),
+  const [pSnap, mySnap] = await Promise.all([
+    db.ref('groupPosts/' + groupId + '/' + postId).once('value'),
+    db.ref('users/' + user.uid).once('value')
+  ]);
+  const post       = pSnap.val() || {};
+  const me         = mySnap.val() || {};
+  const authorName = me.username || user.displayName || 'user';
+
+  // Determine item type and content
+  let itemType = 'Note';
+  if (post.type === 'roadmap') itemType = 'Roadmap';
+  else if (post.type === 'slideshow') itemType = 'Slideshow';
+
+  // Generate cross-referenced keys
+  const borrowedRef = db.ref('borrowedItems/' + requesterUid).push();
+  const lentRef     = db.ref('lentItems/' + user.uid).push();
+  const borrowedKey = borrowedRef.key;
+  const lentKey     = lentRef.key;
+
+  const borrowedItem = {
+    type:         itemType,
+    title:        post.title || 'Untitled',
     content:      post.content || '',
-    fromUsername: mySnap.val() || user.displayName || 'user',
-    timestamp:    Date.now()
+    slides:       post.slideshowSlides || null,
+    fromUid:      user.uid,
+    fromUsername: authorName,
+    authorUid:    user.uid,
+    borrowedAt:   Date.now(),
+    lentItemKey:  lentKey
+  };
+  const lentItem = {
+    borrowerUid:      requesterUid,
+    borrowerUsername: requesterUsername || '?',
+    borrowedItemKey:  borrowedKey,
+    type:             itemType,
+    title:            post.title || 'Untitled',
+    lentAt:           Date.now()
+  };
+
+  await Promise.all([
+    borrowedRef.set(borrowedItem),
+    lentRef.set(lentItem),
+    db.ref('borrowRequests/' + user.uid + '/' + reqId).update({ status: 'accepted' })
+  ]);
+  alert(`Approved! "${post.title || 'This item'}" is now accessible to @${requesterUsername} in their Borrowed tab.`);
+}
+
+async function denyBorrow(reqId) {
+  const user = auth.currentUser;
+  if (!user) return;
+  await db.ref('borrowRequests/' + user.uid + '/' + reqId).update({ status: 'denied' });
+}
+
+async function revokeBorrow(lentKey, borrowerUid, borrowedItemKey) {
+  const user = auth.currentUser;
+  if (!user) return;
+  if (!confirm('Revoke access? This person will no longer be able to view this item.')) return;
+  await Promise.all([
+    db.ref('lentItems/' + user.uid + '/' + lentKey).remove(),
+    db.ref('borrowedItems/' + borrowerUid + '/' + borrowedItemKey).remove()
+  ]);
+}
+
+// ── Borrow requests modal ─────────────────────────────────────────────────────
+
+function openBorrowRequestsModal() {
+  const modal = document.getElementById('borrow-requests-modal');
+  modal.classList.remove('js-hidden'); modal.style.display = 'flex';
+  // Fetch fresh data to populate
+  const user = auth.currentUser;
+  if (!user) return;
+  db.ref('borrowRequests/' + user.uid).once('value').then(snap => {
+    const all = Object.entries(snap.val() || {});
+    _renderBorrowModal(all, user.uid, _currentGroupId);
   });
-  alert('Approved! The note has been shared with them.');
+}
+
+function closeBorrowRequestsModal() {
+  const modal = document.getElementById('borrow-requests-modal');
+  modal.classList.add('js-hidden'); modal.style.display = 'none';
+}
+
+async function _renderBorrowModal(allEntries, myUid, groupId) {
+  const pendingEl = document.getElementById('borrow-modal-pending');
+  const lentEl    = document.getElementById('borrow-modal-lent');
+  if (!pendingEl || !lentEl) return;
+
+  // Pending requests for THIS group
+  const pending = allEntries.filter(([, r]) => r.status === 'pending' && r.groupId === groupId);
+  if (pending.length === 0) {
+    pendingEl.innerHTML = '<div style="color:#52525b;font-size:0.82rem;font-style:italic;padding:8px 0;">No pending requests.</div>';
+  } else {
+    pendingEl.innerHTML = pending.map(([reqId, r]) => `
+      <div class="borrow-req-row">
+        <div class="flex-1 text-sm leading-relaxed">
+          <span class="font-bold text-white">@${escHtml(r.requesterUsername||'?')}</span>
+          <span class="text-zinc-400"> wants to borrow </span>
+          <span class="text-violet-300 font-semibold">"${escHtml(r.postTitle||'your post')}"</span>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button class="borrow-accept-btn" onclick="approveBorrow('${reqId}','${escHtml(r.requesterUid)}','${escHtml(r.requesterUsername||'')}','${escHtml(r.groupId)}','${escHtml(r.postId)}')">Accept</button>
+          <button class="borrow-deny-btn" onclick="denyBorrow('${reqId}')">Deny</button>
+        </div>
+      </div>`).join('');
+  }
+
+  // Lent items (fetch from lentItems/{myUid})
+  const lentSnap = await db.ref('lentItems/' + myUid).once('value').catch(() => null);
+  const lentItems = Object.entries(lentSnap ? lentSnap.val() || {} : {});
+  if (lentItems.length === 0) {
+    lentEl.innerHTML = '<div style="color:#52525b;font-size:0.82rem;font-style:italic;padding:8px 0;">Nothing currently lent out.</div>';
+  } else {
+    lentEl.innerHTML = lentItems.map(([lentKey, item]) => `
+      <div class="borrow-req-row">
+        <div class="flex-1 text-sm">
+          <span class="font-bold text-white">@${escHtml(item.borrowerUsername||'?')}</span>
+          <span class="text-zinc-400"> has </span>
+          <span class="text-amber-300 font-semibold">"${escHtml(item.title||'Untitled')}"</span>
+          <span class="text-zinc-600 text-xs block mt-0.5">${item.type||'Note'} · lent ${item.lentAt ? new Date(item.lentAt).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : ''}</span>
+        </div>
+        <button class="borrow-revoke-btn" onclick="revokeBorrow('${lentKey}','${escHtml(item.borrowerUid)}','${escHtml(item.borrowedItemKey)}')">Revoke</button>
+      </div>`).join('');
+  }
 }
 
 function listenForReceivedNotes(uid) {
+  // Kept for backward-compat with any existing receivedNotes entries
   db.ref('receivedNotes/' + uid).on('child_added', snap => {
     const note = snap.val();
     const key  = snap.key;
@@ -4197,9 +4411,8 @@ function listenForReceivedNotes(uid) {
     if (sessionStorage.getItem('shown-note-' + key)) return;
     sessionStorage.setItem('shown-note-' + key, '1');
     if (confirm(`"${note.title}" was shared with you by @${note.fromUsername}. Save it to My Stuff?`)) {
-      const newId  = 'note-' + Date.now();
-      const noteObj = { id: newId, title: note.title, content: note.content, type: 'Note', timestamp: new Date().toISOString() };
-      db.ref('notes/' + uid + '/' + newId).set(noteObj).catch(() => {});
+      const newId = 'note-' + Date.now();
+      db.ref('notes/' + uid + '/' + newId).set({ id: newId, title: note.title, content: note.content, type: 'Note', timestamp: new Date().toISOString() }).catch(() => {});
     }
     db.ref('receivedNotes/' + uid + '/' + key).remove();
   });
@@ -5020,6 +5233,37 @@ function escHtml(str) {
       <button class="slide-preview-btn" id="slide-preview-prev" onclick="navigatePreview(-1)">← Prev</button>
       <span class="slide-preview-counter" id="slide-preview-counter"></span>
       <button class="slide-preview-btn" id="slide-preview-next" onclick="navigatePreview(1)">Next →</button>
+    </div>
+  </div>
+
+  <!-- ── BORROW REQUESTS MODAL ── -->
+  <div id="borrow-requests-modal" class="borrow-modal-overlay js-hidden" style="display:none;">
+    <div class="borrow-modal-inner">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:22px 22px 14px;">
+        <h3 style="font-size:1.05rem;font-weight:800;color:white;margin:0;">📥 Borrow Requests</h3>
+        <button onclick="closeBorrowRequestsModal()" style="background:none;border:none;color:#71717a;font-size:1.3rem;cursor:pointer;line-height:1;padding:4px;">&#x2715;</button>
+      </div>
+      <div class="borrow-modal-body">
+        <div class="borrow-section-label">Pending</div>
+        <div id="borrow-modal-pending"></div>
+        <div class="borrow-section-label" style="margin-top:22px;">Currently Lent Out</div>
+        <div id="borrow-modal-lent"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── BORROW VIEW MODAL (read-only borrowed item viewer) ── -->
+  <div id="borrow-view-modal" class="borrow-view-modal-overlay js-hidden" style="display:none;">
+    <div class="borrow-view-modal-inner">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 22px 14px;border-bottom:1px solid rgba(255,255,255,0.07);flex-shrink:0;">
+        <div>
+          <span class="borrowed-label">Borrowed</span>
+          <h3 id="borrow-view-title" style="font-size:1rem;font-weight:800;color:white;margin:6px 0 2px;"></h3>
+          <div id="borrow-view-from" style="font-size:0.75rem;color:#71717a;"></div>
+        </div>
+        <button onclick="closeBorrowViewModal()" style="background:none;border:none;color:#71717a;font-size:1.3rem;cursor:pointer;line-height:1;padding:4px;flex-shrink:0;margin-left:12px;">&#x2715;</button>
+      </div>
+      <div id="borrow-view-body" style="overflow-y:auto;flex:1;padding:20px 22px;font-size:0.88rem;color:#d4d4d8;line-height:1.75;white-space:pre-wrap;"></div>
     </div>
   </div>
 
