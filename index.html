@@ -500,6 +500,60 @@
     .feed-group-tag:hover { color:#a78bfa; }
     .feed-group-tag::before { content:''; display:inline-block; width:6px; height:6px; border-radius:50%; background:#7c3aed; flex-shrink:0; }
 
+    /* ── Feed post cards (Instagram-style) ── */
+    .feed-post-card {
+      background: #0f0d18;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 24px;
+      overflow: hidden;
+      transition: border-color 0.22s, box-shadow 0.22s;
+    }
+    .feed-post-card:hover {
+      border-color: rgba(124,58,237,0.3);
+      box-shadow: 0 0 0 1px rgba(124,58,237,0.08), 0 12px 48px rgba(0,0,0,0.45);
+    }
+    .feed-post-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 18px 22px 14px;
+    }
+    .feed-avatar-ring {
+      width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
+      padding: 2px;
+      background: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #ec4899 100%);
+    }
+    .feed-avatar-ring img {
+      width: 100%; height: 100%; border-radius: 50%;
+      object-fit: cover; display: block;
+      border: 2px solid #0f0d18;
+    }
+    .feed-post-divider { height: 1px; background: rgba(255,255,255,0.05); margin: 0; }
+    .feed-post-body { padding: 16px 22px 12px; }
+    .feed-post-actions {
+      display: flex; align-items: center; gap: 2px;
+      padding: 8px 14px 16px;
+      border-top: 1px solid rgba(255,255,255,0.04);
+    }
+    .feed-action-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px; border-radius: 10px;
+      border: none; background: transparent;
+      color: #71717a; font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; transition: all 0.15s; font-family: inherit;
+    }
+    .feed-action-btn:hover { color: #e4e4e7; background: rgba(255,255,255,0.05); }
+    .feed-action-btn.feed-liked { color: #f43f5e !important; font-weight: 700; }
+    .feed-action-btn.feed-liked:hover { background: rgba(244,63,94,0.08) !important; }
+    .feed-in-group {
+      font-size: 0.72rem; color: #6d28d9; font-weight: 700;
+      cursor: pointer; transition: color 0.15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .feed-in-group:hover { color: #a78bfa; }
+    [data-theme="light"] .feed-post-card { background: #ffffff !important; border-color: rgba(0,0,0,0.07) !important; }
+    [data-theme="light"] .feed-avatar-ring img { border-color: #ffffff !important; }
+    [data-theme="light"] .feed-post-divider { background: rgba(0,0,0,0.05) !important; }
+    [data-theme="light"] .feed-post-actions { border-top-color: rgba(0,0,0,0.05) !important; }
+    [data-theme="light"] .feed-action-btn:hover { background: rgba(0,0,0,0.04) !important; color: #18181b !important; }
+
     .chat-messages-area {
       min-height: 260px; max-height: 420px; overflow-y: auto;
       background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07);
@@ -1476,7 +1530,7 @@
 
       <!-- My Feed view -->
       <div id="my-feed-view" class="hidden">
-        <div id="my-feed-list" class="space-y-6">
+        <div id="my-feed-list" class="space-y-4 max-w-2xl mx-auto">
           <div class="text-zinc-600 italic text-sm py-16 text-center">Loading your feed…</div>
         </div>
       </div>
@@ -4194,15 +4248,87 @@ async function loadMyFeed() {
     return;
   }
 
-  // 5. Render — each post preceded by a clickable group-name tag
+  // 5. Render — Instagram-style feed cards
   feedList.innerHTML = recent.map(({ groupId, groupName, postId, post }) =>
-    `<div>
-       <div class="feed-group-tag" onclick="openGroup('${groupId}')">${escHtml(groupName)}</div>
-       ${renderPost(groupId, postId, post, user.uid)}
-     </div>`
+    renderFeedPost(groupId, groupName, postId, post, user.uid)
   ).join('');
 
   requestAnimationFrame(() => { requestAnimationFrame(_scaleAllSlides); _fillSlideshowPreviews(); });
+}
+
+function renderFeedPost(groupId, groupName, postId, p, myUid) {
+  const likeCount  = Object.keys(p.likes||{}).length;
+  const iLiked     = p.likes && p.likes[myUid];
+  const isMine     = p.authorUid === myUid;
+  const timeStr    = p.timestamp ? new Date(p.timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
+  const typeColors = { note:'#c4b5fd', roadmap:'#6ee7b7', text:'#a5b4fc', slideshow:'#a78bfa' };
+  const typeBgs    = { note:'rgba(124,58,237,0.15)', roadmap:'rgba(16,185,129,0.12)', text:'rgba(99,102,241,0.12)', slideshow:'rgba(139,92,246,0.15)' };
+
+  // Slide carousel — identical logic to renderPost
+  let slideVisual = '';
+  if (p.type === 'slideshow') {
+    if (p.slideshowSlides && p.slideshowSlides.length > 0) {
+      const slides = p.slideshowSlides;
+      _postSlidesCache[postId] = slides;
+      const firstSlide = slides[0];
+      const ck  = firstSlide.bgColor || 'violet';
+      const nav = slides.length > 1
+        ? `<div class="slide-carousel-nav">
+             <button class="slide-carousel-btn" onclick="navigatePostSlide('${postId}',-1)" disabled>&#8592;</button>
+             <span class="slide-carousel-counter" id="slide-carousel-counter-${postId}">1 / ${slides.length}</span>
+             <button class="slide-carousel-btn" onclick="navigatePostSlide('${postId}',1)">&#8594;</button>
+           </div>`
+        : `<div style="font-size:0.7rem;color:#52525b;padding:5px 0 12px;text-align:center;">1 slide</div>`;
+      slideVisual = `<div class="slide-16-9-wrap" id="slide-carousel-wrap-${postId}" data-idx="0">${_buildSlideHTML(firstSlide, ck, COLOR_BGSTYLE_MAP[ck] || 'gradient-diagonal')}</div>${nav}`;
+    } else if (p.slideshowId && p.slideshowAuthorUid) {
+      slideVisual = `<div class="slide-post-fetch-placeholder" data-sid="${escHtml(p.slideshowId)}" data-auid="${escHtml(p.slideshowAuthorUid)}" data-postid="${escHtml(postId)}"
+        style="width:100%;aspect-ratio:16/9;border-radius:10px;overflow:hidden;position:relative;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.12);display:flex;align-items:center;justify-content:center;margin-bottom:0;">
+        <span style="color:#52525b;font-size:0.78rem;">Loading preview…</span>
+      </div><div style="height:12px;"></div>`;
+    } else {
+      slideVisual = `<div style="padding:18px 20px;border-radius:10px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.15);color:#a78bfa;font-size:0.82rem;margin-bottom:14px;text-align:center;letter-spacing:0.02em;">Slideshow</div>`;
+    }
+  }
+
+  const contentTxt  = (p.content||'').replace(/<[^>]+>/g,'');
+  const preview     = contentTxt.slice(0,250);
+  const hasMore     = contentTxt.length > 250;
+  const safeContent = JSON.stringify(p.content||'').replace(/</g,'\\u003c');
+
+  return `<div class="feed-post-card" id="post-card-${postId}">
+    <div class="feed-post-header">
+      <div class="feed-avatar-ring">
+        <img src="${escHtml(p.authorPhotoUrl||'')}" onerror="this.src='https://ui-avatars.com/api/?background=7c3aed&color=fff&name=${encodeURIComponent(p.authorUsername||'U')}'">
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="font-extrabold text-white text-sm tracking-tight">@${escHtml(p.authorUsername||'user')}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">
+          <span class="feed-in-group" onclick="openGroup('${groupId}')">in ${escHtml(groupName)}</span>
+          <span style="color:#3f3f46;font-size:0.65rem;">·</span>
+          <span style="color:#52525b;font-size:0.7rem;">${timeStr}</span>
+        </div>
+      </div>
+      <span class="group-badge" style="background:${typeBgs[p.type]||typeBgs.text};color:${typeColors[p.type]||typeColors.text};flex-shrink:0;">${p.type||'text'}</span>
+    </div>
+    <div class="feed-post-divider"></div>
+    <div class="feed-post-body">
+      ${p.title ? `<div class="font-bold text-white text-lg mb-3 tracking-tight">${escHtml(p.title)}</div>` : ''}
+      ${slideVisual}
+      ${!slideVisual ? `<div class="text-zinc-300 text-sm leading-relaxed" id="post-preview-${postId}">${escHtml(preview)}${hasMore?`… <button onclick="expandPost('${postId}',${safeContent})" class="text-violet-400 font-semibold hover:text-violet-300 text-xs ml-1">Show more</button>`:''}</div>` : ''}
+    </div>
+    <div class="feed-post-actions">
+      <button onclick="likePost('${groupId}','${postId}')" class="feed-action-btn${iLiked?' feed-liked':''}">♥ ${likeCount || 0}</button>
+      <button onclick="toggleComments('${groupId}','${postId}')" class="feed-action-btn">💬 <span id="cmt-lbl-${postId}">Comments</span></button>
+      ${!isMine?`<button onclick="requestBorrow('${p.authorUid}','${groupId}','${postId}')" class="feed-action-btn" style="color:#c4b5fd;">↓ Borrow</button>`:''}
+    </div>
+    <div id="comments-${postId}" class="hidden" style="padding:0 22px 18px;border-top:1px solid rgba(255,255,255,0.04);">
+      <div id="cmt-list-${postId}" class="space-y-2 mb-4 mt-4"></div>
+      <div class="flex gap-2">
+        <input type="text" id="cmt-input-${postId}" placeholder="Write a comment…" class="settings-input" style="font-size:0.82rem;" onkeydown="if(event.key==='Enter')addComment('${groupId}','${postId}')">
+        <button onclick="addComment('${groupId}','${postId}')" style="padding:8px 18px;background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;border-radius:10px;color:white;font-size:0.82rem;font-weight:700;cursor:pointer;flex-shrink:0;font-family:inherit;opacity:1;transition:opacity 0.15s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">Send</button>
+      </div>
+    </div>
+  </div>`;
 }
 
 // ── DIRECT MESSAGES ──────────────────────────────────────────────────────────
