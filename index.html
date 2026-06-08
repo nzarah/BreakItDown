@@ -4029,13 +4029,17 @@ async function loadMyFeed() {
     return;
   }
 
-  // 2. Get every group each friend belongs to
-  const friendSet  = new Set(friendIds);
-  const groupSnaps = await Promise.all(friendIds.map(fuid =>
-    db.ref('userGroups/' + fuid).once('value').catch(() => null)
-  ));
+  // 2. Find groups that contain at least one friend as a member.
+  //    userGroups/{uid} is only readable by the owner, so instead read studyGroups
+  //    (auth != null) and check the members map directly.
+  const friendSet   = new Set(friendIds);
+  const allGroupsSnap = await db.ref('studyGroups').once('value').catch(() => null);
+  const allGroups     = allGroupsSnap ? Object.entries(allGroupsSnap.val() || {}) : [];
   const groupIds = new Set();
-  groupSnaps.forEach(s => s && Object.keys(s.val() || {}).forEach(gid => groupIds.add(gid)));
+  allGroups.forEach(([gid, g]) => {
+    const members = g.members || {};
+    if (friendIds.some(fuid => members[fuid])) groupIds.add(gid);
+  });
 
   if (groupIds.size === 0) {
     feedList.innerHTML = '<div class="text-zinc-600 italic text-sm py-16 text-center">Your friends haven\'t posted in any groups yet.</div>';
