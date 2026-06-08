@@ -3962,36 +3962,51 @@ async function loadSavedNotesForModal() {
   if (!user) { list.innerHTML = '<div class="text-zinc-600 text-sm italic text-center py-6">Sign in to see your saved notes.</div>'; return; }
   list.innerHTML = '<div class="text-zinc-600 text-sm italic text-center py-6">Loading…</div>';
   try {
-    const snap  = await db.ref('notes/' + user.uid).once('value');
-    const notes = Object.values(snap.val() || {}).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
-    if (notes.length === 0) {
-      list.innerHTML = '<div class="text-zinc-600 text-sm italic text-center py-6">No saved notes or roadmaps yet.</div>';
+    const [notesSnap, slidesSnap] = await Promise.all([
+      db.ref('notes/' + user.uid).once('value'),
+      db.ref('slideshows/' + user.uid).once('value').catch(() => null)
+    ]);
+    const notes  = Object.values(notesSnap.val() || {})
+      .filter(n => n.type !== 'Slideshow') // exclude share-mirror entries
+      .map(n => ({ ...n, _kind: 'note' }));
+    const slides = slidesSnap ? Object.values(slidesSnap.val() || {})
+      .map(s => ({ ...s, _kind: 'slideshow', type: 'Slideshow' })) : [];
+    const all = [...notes, ...slides].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    if (all.length === 0) {
+      list.innerHTML = '<div class="text-zinc-600 text-sm italic text-center py-6">No saved notes, roadmaps, or slideshows yet.</div>';
       return;
     }
-    const typeColors = { Note:'#c4b5fd', Roadmap:'#6ee7b7', Video:'#fca5a5' };
-    const typeBgs    = { Note:'rgba(124,58,237,0.12)', Roadmap:'rgba(16,185,129,0.1)', Video:'rgba(239,68,68,0.1)' };
+    const typeColors = { Note:'#c4b5fd', Roadmap:'#6ee7b7', Video:'#fca5a5', Slideshow:'#a78bfa' };
+    const typeBgs    = { Note:'rgba(124,58,237,0.12)', Roadmap:'rgba(16,185,129,0.1)', Video:'rgba(239,68,68,0.1)', Slideshow:'rgba(139,92,246,0.15)' };
     const typeMap    = { Note:'note', Roadmap:'roadmap', Video:'note' };
-    list.innerHTML = notes.map((n, i) => {
-      const preview  = (n.content||'').replace(/<[^>]+>/g,'').slice(0,80);
-      const safeType = typeMap[n.type] || 'note';
+    list.innerHTML = all.map((item, i) => {
+      const preview = item._kind === 'slideshow'
+        ? (item.slides||[]).slice(0,2).map(s => s.heading||'').filter(Boolean).join(' · ')
+        : (item.content||'').replace(/<[^>]+>/g,'').slice(0,80);
       return `<div class="pm-saved-item" data-idx="${i}"
         style="cursor:pointer;padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.03);transition:all 0.15s;display:flex;align-items:center;gap:12px;"
         onmouseover="this.style.borderColor='rgba(124,58,237,0.35)';this.style.background='rgba(124,58,237,0.07)';"
         onmouseout="this.style.borderColor='rgba(255,255,255,0.07)';this.style.background='rgba(255,255,255,0.03)';">
-        <span style="display:inline-flex;padding:3px 10px;border-radius:999px;font-size:0.65rem;font-weight:800;background:${typeBgs[n.type]||typeBgs.Note};color:${typeColors[n.type]||typeColors.Note};white-space:nowrap;flex-shrink:0;">${escHtml(n.type||'Note')}</span>
+        <span style="display:inline-flex;padding:3px 10px;border-radius:999px;font-size:0.65rem;font-weight:800;background:${typeBgs[item.type]||typeBgs.Note};color:${typeColors[item.type]||typeColors.Note};white-space:nowrap;flex-shrink:0;">${escHtml(item.type||'Note')}</span>
         <div style="min-width:0;flex:1;">
-          <div style="font-weight:700;color:#e4e4e7;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(n.title||'Untitled')}</div>
+          <div style="font-weight:700;color:#e4e4e7;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(item.title||'Untitled')}</div>
           <div style="color:#71717a;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(preview)}</div>
         </div>
       </div>`;
     }).join('');
-    // Attach click handlers via JS to safely pass title/content without escaping issues
     list.querySelectorAll('.pm-saved-item').forEach(el => {
-      const n = notes[parseInt(el.dataset.idx)];
-      el.addEventListener('click', () => fillFromSaved(n.title||'', n.content||'', typeMap[n.type]||'note'));
+      const item = all[parseInt(el.dataset.idx)];
+      el.addEventListener('click', () => {
+        if (item._kind === 'slideshow') {
+          fillFromSavedSlideshow(item.title||'', item.slides||[]);
+        } else {
+          fillFromSaved(item.title||'', item.content||'', typeMap[item.type]||'note');
+        }
+      });
     });
   } catch(_) {
-    list.innerHTML = '<div class="text-zinc-600 text-sm italic text-center py-6">Could not load notes.</div>';
+    list.innerHTML = '<div class="text-zinc-600 text-sm italic text-center py-6">Could not load items.</div>';
   }
 }
 
@@ -3999,6 +4014,15 @@ function fillFromSaved(title, content, type) {
   document.getElementById('pm-title').value   = title;
   document.getElementById('pm-content').value = (content||'').replace(/<[^>]+>/g,'');
   setPostType(type);
+  document.getElementById('pm-write-fields').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function fillFromSavedSlideshow(title, slides) {
+  _pendingSlideshowPostSlides = (slides||[]).slice(0, 3);
+  _currentPostType = 'slideshow';
+  ['text','note','roadmap'].forEach(t => document.getElementById('pt-'+t).classList.toggle('active-ct', t === 'note'));
+  document.getElementById('pm-title').value   = title;
+  document.getElementById('pm-content').value = (slides||[]).slice(0,3).map(s => (s.heading ? s.heading + '\n' : '') + (s.body||'')).join('\n\n');
   document.getElementById('pm-write-fields').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
