@@ -653,6 +653,25 @@
   .slide-preview-counter { color: #71717a; font-size: 0.82rem; min-width: 70px; text-align: center; }
   .slide-preview-close { position: absolute; top: 20px; right: 24px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; color: #d4d4d8; padding: 6px 14px; font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: inherit; }
   .slide-preview-close:hover { background: rgba(255,255,255,0.14); }
+  /* ── ADVANCED SLIDE RENDER SYSTEM ──────────────────────────────────────────── */
+  .slide-16-9-wrap { width:100%; aspect-ratio:16/9; position:relative; overflow:hidden; border-radius:10px; flex-shrink:0; }
+  .slide-render { position:absolute; top:0; left:0; width:960px; height:540px; transform-origin:top left; overflow:hidden; font-family:'Plus Jakarta Sans',sans-serif; box-sizing:border-box; }
+  .template-card-v2 { background:#13111C; border:1px solid rgba(255,255,255,0.07); border-radius:16px; overflow:hidden; cursor:pointer; transition:all 0.25s ease; display:flex; flex-direction:column; }
+  .template-card-v2:hover { border-color:rgba(139,92,246,0.5); transform:translateY(-4px); box-shadow:0 12px 32px rgba(0,0,0,0.4); }
+  .template-card-v2 .slide-16-9-wrap { border-radius:0; }
+  .template-card-v2-info { padding:10px 14px 13px; display:flex; flex-direction:column; gap:4px; }
+  .template-card-v2-subject { font-size:0.82rem; font-weight:700; color:#e4e4e7; }
+  .template-card-v2-count { font-size:0.7rem; color:#71717a; }
+  .template-card-v2-btn { margin-top:8px; width:100%; padding:7px; border-radius:9px; background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.2); color:#a78bfa; font-size:0.77rem; font-weight:700; cursor:pointer; font-family:inherit; transition:background 0.2s; }
+  .template-card-v2-btn:hover { background:rgba(139,92,246,0.25); }
+  [data-theme="light"] .template-card-v2 { background:#fff; border-color:rgba(0,0,0,0.08); }
+  .slide-live-preview-pane { width:380px; flex-shrink:0; border-left:1px solid rgba(255,255,255,0.07); display:flex; flex-direction:column; padding:16px 14px; gap:10px; overflow:hidden; background:rgba(0,0,0,0.25); }
+  .slide-live-preview-label { font-size:0.65rem; font-weight:800; color:#52525b; text-transform:uppercase; letter-spacing:0.08em; text-align:center; }
+  .slide-thumb-v2 { border-radius:8px; cursor:pointer; border:2px solid transparent; transition:all 0.15s; padding:6px 8px 8px; background:rgba(255,255,255,0.03); display:flex; flex-direction:column; gap:5px; }
+  .slide-thumb-v2:hover { background:rgba(255,255,255,0.06); }
+  .slide-thumb-v2.active { border-color:#7c3aed; background:rgba(124,58,237,0.12); }
+  .slide-thumb-v2-num { font-size:0.6rem; font-weight:800; color:#52525b; text-transform:uppercase; letter-spacing:0.05em; }
+  .slide-preview-16-9-wrap { width:min(92vw, calc(88vh * 16 / 9)); aspect-ratio:16/9; position:relative; overflow:hidden; border-radius:12px; box-shadow:0 32px 80px rgba(0,0,0,0.7); flex-shrink:0; }
   </style>
 
   <script>
@@ -4232,6 +4251,142 @@ const SLIDE_TEMPLATES = [
   ]},
 ];
 
+// ── SLIDE COLOR → BGSTYLE MAP ────────────────────────────────────────────────
+const COLOR_BGSTYLE_MAP = {
+  violet:  'minimal-shape',
+  emerald: 'gradient-diagonal',
+  sky:     'geometric',
+  blue:    'bold-accent',
+  rose:    'radial-glow',
+  indigo:  'geometric',
+  teal:    'gradient-diagonal',
+  amber:   'bold-accent',
+  pink:    'radial-glow',
+  yellow:  'colorful-fill',
+  orange:  'colorful-fill',
+  green:   'minimal-shape',
+};
+
+// ── SLIDE RENDERER ────────────────────────────────────────────────────────────
+function _buildSlideHTML(slide, colorKey, bgStyle) {
+  const col = SLIDE_BG_MAP[colorKey] || SLIDE_BG_MAP.violet;
+  const ac = col.accent, tc = col.text, bk = col.bg;
+  const heading  = escHtml(slide.heading || '');
+  const body     = slide.body || '';
+  const bodyHtml = escHtml(body).replace(/\n/g, '<br>');
+  const lines    = body.split('\n').filter(l => l.trim());
+
+  let bgCss = '', decor = '';
+  switch (bgStyle) {
+    case 'gradient-diagonal':
+      bgCss = `background:linear-gradient(135deg,${bk} 0%,${ac}28 100%);`;
+      decor = `<div style="position:absolute;top:-10%;right:-5%;width:55%;height:110%;background:radial-gradient(ellipse at center,${ac}1e 0%,transparent 65%);pointer-events:none;"></div>`;
+      break;
+    case 'geometric':
+      bgCss = `background:${bk};background-image:linear-gradient(${ac}14 1px,transparent 1px),linear-gradient(90deg,${ac}14 1px,transparent 1px);background-size:48px 48px;`;
+      decor = `<div style="position:absolute;bottom:0;right:0;width:35%;height:65%;background:linear-gradient(135deg,transparent 40%,${ac}18 100%);pointer-events:none;border-radius:60% 0 0 0;"></div>`;
+      break;
+    case 'bold-accent':
+      bgCss = `background:${bk};`;
+      decor = `<div style="position:absolute;top:0;left:0;right:0;height:8px;background:linear-gradient(90deg,${ac},${ac}60,transparent);pointer-events:none;"></div><div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:${ac}40;pointer-events:none;"></div>`;
+      break;
+    case 'minimal-shape':
+      bgCss = `background:${bk};`;
+      decor = `<div style="position:absolute;top:-20%;right:-10%;width:65%;height:90%;border-radius:50%;background:radial-gradient(circle,${ac}14 0%,transparent 60%);pointer-events:none;"></div><div style="position:absolute;top:0;bottom:0;left:0;width:5px;background:linear-gradient(to bottom,${ac},${ac}44,transparent);pointer-events:none;"></div>`;
+      break;
+    case 'radial-glow':
+      bgCss = `background:radial-gradient(ellipse at 38% 45%,${ac}44 0%,${bk} 60%);`;
+      break;
+    case 'colorful-fill':
+      bgCss = `background:linear-gradient(145deg,${ac}ee 0%,${ac}bb 100%);`;
+      decor = `<div style="position:absolute;top:-20%;right:-15%;width:60%;height:100%;background:rgba(255,255,255,0.07);border-radius:50%;pointer-events:none;"></div><div style="position:absolute;bottom:-10%;left:-5%;width:40%;height:70%;background:rgba(0,0,0,0.1);border-radius:50%;pointer-events:none;"></div>`;
+      break;
+    default:
+      bgCss = `background:${bk};`;
+  }
+
+  const layout = slide.layout || 'text';
+  let content = '';
+
+  if (layout === 'cover' || layout === 'title') {
+    content = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;padding:60px 100px;gap:20px;position:relative;z-index:1;box-sizing:border-box;">
+      <div style="width:48px;height:3px;background:${ac};border-radius:2px;"></div>
+      <div style="font-size:54px;font-weight:900;color:${tc};letter-spacing:-0.03em;line-height:1.1;">${heading}</div>
+      ${body ? `<div style="font-size:18px;color:${tc};opacity:.6;line-height:1.6;max-width:560px;">${bodyHtml}</div>` : ''}
+      <div style="display:flex;gap:5px;margin-top:8px;"><div style="width:22px;height:3px;background:${ac}88;border-radius:2px;"></div><div style="width:8px;height:3px;background:${ac}55;border-radius:2px;"></div><div style="width:4px;height:3px;background:${ac}33;border-radius:2px;"></div></div>
+    </div>`;
+  } else if (layout === 'section') {
+    content = `<div style="display:flex;flex-direction:column;align-items:flex-start;justify-content:center;height:100%;padding:60px 80px;gap:14px;position:relative;z-index:1;box-sizing:border-box;">
+      <div style="font-size:13px;font-weight:800;color:${ac};text-transform:uppercase;letter-spacing:0.12em;">${escHtml(lines[0] || 'Section')}</div>
+      <div style="width:40px;height:3px;background:${ac};border-radius:2px;"></div>
+      <div style="font-size:48px;font-weight:900;color:${tc};letter-spacing:-0.02em;line-height:1.15;max-width:640px;">${heading}</div>
+    </div>`;
+  } else if (layout === 'two-col') {
+    content = `<div style="display:grid;grid-template-columns:55% 45%;height:100%;position:relative;z-index:1;">
+      <div style="display:flex;flex-direction:column;justify-content:center;padding:50px 50px 50px 70px;gap:14px;box-sizing:border-box;">
+        <div style="font-size:32px;font-weight:800;color:${tc};letter-spacing:-0.02em;line-height:1.2;">${heading}</div>
+        <div style="width:36px;height:3px;background:${ac};border-radius:2px;"></div>
+        <div style="font-size:16px;color:${tc};opacity:.75;line-height:1.75;">${bodyHtml}</div>
+      </div>
+      <div style="background:linear-gradient(135deg,${ac}30,${ac}14);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;">
+        <div style="width:160px;height:160px;border-radius:50%;background:${ac}20;position:absolute;top:-10%;right:-20%;"></div>
+        <div style="width:100px;height:100px;border-radius:50%;background:${ac}18;position:absolute;bottom:10%;left:-10%;"></div>
+        <div style="width:72px;height:72px;border-radius:18px;background:${ac}44;transform:rotate(20deg);position:relative;z-index:1;"></div>
+      </div>
+    </div>`;
+  } else if (layout === 'quote') {
+    const attr = lines[0] || '';
+    content = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:60px 100px;gap:24px;position:relative;z-index:1;text-align:center;box-sizing:border-box;">
+      <div style="font-size:110px;font-weight:900;color:${ac}22;line-height:0.8;position:absolute;top:24px;left:60px;font-family:Georgia,serif;">"</div>
+      <div style="font-size:28px;font-style:italic;font-weight:600;color:${tc};line-height:1.55;max-width:660px;position:relative;">"${heading}"</div>
+      ${attr ? `<div style="display:flex;align-items:center;gap:12px;"><div style="width:32px;height:2px;background:${ac};border-radius:2px;"></div><span style="font-size:15px;color:${tc};opacity:.6;font-weight:600;">${escHtml(attr.replace(/^[—–\-]\s*/,''))}</span></div>` : ''}
+    </div>`;
+  } else if (layout === 'stats') {
+    const stats = lines.slice(0,4).map(l => { const p = l.split('|'); return { val:(p[0]||'').trim(), lbl:(p[1]||'').trim() }; }).filter(s => s.val);
+    const boxes = stats.map(s => `<div style="flex:1;background:${ac}1a;border:1px solid ${ac}30;border-radius:16px;padding:28px 16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;"><div style="font-size:40px;font-weight:900;color:${ac};letter-spacing:-0.03em;">${escHtml(s.val)}</div><div style="font-size:12px;font-weight:700;color:${tc};opacity:.6;text-align:center;text-transform:uppercase;letter-spacing:0.05em;">${escHtml(s.lbl)}</div></div>`).join('');
+    content = `<div style="display:flex;flex-direction:column;height:100%;padding:50px 70px;gap:28px;position:relative;z-index:1;box-sizing:border-box;">
+      <div><div style="font-size:32px;font-weight:800;color:${tc};letter-spacing:-0.02em;">${heading}</div><div style="width:36px;height:3px;background:${ac};border-radius:2px;margin-top:10px;"></div></div>
+      <div style="display:flex;gap:18px;flex:1;align-items:stretch;">${boxes}</div>
+    </div>`;
+  } else if (layout === 'timeline') {
+    const steps = lines.slice(0,5).map(l => l.replace(/^\d+[\.\)]\s*/,'').trim()).filter(Boolean);
+    const stepItems = steps.map((s,i) => `<div style="display:flex;align-items:flex-start;gap:16px;"><div style="width:30px;height:30px;background:${ac};border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:white;">${i+1}</div><div style="flex:1;padding-top:4px;font-size:16px;color:${tc};opacity:.85;line-height:1.5;">${escHtml(s)}</div></div>`).join('');
+    content = `<div style="display:flex;flex-direction:column;height:100%;padding:50px 70px;gap:20px;position:relative;z-index:1;box-sizing:border-box;">
+      <div><div style="font-size:32px;font-weight:800;color:${tc};letter-spacing:-0.02em;">${heading}</div><div style="width:36px;height:3px;background:${ac};border-radius:2px;margin-top:10px;"></div></div>
+      <div style="display:flex;flex-direction:column;gap:14px;flex:1;justify-content:center;">${stepItems}</div>
+    </div>`;
+  } else if (layout === 'bullets') {
+    const bulletItems = lines.map(l => {
+      const t = l.trim(); if (!t) return '';
+      if (t.startsWith('•') || t.startsWith('-')) {
+        const tx = t.replace(/^[•\-]\s*/,'');
+        return `<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:6px;"><div style="width:8px;height:8px;background:${ac};border-radius:50%;flex-shrink:0;margin-top:8px;"></div><span style="color:${tc};opacity:.88;font-size:17px;line-height:1.6;">${escHtml(tx)}</span></div>`;
+      }
+      return `<div style="font-size:17px;font-weight:700;color:${tc};opacity:.55;margin-bottom:4px;">${escHtml(t)}</div>`;
+    }).join('');
+    content = `<div style="display:flex;flex-direction:column;height:100%;padding:50px 70px;gap:20px;position:relative;z-index:1;box-sizing:border-box;">
+      <div><div style="font-size:32px;font-weight:800;color:${tc};letter-spacing:-0.02em;">${heading}</div><div style="width:36px;height:3px;background:${ac};border-radius:2px;margin-top:10px;"></div></div>
+      <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;justify-content:center;">${bulletItems}</div>
+    </div>`;
+  } else {
+    content = `<div style="display:flex;flex-direction:column;height:100%;padding:50px 70px;gap:20px;position:relative;z-index:1;box-sizing:border-box;">
+      <div><div style="font-size:32px;font-weight:800;color:${tc};letter-spacing:-0.02em;">${heading}</div><div style="width:36px;height:3px;background:${ac};border-radius:2px;margin-top:10px;"></div></div>
+      <div style="font-size:17px;color:${tc};opacity:.82;line-height:1.75;flex:1;overflow:hidden;">${bodyHtml}</div>
+    </div>`;
+  }
+
+  return `<div class="slide-render" style="${bgCss}">${decor}${content}</div>`;
+}
+
+function _scaleAllSlides() {
+  document.querySelectorAll('.slide-16-9-wrap, .slide-preview-16-9-wrap').forEach(wrap => {
+    const render = wrap.querySelector('.slide-render');
+    if (!render) return;
+    const w = wrap.offsetWidth;
+    if (w) render.style.transform = `scale(${w / 960})`;
+  });
+}
+
 // ── SLIDE EDITOR STATE ────────────────────────────────────────────────────────
 
 let _slideshow       = null;   // working copy { id, title, subject, templateId, slides, type, timestamp }
@@ -4241,20 +4396,29 @@ let _editingSlideshowId = null; // null = new, string = existing id
 function renderTemplateGallery() {
   const grid = document.getElementById('templates-grid');
   if (!grid) return;
-  grid.innerHTML = SLIDE_TEMPLATES.map(t => `
-    <div class="template-card" onclick="openSlideEditor('${t.id}')">
-      <div class="template-card-header" style="background:${t.headerBg};">${t.emoji}</div>
-      <div class="template-card-body">
-        <div class="template-card-subject">${escHtml(t.subject)}</div>
-        <div class="template-card-count">${t.slides.length} slides</div>
-        <button class="template-card-btn" onclick="event.stopPropagation();openSlideEditor('${t.id}')">Use Template →</button>
+  grid.innerHTML = SLIDE_TEMPLATES.map(t => {
+    const firstSlide = t.slides[0];
+    const colorKey   = firstSlide.bgColor || t.color || 'violet';
+    const bgStyle    = COLOR_BGSTYLE_MAP[colorKey] || 'gradient-diagonal';
+    const slideHtml  = _buildSlideHTML(firstSlide, colorKey, bgStyle);
+    return `<div class="template-card-v2" onclick="openSlideEditor('${t.id}')">
+      <div class="slide-16-9-wrap">${slideHtml}</div>
+      <div class="template-card-v2-info">
+        <div class="template-card-v2-subject">${escHtml(t.subject)}</div>
+        <div class="template-card-v2-count">${t.slides.length} slides</div>
+        <button class="template-card-v2-btn" onclick="event.stopPropagation();openSlideEditor('${t.id}')">Use Template →</button>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
+  requestAnimationFrame(() => requestAnimationFrame(_scaleAllSlides));
 }
 
 // Call gallery render once auth is ready (triggered from onAuthStateChanged path)
-document.addEventListener('DOMContentLoaded', () => renderTemplateGallery());
+document.addEventListener('DOMContentLoaded', () => {
+  renderTemplateGallery();
+  let _scaleT;
+  window.addEventListener('resize', () => { clearTimeout(_scaleT); _scaleT = setTimeout(_scaleAllSlides, 100); });
+});
 
 function openSlideEditor(templateId, existingId) {
   const user = _appUser;
@@ -4309,41 +4473,44 @@ function _renderEditorSlide() {
   const slide = _slideshow.slides[_slideIdx];
   if (!slide) return;
 
-  document.getElementById('slide-heading-input').value   = slide.heading || '';
-  document.getElementById('slide-body-textarea').value   = slide.body    || '';
+  document.getElementById('slide-heading-input').value = slide.heading || '';
+  document.getElementById('slide-body-textarea').value = slide.body    || '';
 
   // Color dots
   const dotsEl = document.getElementById('slide-color-dots');
-  const colors = Object.keys(SLIDE_BG_MAP);
-  dotsEl.innerHTML = colors.map(c => {
+  dotsEl.innerHTML = Object.keys(SLIDE_BG_MAP).map(c => {
     const col = SLIDE_BG_MAP[c];
-    return `<div class="slide-color-dot${slide.bgColor === c ? ' active' : ''}"
-      style="background:${col.accent};" title="${c}"
-      onclick="setSlideColor('${c}')"></div>`;
+    return `<div class="slide-color-dot${slide.bgColor === c ? ' active' : ''}" style="background:${col.accent};" title="${c}" onclick="setSlideColor('${c}')"></div>`;
   }).join('');
 
-  // Layout buttons
+  // Layout buttons (8 types)
   const layoutEl = document.getElementById('slide-layout-btns');
-  const layouts  = ['title','text','bullets'];
+  const layouts  = ['title','text','bullets','section','two-col','quote','stats','timeline'];
+  const labels   = { title:'Title', text:'Text', bullets:'Bullets', section:'Section', 'two-col':'Two-Col', quote:'Quote', stats:'Stats', timeline:'Timeline' };
   layoutEl.innerHTML = layouts.map(l =>
-    `<button class="slide-layout-btn${slide.layout === l ? ' active' : ''}" onclick="setSlideLayout('${l}')">${l.charAt(0).toUpperCase() + l.slice(1)}</button>`
+    `<button class="slide-layout-btn${slide.layout === l ? ' active' : ''}" onclick="setSlideLayout('${l}')">${labels[l]}</button>`
   ).join('');
 
   // Footer counter & nav
   const total = _slideshow.slides.length;
-  document.getElementById('slide-counter').textContent  = `Slide ${_slideIdx + 1} of ${total}`;
-  document.getElementById('slide-prev-btn').disabled    = _slideIdx === 0;
-  document.getElementById('slide-next-btn').disabled    = _slideIdx === total - 1;
+  document.getElementById('slide-counter').textContent = `Slide ${_slideIdx + 1} of ${total}`;
+  document.getElementById('slide-prev-btn').disabled   = _slideIdx === 0;
+  document.getElementById('slide-next-btn').disabled   = _slideIdx === total - 1;
+
+  requestAnimationFrame(_updateEditorPreview);
 }
 
 function _renderSlideThumbs() {
   const panel = document.getElementById('slide-thumb-panel');
-  panel.innerHTML = _slideshow.slides.map((s, i) => `
-    <div class="slide-thumb${i === _slideIdx ? ' active' : ''}" onclick="setCurrentSlide(${i})">
-      <div class="slide-thumb-num">Slide ${i + 1}</div>
-      ${escHtml((s.heading || 'Untitled').slice(0, 28))}
-    </div>
-  `).join('') + `<div class="slide-thumb-add" onclick="addSlide()">＋ Add Slide</div>`;
+  panel.innerHTML = _slideshow.slides.map((s, i) => {
+    const ck   = s.bgColor || 'violet';
+    const html = _buildSlideHTML(s, ck, COLOR_BGSTYLE_MAP[ck] || 'gradient-diagonal');
+    return `<div class="slide-thumb-v2${i === _slideIdx ? ' active' : ''}" onclick="setCurrentSlide(${i})">
+      <div class="slide-thumb-v2-num">Slide ${i + 1}</div>
+      <div class="slide-16-9-wrap">${html}</div>
+    </div>`;
+  }).join('') + `<div class="slide-thumb-add" onclick="addSlide()">＋ Add Slide</div>`;
+  _scaleAllSlides();
 }
 
 function _syncSlide() {
@@ -4352,10 +4519,29 @@ function _syncSlide() {
   if (!slide) return;
   slide.heading = document.getElementById('slide-heading-input').value;
   slide.body    = document.getElementById('slide-body-textarea').value;
-  // Update thumb label live
-  const thumbs = document.getElementById('slide-thumb-panel').querySelectorAll('.slide-thumb');
-  if (thumbs[_slideIdx]) {
-    thumbs[_slideIdx].innerHTML = `<div class="slide-thumb-num">Slide ${_slideIdx + 1}</div>${escHtml((slide.heading || 'Untitled').slice(0, 28))}`;
+  _updateEditorPreview();
+}
+
+function _updateEditorPreview() {
+  if (!_slideshow) return;
+  const slide = _slideshow.slides[_slideIdx];
+  if (!slide) return;
+  const headingEl = document.getElementById('slide-heading-input');
+  const bodyEl    = document.getElementById('slide-body-textarea');
+  const tempSlide = {
+    heading: headingEl ? headingEl.value : (slide.heading || ''),
+    body:    bodyEl    ? bodyEl.value    : (slide.body    || ''),
+    bgColor: slide.bgColor,
+    layout:  slide.layout,
+  };
+  const ck   = tempSlide.bgColor || 'violet';
+  const wrap = document.getElementById('slide-editor-preview-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = _buildSlideHTML(tempSlide, ck, COLOR_BGSTYLE_MAP[ck] || 'gradient-diagonal');
+  const render = wrap.querySelector('.slide-render');
+  if (render) {
+    const w = wrap.offsetWidth;
+    if (w) render.style.transform = `scale(${w / 960})`;
   }
 }
 
@@ -4518,53 +4704,24 @@ function navigatePreview(dir) {
 function _renderPreviewSlide() {
   const slide = _previewSlides[_previewIdx];
   if (!slide) return;
-  const col = SLIDE_BG_MAP[slide.bgColor] || SLIDE_BG_MAP.violet;
-
-  const card = document.getElementById('slide-preview-card');
-  card.style.background = col.bg;
-  card.style.borderLeft = `4px solid ${col.accent}`;
-
-  const hEl = document.getElementById('slide-preview-heading');
-  hEl.textContent  = slide.heading || '';
-  hEl.style.color  = col.accent;
-
-  // Render body: lines starting with • get a bullet-list style
-  const bEl = document.getElementById('slide-preview-body');
-  bEl.style.color = col.text;
-  const body = slide.body || '';
-  const hasBullets = body.split('\n').some(l => l.trim().startsWith('•'));
-  if (hasBullets) {
-    bEl.innerHTML = body.split('\n').map(l => {
-      const t = l.trim();
-      if (!t) return '';
-      return t.startsWith('•')
-        ? `<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:4px;"><span style="color:${col.accent};flex-shrink:0;">•</span><span>${escHtml(t.slice(1).trim())}</span></div>`
-        : `<div style="margin-bottom:4px;">${escHtml(t)}</div>`;
-    }).join('');
-  } else {
-    bEl.textContent = body;
-    bEl.style.whiteSpace = 'pre-wrap';
-  }
-
-  // Title layout: larger heading, smaller body
-  if (slide.layout === 'title') {
-    hEl.style.fontSize  = '2.4rem';
-    bEl.style.fontSize  = '1.05rem';
-    bEl.style.opacity   = '0.7';
-    card.style.textAlign = 'center';
-    card.style.alignItems = 'center';
-  } else {
-    hEl.style.fontSize   = '1.7rem';
-    bEl.style.fontSize   = '0.97rem';
-    bEl.style.opacity    = '0.85';
-    card.style.textAlign = 'left';
-    card.style.alignItems = 'flex-start';
-  }
-
+  const card  = document.getElementById('slide-preview-card');
   const total = _previewSlides.length;
   document.getElementById('slide-preview-counter').textContent = `${_previewIdx + 1} / ${total}`;
   document.getElementById('slide-preview-prev').disabled = _previewIdx === 0;
   document.getElementById('slide-preview-next').disabled = _previewIdx === total - 1;
+
+  // Fade out → render → fade in
+  card.style.transition = 'opacity 0.18s ease';
+  card.style.opacity    = '0';
+  setTimeout(() => {
+    const ck   = slide.bgColor || 'violet';
+    card.innerHTML = _buildSlideHTML(slide, ck, COLOR_BGSTYLE_MAP[ck] || 'gradient-diagonal');
+    // Scale to fit the 16:9 wrapper
+    const wrap   = card.parentElement;
+    const render = card.querySelector('.slide-render');
+    if (render && wrap && wrap.offsetWidth) render.style.transform = `scale(${wrap.offsetWidth / 960})`;
+    card.style.opacity = '1';
+  }, 90);
 }
 
 // ── SLIDESHOW SHARE & POST ────────────────────────────────────────────────────
@@ -4669,7 +4826,13 @@ function escHtml(str) {
         </div>
         <div class="slide-controls-row">
           <span class="slide-controls-label">Layout</span>
-          <div id="slide-layout-btns" style="display:flex;gap:6px;"></div>
+          <div id="slide-layout-btns" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+        </div>
+      </div>
+      <div class="slide-live-preview-pane">
+        <div class="slide-live-preview-label">Live Preview</div>
+        <div class="slide-16-9-wrap" id="slide-editor-preview-wrap">
+          <!-- live preview rendered by JS -->
         </div>
       </div>
     </div>
@@ -4684,11 +4847,10 @@ function escHtml(str) {
   </div>
 
   <!-- ── SLIDE PREVIEW MODAL ── -->
-  <div id="slide-preview-modal" class="slide-preview-overlay js-hidden" style="display:none;position:relative;">
+  <div id="slide-preview-modal" class="slide-preview-overlay js-hidden" style="display:none;">
     <button class="slide-preview-close" onclick="closeSlidePreview()">✕ Close</button>
-    <div id="slide-preview-card" class="slide-preview-card">
-      <div id="slide-preview-heading" class="slide-preview-heading"></div>
-      <div id="slide-preview-body" class="slide-preview-body"></div>
+    <div class="slide-preview-16-9-wrap">
+      <div id="slide-preview-card" style="position:absolute;inset:0;"></div>
     </div>
     <div class="slide-preview-nav">
       <button class="slide-preview-btn" id="slide-preview-prev" onclick="navigatePreview(-1)">← Prev</button>
