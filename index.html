@@ -672,6 +672,11 @@
   .slide-thumb-v2.active { border-color:#7c3aed; background:rgba(124,58,237,0.12); }
   .slide-thumb-v2-num { font-size:0.6rem; font-weight:800; color:#52525b; text-transform:uppercase; letter-spacing:0.05em; }
   .slide-preview-16-9-wrap { width:min(92vw, calc(88vh * 16 / 9)); aspect-ratio:16/9; position:relative; overflow:hidden; border-radius:12px; box-shadow:0 32px 80px rgba(0,0,0,0.7); flex-shrink:0; }
+  .slide-carousel-nav { display:flex; align-items:center; gap:8px; padding:5px 0 12px; }
+  .slide-carousel-btn { background:rgba(255,255,255,0.07); border:none; color:#a1a1aa; width:28px; height:28px; border-radius:50%; cursor:pointer; font-size:13px; transition:all 0.15s; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+  .slide-carousel-btn:hover:not(:disabled) { background:rgba(124,58,237,0.3); color:#c4b5fd; }
+  .slide-carousel-btn:disabled { opacity:0.25; cursor:default; }
+  .slide-carousel-counter { color:#71717a; font-size:0.7rem; flex:1; text-align:center; letter-spacing:0.05em; }
   </style>
 
   <script>
@@ -3806,21 +3811,29 @@ function renderPost(groupId, postId, p, myUid) {
   const accentColors = { note:'#7c3aed', roadmap:'#10b981', text:'#6366f1', slideshow:'#7c3aed' };
   const accentBorder = accentColors[p.type] || accentColors.text;
 
-  // Slideshow: render first slide as a visual preview
+  // Slideshow: render an interactive carousel preview
   let slideVisual = '';
   if (p.type === 'slideshow') {
     if (p.slideshowSlides && p.slideshowSlides.length > 0) {
-      // Fast path: slides embedded in post data
-      const firstSlide = p.slideshowSlides[0];
+      // Fast path: slides embedded in post data — build inline carousel
+      const slides = p.slideshowSlides;
+      _postSlidesCache[postId] = slides;
+      const firstSlide = slides[0];
       const ck = firstSlide.bgColor || 'violet';
-      slideVisual = `<div class="slide-16-9-wrap" style="margin-bottom:14px;">${_buildSlideHTML(firstSlide, ck, COLOR_BGSTYLE_MAP[ck] || 'gradient-diagonal')}</div>
-        <div style="font-size:0.72rem;color:#71717a;margin-bottom:14px;">${p.slideshowSlides.length} slide${p.slideshowSlides.length > 1 ? 's' : ''}</div>`;
+      const nav = slides.length > 1
+        ? `<div class="slide-carousel-nav">
+             <button class="slide-carousel-btn" onclick="navigatePostSlide('${postId}',-1)" disabled>&#8592;</button>
+             <span class="slide-carousel-counter" id="slide-carousel-counter-${postId}">1 / ${slides.length}</span>
+             <button class="slide-carousel-btn" onclick="navigatePostSlide('${postId}',1)">&#8594;</button>
+           </div>`
+        : `<div style="font-size:0.7rem;color:#52525b;padding:5px 0 12px;text-align:center;">1 slide</div>`;
+      slideVisual = `<div class="slide-16-9-wrap" id="slide-carousel-wrap-${postId}" data-idx="0">${_buildSlideHTML(firstSlide, ck, COLOR_BGSTYLE_MAP[ck] || 'gradient-diagonal')}</div>${nav}`;
     } else if (p.slideshowId && p.slideshowAuthorUid) {
-      // Async fetch path: placeholder fetched after render
-      slideVisual = `<div class="slide-post-fetch-placeholder" data-sid="${escHtml(p.slideshowId)}" data-auid="${escHtml(p.slideshowAuthorUid)}"
-        style="width:100%;aspect-ratio:16/9;border-radius:10px;overflow:hidden;position:relative;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.12);display:flex;align-items:center;justify-content:center;margin-bottom:14px;">
+      // Async fetch path: placeholder filled by _fillSlideshowPreviews after render
+      slideVisual = `<div class="slide-post-fetch-placeholder" data-sid="${escHtml(p.slideshowId)}" data-auid="${escHtml(p.slideshowAuthorUid)}" data-postid="${escHtml(postId)}"
+        style="width:100%;aspect-ratio:16/9;border-radius:10px;overflow:hidden;position:relative;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.12);display:flex;align-items:center;justify-content:center;margin-bottom:0;">
         <span style="color:#52525b;font-size:0.78rem;">Loading preview…</span>
-      </div>`;
+      </div><div style="height:12px;"></div>`;
     } else {
       slideVisual = `<div style="padding:18px 20px;border-radius:10px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.15);color:#a78bfa;font-size:0.82rem;margin-bottom:14px;text-align:center;letter-spacing:0.02em;">Slideshow</div>`;
     }
@@ -4030,7 +4043,7 @@ function fillFromSaved(title, content, type) {
 }
 
 function fillFromSavedSlideshow(id, title, slides) {
-  _pendingSlideshowPostSlides = (slides||[]).slice(0, 3);
+  _pendingSlideshowPostSlides = slides || [];
   _pendingSlideshowId         = id;
   _currentPostType = 'slideshow';
   ['text','note','roadmap'].forEach(t => document.getElementById('pt-'+t).classList.toggle('active-ct', t === 'note'));
@@ -4448,44 +4461,87 @@ function _scaleAllSlides() {
 async function _fillSlideshowPreviews() {
   const placeholders = document.querySelectorAll('.slide-post-fetch-placeholder[data-sid][data-auid]');
   for (const ph of placeholders) {
-    const sid  = ph.dataset.sid;
-    const auid = ph.dataset.auid;
-    // Remove attributes immediately so concurrent feeds don't double-fetch
+    const sid    = ph.dataset.sid;
+    const auid   = ph.dataset.auid;
+    const postId = ph.dataset.postid;
+    // Remove attributes immediately so concurrent calls don't double-fetch
     ph.removeAttribute('data-sid');
     ph.removeAttribute('data-auid');
+    ph.removeAttribute('data-postid');
     try {
       const snap = await db.ref('slideshows/' + auid + '/' + sid).once('value');
       const data = snap.val();
       if (data && data.slides && data.slides.length > 0) {
-        const firstSlide = data.slides[0];
+        const slides = data.slides;
+        _postSlidesCache[postId] = slides;
+        const firstSlide = slides[0];
         const ck = firstSlide.bgColor || 'violet';
-        // Replace placeholder with a proper 16:9 wrapper + rendered slide
+        // Build carousel wrapper
         const wrapper = document.createElement('div');
         wrapper.className = 'slide-16-9-wrap';
-        wrapper.style.marginBottom = '14px';
+        wrapper.id        = 'slide-carousel-wrap-' + postId;
+        wrapper.dataset.idx = '0';
         wrapper.innerHTML = _buildSlideHTML(firstSlide, ck, COLOR_BGSTYLE_MAP[ck] || 'gradient-diagonal');
         ph.replaceWith(wrapper);
+        // Scale the rendered slide
         const render = wrapper.querySelector('.slide-render');
-        if (render) {
-          const w = wrapper.offsetWidth;
-          if (w) render.style.transform = `scale(${w / 960})`;
+        if (render && wrapper.offsetWidth) render.style.transform = `scale(${wrapper.offsetWidth / 960})`;
+        // Build nav row
+        if (slides.length > 1) {
+          const nav = document.createElement('div');
+          nav.className = 'slide-carousel-nav';
+          nav.innerHTML = `<button class="slide-carousel-btn" onclick="navigatePostSlide('${postId}',-1)" disabled>&#8592;</button>
+            <span class="slide-carousel-counter" id="slide-carousel-counter-${postId}">1 / ${slides.length}</span>
+            <button class="slide-carousel-btn" onclick="navigatePostSlide('${postId}',1)">&#8594;</button>`;
+          wrapper.insertAdjacentElement('afterend', nav);
+        } else {
+          const spacer = document.createElement('div');
+          spacer.style.cssText = 'font-size:0.7rem;color:#52525b;padding:5px 0 12px;text-align:center;';
+          spacer.textContent = '1 slide';
+          wrapper.insertAdjacentElement('afterend', spacer);
         }
-        // Append slide count below the wrapper
-        const countEl = document.createElement('div');
-        countEl.style.cssText = 'font-size:0.72rem;color:#71717a;margin-bottom:14px;';
-        countEl.textContent = `${data.slides.length} slide${data.slides.length > 1 ? 's' : ''}`;
-        wrapper.insertAdjacentElement('afterend', countEl);
       } else {
-        ph.textContent = 'Slideshow';
-        ph.style.fontSize = '0.82rem';
-        ph.style.color = '#a78bfa';
+        ph.innerHTML = '<span style="color:#a78bfa;font-size:0.82rem;">Slideshow</span>';
+        ph.style.removeProperty('aspect-ratio');
+        ph.style.padding = '18px 20px';
+        ph.style.textAlign = 'center';
       }
     } catch(_) {
-      ph.textContent = 'Slideshow';
-      ph.style.fontSize = '0.82rem';
-      ph.style.color = '#a78bfa';
+      ph.innerHTML = '<span style="color:#a78bfa;font-size:0.82rem;">Slideshow</span>';
+      ph.style.removeProperty('aspect-ratio');
+      ph.style.padding = '18px 20px';
+      ph.style.textAlign = 'center';
     }
   }
+}
+
+// Navigate the in-feed slide carousel for a given post
+function navigatePostSlide(postId, dir) {
+  const slides = _postSlidesCache[postId];
+  if (!slides || slides.length < 2) return;
+  const wrap = document.getElementById('slide-carousel-wrap-' + postId);
+  if (!wrap) return;
+  const curIdx = parseInt(wrap.dataset.idx || '0');
+  const newIdx = Math.max(0, Math.min(slides.length - 1, curIdx + dir));
+  if (newIdx === curIdx) return;
+  wrap.dataset.idx = newIdx;
+  const slide = slides[newIdx];
+  const ck = slide.bgColor || 'violet';
+  wrap.style.transition = 'opacity 0.15s ease';
+  wrap.style.opacity = '0';
+  setTimeout(() => {
+    wrap.innerHTML = _buildSlideHTML(slide, ck, COLOR_BGSTYLE_MAP[ck] || 'gradient-diagonal');
+    const render = wrap.querySelector('.slide-render');
+    if (render && wrap.offsetWidth) render.style.transform = `scale(${wrap.offsetWidth / 960})`;
+    wrap.style.opacity = '1';
+    const counter = document.getElementById('slide-carousel-counter-' + postId);
+    if (counter) counter.textContent = `${newIdx + 1} / ${slides.length}`;
+    const nav = counter ? counter.parentElement : null;
+    if (nav) {
+      nav.querySelectorAll('.slide-carousel-btn')[0].disabled = newIdx === 0;
+      nav.querySelectorAll('.slide-carousel-btn')[1].disabled = newIdx === slides.length - 1;
+    }
+  }, 120);
 }
 
 // ── SLIDE EDITOR STATE ────────────────────────────────────────────────────────
@@ -4495,6 +4551,7 @@ let _slideIdx        = 0;      // current slide index
 let _editingSlideshowId = null; // null = new, string = existing id
 let _pendingSlideshowPostSlides = null; // slides to attach when posting a slideshow
 let _pendingSlideshowId         = null; // id of slideshow being posted (for old-post fallback fetch)
+const _postSlidesCache          = {};   // postId → slides[], used by in-feed carousel
 
 function renderTemplateGallery() {
   const grid = document.getElementById('templates-grid');
@@ -4857,8 +4914,8 @@ async function openPostToGroupModalFromSlideshow(id) {
   const data = snap.val();
   if (!data) return;
 
-  // Store slides + ID for visual rendering when post is submitted
-  _pendingSlideshowPostSlides = (data.slides || []).slice(0, 3);
+  // Store all slides + ID for visual rendering when post is submitted
+  _pendingSlideshowPostSlides = data.slides || [];
   _pendingSlideshowId         = id;
 
   // Build a text summary from the first two slides
