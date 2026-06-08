@@ -3777,7 +3777,7 @@ async function openGroup(groupId) {
     feed.innerHTML = entries.length === 0
       ? '<div class="text-zinc-600 italic text-sm py-16 text-center">No posts yet. Be the first to share something!</div>'
       : entries.map(([pid, p]) => renderPost(groupId, pid, p, user.uid)).join('');
-    requestAnimationFrame(() => requestAnimationFrame(_scaleAllSlides));
+    requestAnimationFrame(() => { requestAnimationFrame(_scaleAllSlides); _fillSlideshowPreviews(); });
   });
 
   // Real-time borrow requests addressed to me
@@ -3808,11 +3808,22 @@ function renderPost(groupId, postId, p, myUid) {
 
   // Slideshow: render first slide as a visual preview
   let slideVisual = '';
-  if (p.type === 'slideshow' && p.slideshowSlides && p.slideshowSlides.length > 0) {
-    const firstSlide = p.slideshowSlides[0];
-    const ck = firstSlide.bgColor || 'violet';
-    slideVisual = `<div class="slide-16-9-wrap" style="margin-bottom:14px;">${_buildSlideHTML(firstSlide, ck, COLOR_BGSTYLE_MAP[ck] || 'gradient-diagonal')}</div>
-      <div style="font-size:0.72rem;color:#71717a;margin-bottom:14px;">${p.slideshowSlides.length} slide${p.slideshowSlides.length > 1 ? 's' : ''}</div>`;
+  if (p.type === 'slideshow') {
+    if (p.slideshowSlides && p.slideshowSlides.length > 0) {
+      // Fast path: slides embedded in post data
+      const firstSlide = p.slideshowSlides[0];
+      const ck = firstSlide.bgColor || 'violet';
+      slideVisual = `<div class="slide-16-9-wrap" style="margin-bottom:14px;">${_buildSlideHTML(firstSlide, ck, COLOR_BGSTYLE_MAP[ck] || 'gradient-diagonal')}</div>
+        <div style="font-size:0.72rem;color:#71717a;margin-bottom:14px;">${p.slideshowSlides.length} slide${p.slideshowSlides.length > 1 ? 's' : ''}</div>`;
+    } else if (p.slideshowId && p.slideshowAuthorUid) {
+      // Async fetch path: placeholder fetched after render
+      slideVisual = `<div class="slide-post-fetch-placeholder" data-sid="${escHtml(p.slideshowId)}" data-auid="${escHtml(p.slideshowAuthorUid)}"
+        style="width:100%;aspect-ratio:16/9;border-radius:10px;overflow:hidden;position:relative;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.12);display:flex;align-items:center;justify-content:center;margin-bottom:14px;">
+        <span style="color:#52525b;font-size:0.78rem;">Loading preview…</span>
+      </div>`;
+    } else {
+      slideVisual = `<div style="padding:18px 20px;border-radius:10px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.15);color:#a78bfa;font-size:0.82rem;margin-bottom:14px;text-align:center;letter-spacing:0.02em;">Slideshow</div>`;
+    }
   }
 
   const contentTxt  = (p.content||'').replace(/<[^>]+>/g,'');
@@ -3936,6 +3947,7 @@ function closePostModal() {
   document.getElementById('pm-group-select').value = '';
   document.getElementById('pm-group-selector-row').classList.add('hidden');
   _pendingSlideshowPostSlides = null;
+  _pendingSlideshowId         = null;
   setPostType('text');
   setPmMode('new');
 }
@@ -3999,7 +4011,7 @@ async function loadSavedNotesForModal() {
       const item = all[parseInt(el.dataset.idx)];
       el.addEventListener('click', () => {
         if (item._kind === 'slideshow') {
-          fillFromSavedSlideshow(item.title||'', item.slides||[]);
+          fillFromSavedSlideshow(item.id||'', item.title||'', item.slides||[]);
         } else {
           fillFromSaved(item.title||'', item.content||'', typeMap[item.type]||'note');
         }
@@ -4017,8 +4029,9 @@ function fillFromSaved(title, content, type) {
   document.getElementById('pm-write-fields').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-function fillFromSavedSlideshow(title, slides) {
+function fillFromSavedSlideshow(id, title, slides) {
   _pendingSlideshowPostSlides = (slides||[]).slice(0, 3);
+  _pendingSlideshowId         = id;
   _currentPostType = 'slideshow';
   ['text','note','roadmap'].forEach(t => document.getElementById('pt-'+t).classList.toggle('active-ct', t === 'note'));
   document.getElementById('pm-title').value   = title;
@@ -4083,8 +4096,13 @@ async function submitPostToGroup() {
     title, content,
     timestamp: Date.now()
   };
-  if (_pendingSlideshowPostSlides) postData.slideshowSlides = _pendingSlideshowPostSlides;
+  if (_pendingSlideshowPostSlides) {
+    postData.slideshowSlides    = _pendingSlideshowPostSlides;
+    postData.slideshowId        = _pendingSlideshowId;
+    postData.slideshowAuthorUid = user.uid;
+  }
   _pendingSlideshowPostSlides = null;
+  _pendingSlideshowId         = null;
   await db.ref('groupPosts/' + targetGroupId).push(postData);
   closePostModal();
 }
@@ -4426,12 +4444,57 @@ function _scaleAllSlides() {
   });
 }
 
+// Fetch slides from Firebase for placeholder post cards that don't have embedded slide data
+async function _fillSlideshowPreviews() {
+  const placeholders = document.querySelectorAll('.slide-post-fetch-placeholder[data-sid][data-auid]');
+  for (const ph of placeholders) {
+    const sid  = ph.dataset.sid;
+    const auid = ph.dataset.auid;
+    // Remove attributes immediately so concurrent feeds don't double-fetch
+    ph.removeAttribute('data-sid');
+    ph.removeAttribute('data-auid');
+    try {
+      const snap = await db.ref('slideshows/' + auid + '/' + sid).once('value');
+      const data = snap.val();
+      if (data && data.slides && data.slides.length > 0) {
+        const firstSlide = data.slides[0];
+        const ck = firstSlide.bgColor || 'violet';
+        // Replace placeholder with a proper 16:9 wrapper + rendered slide
+        const wrapper = document.createElement('div');
+        wrapper.className = 'slide-16-9-wrap';
+        wrapper.style.marginBottom = '14px';
+        wrapper.innerHTML = _buildSlideHTML(firstSlide, ck, COLOR_BGSTYLE_MAP[ck] || 'gradient-diagonal');
+        ph.replaceWith(wrapper);
+        const render = wrapper.querySelector('.slide-render');
+        if (render) {
+          const w = wrapper.offsetWidth;
+          if (w) render.style.transform = `scale(${w / 960})`;
+        }
+        // Append slide count below the wrapper
+        const countEl = document.createElement('div');
+        countEl.style.cssText = 'font-size:0.72rem;color:#71717a;margin-bottom:14px;';
+        countEl.textContent = `${data.slides.length} slide${data.slides.length > 1 ? 's' : ''}`;
+        wrapper.insertAdjacentElement('afterend', countEl);
+      } else {
+        ph.textContent = 'Slideshow';
+        ph.style.fontSize = '0.82rem';
+        ph.style.color = '#a78bfa';
+      }
+    } catch(_) {
+      ph.textContent = 'Slideshow';
+      ph.style.fontSize = '0.82rem';
+      ph.style.color = '#a78bfa';
+    }
+  }
+}
+
 // ── SLIDE EDITOR STATE ────────────────────────────────────────────────────────
 
 let _slideshow       = null;   // working copy { id, title, subject, templateId, slides, type, timestamp }
 let _slideIdx        = 0;      // current slide index
 let _editingSlideshowId = null; // null = new, string = existing id
 let _pendingSlideshowPostSlides = null; // slides to attach when posting a slideshow
+let _pendingSlideshowId         = null; // id of slideshow being posted (for old-post fallback fetch)
 
 function renderTemplateGallery() {
   const grid = document.getElementById('templates-grid');
@@ -4794,8 +4857,9 @@ async function openPostToGroupModalFromSlideshow(id) {
   const data = snap.val();
   if (!data) return;
 
-  // Store slides for visual rendering when post is submitted
+  // Store slides + ID for visual rendering when post is submitted
   _pendingSlideshowPostSlides = (data.slides || []).slice(0, 3);
+  _pendingSlideshowId         = id;
 
   // Build a text summary from the first two slides
   const content = (data.slides || []).slice(0, 3).map(s =>
