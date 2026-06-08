@@ -3777,6 +3777,7 @@ async function openGroup(groupId) {
     feed.innerHTML = entries.length === 0
       ? '<div class="text-zinc-600 italic text-sm py-16 text-center">No posts yet. Be the first to share something!</div>'
       : entries.map(([pid, p]) => renderPost(groupId, pid, p, user.uid)).join('');
+    requestAnimationFrame(() => requestAnimationFrame(_scaleAllSlides));
   });
 
   // Real-time borrow requests addressed to me
@@ -3800,15 +3801,24 @@ function renderPost(groupId, postId, p, myUid) {
   const iLiked     = p.likes && p.likes[myUid];
   const isMine     = p.authorUid === myUid;
   const timeStr    = p.timestamp ? new Date(p.timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
-  const typeColors = { note:'#c4b5fd', roadmap:'#6ee7b7', text:'#a5b4fc' };
-  const typeBgs    = { note:'rgba(124,58,237,0.15)', roadmap:'rgba(16,185,129,0.12)', text:'rgba(99,102,241,0.12)' };
-  const contentTxt = (p.content||'').replace(/<[^>]+>/g,'');
-  const preview    = contentTxt.slice(0,250);
-  const hasMore    = contentTxt.length > 250;
-  const safeContent = JSON.stringify(p.content||'').replace(/</g,'\\u003c');
-
-  const accentColors = { note:'#7c3aed', roadmap:'#10b981', text:'#6366f1' };
+  const typeColors = { note:'#c4b5fd', roadmap:'#6ee7b7', text:'#a5b4fc', slideshow:'#a78bfa' };
+  const typeBgs    = { note:'rgba(124,58,237,0.15)', roadmap:'rgba(16,185,129,0.12)', text:'rgba(99,102,241,0.12)', slideshow:'rgba(139,92,246,0.15)' };
+  const accentColors = { note:'#7c3aed', roadmap:'#10b981', text:'#6366f1', slideshow:'#7c3aed' };
   const accentBorder = accentColors[p.type] || accentColors.text;
+
+  // Slideshow: render first slide as a visual preview
+  let slideVisual = '';
+  if (p.type === 'slideshow' && p.slideshowSlides && p.slideshowSlides.length > 0) {
+    const firstSlide = p.slideshowSlides[0];
+    const ck = firstSlide.bgColor || 'violet';
+    slideVisual = `<div class="slide-16-9-wrap" style="margin-bottom:14px;">${_buildSlideHTML(firstSlide, ck, COLOR_BGSTYLE_MAP[ck] || 'gradient-diagonal')}</div>
+      <div style="font-size:0.72rem;color:#71717a;margin-bottom:14px;">${p.slideshowSlides.length} slide${p.slideshowSlides.length > 1 ? 's' : ''}</div>`;
+  }
+
+  const contentTxt  = (p.content||'').replace(/<[^>]+>/g,'');
+  const preview     = contentTxt.slice(0,250);
+  const hasMore     = contentTxt.length > 250;
+  const safeContent = JSON.stringify(p.content||'').replace(/</g,'\\u003c');
 
   return `<div class="post-card" id="post-card-${postId}" style="border-left-color:${accentBorder};">
     <div class="flex items-center gap-3 mb-4">
@@ -3820,8 +3830,8 @@ function renderPost(groupId, postId, p, myUid) {
       <span class="group-badge" style="background:${typeBgs[p.type]||typeBgs.text};color:${typeColors[p.type]||typeColors.text};">${p.type||'text'}</span>
     </div>
     ${p.title ? `<div class="font-bold text-white text-lg mb-2 tracking-tight">${escHtml(p.title)}</div>` : ''}
-    <div class="text-zinc-300 text-sm mb-5 leading-relaxed" id="post-preview-${postId}">${escHtml(preview)}${hasMore?`… <button onclick="expandPost('${postId}',${safeContent})" class="text-violet-400 font-semibold hover:text-violet-300 text-xs ml-1">Show more</button>`:''}
-    </div>
+    ${slideVisual}
+    ${!slideVisual ? `<div class="text-zinc-300 text-sm mb-5 leading-relaxed" id="post-preview-${postId}">${escHtml(preview)}${hasMore?`… <button onclick="expandPost('${postId}',${safeContent})" class="text-violet-400 font-semibold hover:text-violet-300 text-xs ml-1">Show more</button>`:''}</div>` : ''}
     <div class="flex items-center gap-2 pt-3 border-t border-white/5 flex-wrap">
       <button onclick="likePost('${groupId}','${postId}')" class="like-btn${iLiked?' liked':''}">♥ ${likeCount || 0}</button>
       <button onclick="toggleComments('${groupId}','${postId}')" class="comment-btn">💬 <span id="cmt-lbl-${postId}">Comments</span></button>
@@ -3925,6 +3935,7 @@ function closePostModal() {
   document.getElementById('pm-content').value = '';
   document.getElementById('pm-group-select').value = '';
   document.getElementById('pm-group-selector-row').classList.add('hidden');
+  _pendingSlideshowPostSlides = null;
   setPostType('text');
   setPmMode('new');
 }
@@ -4040,13 +4051,17 @@ async function submitPostToGroup() {
   if (!content) { alert('Please add some content to your post.'); return; }
   const mySnap = await db.ref('users/' + user.uid).once('value');
   const me     = mySnap.val() || {};
-  await db.ref('groupPosts/' + targetGroupId).push({
+  const postData = {
     authorUid:      user.uid,
     authorUsername: me.username  || user.displayName || 'user',
     authorPhotoUrl: me.photoUrl  || user.photoURL    || '',
-    type: _currentPostType, title, content,
+    type: _pendingSlideshowPostSlides ? 'slideshow' : _currentPostType,
+    title, content,
     timestamp: Date.now()
-  });
+  };
+  if (_pendingSlideshowPostSlides) postData.slideshowSlides = _pendingSlideshowPostSlides;
+  _pendingSlideshowPostSlides = null;
+  await db.ref('groupPosts/' + targetGroupId).push(postData);
   closePostModal();
 }
 
@@ -4392,6 +4407,7 @@ function _scaleAllSlides() {
 let _slideshow       = null;   // working copy { id, title, subject, templateId, slides, type, timestamp }
 let _slideIdx        = 0;      // current slide index
 let _editingSlideshowId = null; // null = new, string = existing id
+let _pendingSlideshowPostSlides = null; // slides to attach when posting a slideshow
 
 function renderTemplateGallery() {
   const grid = document.getElementById('templates-grid');
@@ -4753,6 +4769,9 @@ async function openPostToGroupModalFromSlideshow(id) {
   const snap = await db.ref('slideshows/' + user.uid + '/' + id).once('value');
   const data = snap.val();
   if (!data) return;
+
+  // Store slides for visual rendering when post is submitted
+  _pendingSlideshowPostSlides = (data.slides || []).slice(0, 3);
 
   // Build a text summary from the first two slides
   const content = (data.slides || []).slice(0, 3).map(s =>
