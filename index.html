@@ -500,6 +500,23 @@
     .feed-group-tag:hover { color:#a78bfa; }
     .feed-group-tag::before { content:''; display:inline-block; width:6px; height:6px; border-radius:50%; background:#7c3aed; flex-shrink:0; }
 
+    .chat-messages-area {
+      min-height: 260px; max-height: 420px; overflow-y: auto;
+      background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .chat-bubble { display: flex; align-items: flex-start; gap: 8px; }
+    .chat-bubble.self { flex-direction: row-reverse; }
+    .chat-bubble-text {
+      background: rgba(255,255,255,0.05); border-radius: 12px; padding: 8px 13px;
+      color: #e4e4e7; font-size: 0.88rem; max-width: 70%; word-break: break-word;
+    }
+    .chat-bubble.self .chat-bubble-text { background: rgba(124,58,237,0.25); color: #ddd6fe; }
+    .dm-window-header {
+      display: flex; align-items: center; margin-bottom: 16px;
+      padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
     .posts-label {
       font-size: 0.65rem; font-weight: 800; color: #7c3aed;
       text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 16px;
@@ -1417,8 +1434,13 @@
       </div>
 
       <div id="friends-requests-panel">
-        <div id="friends-requests-list" class="space-y-4">
-          <div class="text-zinc-600 italic text-sm py-8 text-center">No incoming requests.</div>
+        <div class="text-zinc-500 text-xs uppercase font-bold tracking-widest mb-3">Friend Requests</div>
+        <div id="friends-requests-list" class="space-y-4 mb-6">
+          <div class="text-zinc-600 italic text-sm py-4 text-center">No incoming requests.</div>
+        </div>
+        <div class="text-zinc-500 text-xs uppercase font-bold tracking-widest mb-3">Chat Requests</div>
+        <div id="chat-requests-list" class="space-y-4">
+          <div class="text-zinc-600 italic text-sm py-4 text-center">No chat requests.</div>
         </div>
       </div>
       <div id="friends-friends-panel" class="hidden">
@@ -1435,6 +1457,7 @@
       <div id="groups-tab-bar" class="flex gap-2 mb-6">
         <button id="btn-groups-tab" onclick="setGroupsTab('groups')" class="chart-type-btn active-ct">Study Groups</button>
         <button id="btn-feed-tab"   onclick="setGroupsTab('feed')"   class="chart-type-btn">My Feed</button>
+        <button id="btn-chat-tab"   onclick="setGroupsTab('chat')"   class="chart-type-btn">Chat</button>
       </div>
 
       <!-- Groups list view -->
@@ -1458,6 +1481,30 @@
         </div>
       </div>
 
+      <!-- Chat view -->
+      <div id="chat-view" class="hidden">
+        <!-- Thread list -->
+        <div id="chat-thread-list">
+          <h2 class="text-2xl font-extrabold text-white tracking-tight mb-6">Direct Messages</h2>
+          <div id="chat-threads" class="space-y-3">
+            <div class="text-zinc-600 italic text-sm py-16 text-center">No chats yet. Message a friend from the Friends page!</div>
+          </div>
+        </div>
+        <!-- DM window -->
+        <div id="chat-dm-window" class="hidden">
+          <div class="dm-window-header">
+            <button onclick="closeDMChat()" class="chart-type-btn">← Back</button>
+            <span id="dm-peer-name" class="font-bold text-white text-lg ml-4"></span>
+          </div>
+          <div id="dm-messages" class="chat-messages-area"></div>
+          <div class="flex gap-3 mt-3">
+            <input type="text" id="dm-input" placeholder="Type a message…" class="settings-input flex-1"
+                   onkeydown="if(event.key==='Enter') sendDM()">
+            <button onclick="sendDM()" class="sett-save-btn" style="flex-shrink:0;padding:9px 18px;">Send</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Group detail view -->
       <div id="group-detail-view" class="hidden">
 
@@ -1473,16 +1520,34 @@
           <button onclick="openPostToGroupModal()" class="sett-save-btn flex-shrink-0" style="padding:9px 20px;">+ Post to Group</button>
         </div>
 
-        <!-- Posts header row -->
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-          <div class="posts-label" style="margin-bottom:0;flex:1;">Posts</div>
-          <button id="borrow-req-trigger" class="borrow-req-trigger-btn" onclick="openBorrowRequestsModal()">
-            📥 Borrow Requests
-            <span id="borrow-req-badge" class="borrow-req-badge" style="display:none;">0</span>
-          </button>
+        <!-- Group sub-tab bar -->
+        <div id="group-subtab-bar" class="flex gap-2 mb-4">
+          <button id="btn-group-posts-tab" onclick="setGroupSubTab('posts')" class="chart-type-btn active-ct">Posts</button>
+          <button id="btn-group-chat-tab"  onclick="setGroupSubTab('chat')"  class="chart-type-btn">Chat</button>
         </div>
-        <div id="group-posts-feed" class="space-y-4">
-          <div class="text-zinc-600 italic text-sm py-16 text-center">No posts yet. Be the first to share something!</div>
+
+        <!-- Posts panel -->
+        <div id="group-posts-panel">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <div class="posts-label" style="margin-bottom:0;flex:1;">Posts</div>
+            <button id="borrow-req-trigger" class="borrow-req-trigger-btn" onclick="openBorrowRequestsModal()">
+              📥 Borrow Requests
+              <span id="borrow-req-badge" class="borrow-req-badge" style="display:none;">0</span>
+            </button>
+          </div>
+          <div id="group-posts-feed" class="space-y-4">
+            <div class="text-zinc-600 italic text-sm py-16 text-center">No posts yet. Be the first to share something!</div>
+          </div>
+        </div>
+
+        <!-- Group chat panel -->
+        <div id="group-chat-panel" class="hidden">
+          <div id="group-messages" class="chat-messages-area"></div>
+          <div class="flex gap-3 mt-3">
+            <input type="text" id="group-msg-input" placeholder="Send a message to the group…" class="settings-input flex-1"
+                   onkeydown="if(event.key==='Enter') sendGroupMessage()">
+            <button onclick="sendGroupMessage()" class="sett-save-btn" style="flex-shrink:0;padding:9px 18px;">Send</button>
+          </div>
         </div>
       </div>
     </section>
@@ -3684,6 +3749,16 @@ function debounceCheckUsername(val) {
 
 let _friendsCache = {}; // { uid: { username, displayName, photoUrl, status } }
 let _friendListeners = [];
+let _frReqCount = 0;
+let _chatReqCount = 0;
+
+function _updateReqBadge() {
+  const badge = document.getElementById('req-badge');
+  if (!badge) return;
+  const total = _frReqCount + _chatReqCount;
+  badge.textContent = total;
+  total > 0 ? badge.classList.remove('hidden') : badge.classList.add('hidden');
+}
 
 function loadFriendsPage() {
   const user = auth.currentUser;
@@ -3698,12 +3773,11 @@ function loadFriendsPage() {
   const reqFn = snap => {
     const data    = snap.val() || {};
     const list    = document.getElementById('friends-requests-list');
-    const badge   = document.getElementById('req-badge');
     const entries = Object.entries(data);
-    badge.textContent = entries.length;
-    entries.length ? badge.classList.remove('hidden') : badge.classList.add('hidden');
+    _frReqCount = entries.length;
+    _updateReqBadge();
     list.innerHTML = entries.length === 0
-      ? '<div class="text-zinc-600 italic text-sm py-8 text-center">No incoming requests.</div>'
+      ? '<div class="text-zinc-600 italic text-sm py-4 text-center">No incoming requests.</div>'
       : entries.map(([fromUid, r]) => `
         <div class="social-card flex items-center gap-4">
           <img src="${escHtml(r.fromPhotoUrl||'')}" class="w-10 h-10 rounded-full object-cover border border-white/10" onerror="this.src='https://ui-avatars.com/api/?background=7c3aed&color=fff&name=${encodeURIComponent(r.fromDisplayName||'U')}'">
@@ -3720,6 +3794,33 @@ function loadFriendsPage() {
   reqRef.on('value', reqFn);
   _friendListeners.push({ ref: reqRef, fn: reqFn });
 
+  // Incoming chat requests
+  const chatReqRef = db.ref('chatRequests/' + user.uid);
+  const chatReqFn = snap => {
+    const data    = snap.val() || {};
+    const entries = Object.entries(data);
+    _chatReqCount = entries.length;
+    _updateReqBadge();
+    const list = document.getElementById('chat-requests-list');
+    if (!list) return;
+    list.innerHTML = entries.length === 0
+      ? '<div class="text-zinc-600 italic text-sm py-4 text-center">No chat requests.</div>'
+      : entries.map(([reqId, r]) => `
+        <div class="social-card flex items-center gap-4">
+          <img src="${escHtml(r.fromPhotoUrl||'')}" class="w-10 h-10 rounded-full object-cover border border-white/10" onerror="this.src='https://ui-avatars.com/api/?background=7c3aed&color=fff&name=${encodeURIComponent(r.fromDisplayName||'U')}'">
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-white truncate">${escHtml(r.fromDisplayName||'User')}</div>
+            <div class="username-tag">@${escHtml(r.fromUsername||'?')}</div>
+          </div>
+          <div class="flex gap-2 flex-shrink-0">
+            <button onclick="acceptChatRequest('${reqId}','${r.fromUid}')" class="sett-save-btn" style="padding:7px 14px;font-size:0.78rem;">Accept</button>
+            <button onclick="declineChatRequest('${reqId}')" style="padding:7px 14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#f87171;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">Decline</button>
+          </div>
+        </div>`).join('');
+  };
+  chatReqRef.on('value', chatReqFn);
+  _friendListeners.push({ ref: chatReqRef, fn: chatReqFn });
+
   // My friends list
   const friRef = db.ref('friends/' + user.uid);
   const friFn = snap => {
@@ -3729,7 +3830,7 @@ function loadFriendsPage() {
     const entries = Object.entries(data);
     list.innerHTML = entries.length === 0
       ? '<div class="text-zinc-600 italic text-sm py-8 text-center col-span-full">No friends yet. Search for someone above!</div>'
-      : entries.map(([, f]) => `
+      : entries.map(([friendUid, f]) => `
         <div class="social-card">
           <div class="flex items-center gap-3">
             <img src="${escHtml(f.photoUrl||'')}" class="w-10 h-10 rounded-full object-cover border border-white/10 flex-shrink-0" onerror="this.src='https://ui-avatars.com/api/?background=7c3aed&color=fff&name=${encodeURIComponent(f.displayName||'U')}'">
@@ -3739,6 +3840,7 @@ function loadFriendsPage() {
             </div>
           </div>
           ${f.status ? `<div class="text-zinc-400 text-xs mt-2 italic">${escHtml(f.status)}</div>` : ''}
+          <button onclick="sendChatRequest('${friendUid}')" class="chart-type-btn" style="font-size:0.78rem;padding:7px 14px;margin-top:10px;width:100%;">💬 Message</button>
         </div>`).join('');
   };
   friRef.on('value', friFn);
@@ -3832,7 +3934,12 @@ function declineFriendRequest(fromUid) {
 let _currentGroupId   = null;
 let _groupPostsRef    = null;
 let _borrowReqRef     = null;
-let _groupsTab        = 'groups'; // 'groups' | 'feed'
+let _groupsTab        = 'groups'; // 'groups' | 'feed' | 'chat'
+let _groupSubTab      = 'posts';  // 'posts' | 'chat' within group detail
+let _groupMsgsRef     = null;     // real-time listener for group chat messages
+let _activeChatId     = null;     // chatId of open DM, null when on chat list
+let _chatPeerUid      = null;     // peer uid in active DM
+let _dmMsgsRef        = null;     // real-time listener for DM messages
 
 function loadGroupsPage() {
   const user = auth.currentUser;
@@ -3874,7 +3981,16 @@ async function openGroup(groupId) {
   document.getElementById('groups-tab-bar').classList.add('hidden');
   document.getElementById('groups-list-view').classList.add('hidden');
   document.getElementById('my-feed-view').classList.add('hidden');
+  document.getElementById('chat-view').classList.add('hidden');
   document.getElementById('group-detail-view').classList.remove('hidden');
+
+  // Reset sub-tab to posts every time a group is opened
+  _groupSubTab = 'posts';
+  if (_groupMsgsRef) { _groupMsgsRef.off(); _groupMsgsRef = null; }
+  document.getElementById('btn-group-posts-tab').classList.add('active-ct');
+  document.getElementById('btn-group-chat-tab').classList.remove('active-ct');
+  document.getElementById('group-posts-panel').classList.remove('hidden');
+  document.getElementById('group-chat-panel').classList.add('hidden');
 
   const gSnap = await db.ref('studyGroups/' + groupId).once('value');
   const g     = gSnap.val() || {};
@@ -3990,6 +4106,7 @@ function expandPost(postId, rawContent) {
 function closeGroupDetail() {
   if (_groupPostsRef) { _groupPostsRef.off(); _groupPostsRef = null; }
   if (_borrowReqRef)  { _borrowReqRef.off();  _borrowReqRef  = null; }
+  if (_groupMsgsRef)  { _groupMsgsRef.off();  _groupMsgsRef  = null; }
   _currentGroupId = null;
   closeBorrowRequestsModal();
   document.getElementById('group-detail-view').classList.add('hidden');
@@ -3997,6 +4114,9 @@ function closeGroupDetail() {
   if (_groupsTab === 'feed') {
     document.getElementById('my-feed-view').classList.remove('hidden');
     loadMyFeed();
+  } else if (_groupsTab === 'chat') {
+    document.getElementById('chat-view').classList.remove('hidden');
+    loadChatList();
   } else {
     document.getElementById('groups-list-view').classList.remove('hidden');
     loadGroupsPage();
@@ -4005,11 +4125,14 @@ function closeGroupDetail() {
 
 function setGroupsTab(tab) {
   _groupsTab = tab;
-  document.getElementById('btn-groups-tab').classList.toggle('active-ct', tab === 'groups');
-  document.getElementById('btn-feed-tab').classList.toggle('active-ct', tab === 'feed');
+  ['groups','feed','chat'].forEach(t => {
+    document.getElementById('btn-'+t+'-tab').classList.toggle('active-ct', tab === t);
+  });
   document.getElementById('groups-list-view').classList.toggle('hidden', tab !== 'groups');
   document.getElementById('my-feed-view').classList.toggle('hidden', tab !== 'feed');
+  document.getElementById('chat-view').classList.toggle('hidden', tab !== 'chat');
   if (tab === 'feed') loadMyFeed();
+  else if (tab === 'chat') loadChatList();
   else loadGroupsPage();
 }
 
@@ -4080,6 +4203,277 @@ async function loadMyFeed() {
   ).join('');
 
   requestAnimationFrame(() => { requestAnimationFrame(_scaleAllSlides); _fillSlideshowPreviews(); });
+}
+
+// ── DIRECT MESSAGES ──────────────────────────────────────────────────────────
+
+async function sendChatRequest(toUid) {
+  const user = auth.currentUser;
+  if (!user || toUid === user.uid) return;
+
+  // Verify they are friends
+  try {
+    const friendSnap = await db.ref('friends/' + user.uid + '/' + toUid).once('value');
+    if (!friendSnap.exists()) { alert('You can only message friends.'); return; }
+  } catch(_) {}
+
+  const chatId = [user.uid, toUid].sort().join('_');
+
+  // If a chat already exists, navigate straight to it
+  try {
+    const infoSnap = await db.ref('directChats/' + chatId + '/info').once('value');
+    if (infoSnap.exists()) {
+      const peerSnap = await db.ref('users/' + toUid).once('value');
+      const peer = peerSnap.val() || {};
+      showPage('pg-groups');
+      setGroupsTab('chat');
+      openDMChat(chatId, toUid, peer.displayName || peer.username || 'Friend');
+      return;
+    }
+  } catch(_) {}
+
+  // Check for an existing pending request (best-effort, rules may deny)
+  try {
+    const existing = await db.ref('chatRequests/' + toUid)
+      .orderByChild('fromUid').equalTo(user.uid).once('value');
+    if (existing.exists()) { alert('You already sent a chat request to this person.'); return; }
+  } catch(_) {}
+
+  const mySnap = await db.ref('users/' + user.uid).once('value').catch(() => null);
+  const me = mySnap ? (mySnap.val() || {}) : {};
+
+  try {
+    await db.ref('chatRequests/' + toUid).push({
+      fromUid:         user.uid,
+      fromUsername:    me.username    || '',
+      fromDisplayName: me.displayName || user.displayName || 'User',
+      fromPhotoUrl:    me.photoUrl    || user.photoURL    || '',
+      timestamp:       Date.now(),
+      status:          'pending'
+    });
+    alert('Chat request sent!');
+  } catch(err) {
+    alert('Could not send chat request: ' + (err.message || err));
+  }
+}
+
+async function acceptChatRequest(reqId, fromUid) {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const chatId = [user.uid, fromUid].sort().join('_');
+
+  const [mySnap, peerSnap] = await Promise.all([
+    db.ref('users/' + user.uid).once('value').catch(() => null),
+    db.ref('users/' + fromUid).once('value').catch(() => null)
+  ]);
+  const me   = mySnap   ? (mySnap.val()   || {}) : {};
+  const peer = peerSnap ? (peerSnap.val() || {}) : {};
+
+  try {
+    await Promise.all([
+      db.ref('directChats/' + chatId + '/info').set({
+        participants: { [user.uid]: true, [fromUid]: true },
+        createdAt: Date.now()
+      }),
+      db.ref('userChats/' + user.uid + '/' + chatId).set({
+        peerUid:         fromUid,
+        peerUsername:    peer.username    || '',
+        peerDisplayName: peer.displayName || 'User',
+        peerPhotoUrl:    peer.photoUrl    || '',
+        createdAt:       Date.now()
+      }),
+      db.ref('userChats/' + fromUid + '/' + chatId).set({
+        peerUid:         user.uid,
+        peerUsername:    me.username    || '',
+        peerDisplayName: me.displayName || user.displayName || 'User',
+        peerPhotoUrl:    me.photoUrl    || user.photoURL    || '',
+        createdAt:       Date.now()
+      }),
+      db.ref('chatRequests/' + user.uid + '/' + reqId).remove()
+    ]);
+  } catch(err) {
+    alert('Could not accept chat request: ' + (err.message || err));
+    return;
+  }
+
+  showPage('pg-groups');
+  setGroupsTab('chat');
+  openDMChat(chatId, fromUid, peer.displayName || peer.username || 'Friend');
+}
+
+async function declineChatRequest(reqId) {
+  const user = auth.currentUser;
+  if (!user) return;
+  try {
+    await db.ref('chatRequests/' + user.uid + '/' + reqId).remove();
+  } catch(_) {}
+}
+
+async function loadChatList() {
+  // Always reset to thread list view when loading
+  const threadList = document.getElementById('chat-thread-list');
+  const dmWindow   = document.getElementById('chat-dm-window');
+  if (threadList) threadList.classList.remove('hidden');
+  if (dmWindow)   dmWindow.classList.add('hidden');
+
+  if (_dmMsgsRef) { _dmMsgsRef.off(); _dmMsgsRef = null; }
+  _activeChatId = null;
+  _chatPeerUid  = null;
+
+  const user = auth.currentUser;
+  if (!user) return;
+  const threadsEl = document.getElementById('chat-threads');
+  if (!threadsEl) return;
+  threadsEl.innerHTML = '<div class="text-zinc-600 italic text-sm py-8 text-center">Loading…</div>';
+
+  const snap = await db.ref('userChats/' + user.uid).once('value').catch(() => null);
+  const chats = snap ? Object.entries(snap.val() || {}) : [];
+
+  if (chats.length === 0) {
+    threadsEl.innerHTML = '<div class="text-zinc-600 italic text-sm py-16 text-center">No chats yet. Message a friend from the Friends page!</div>';
+    return;
+  }
+
+  // Fetch last message for each chat for preview
+  const withPreviews = await Promise.all(chats.map(async ([chatId, c]) => {
+    let lastMsg = '';
+    try {
+      const msgSnap = await db.ref('directChats/' + chatId + '/messages')
+        .orderByChild('timestamp').limitToLast(1).once('value');
+      if (msgSnap.exists()) {
+        const msgs = Object.values(msgSnap.val());
+        lastMsg = msgs[0] ? msgs[0].text : '';
+      }
+    } catch(_) {}
+    return { chatId, chat: c, lastMsg };
+  }));
+
+  threadsEl.innerHTML = withPreviews.map(({ chatId, chat: c, lastMsg }) => `
+    <div class="social-card flex items-center gap-4 cursor-pointer" onclick="openDMChat('${chatId}','${c.peerUid}','${escHtml(c.peerDisplayName||'Friend')}')">
+      <img src="${escHtml(c.peerPhotoUrl||'')}" class="w-10 h-10 rounded-full object-cover border border-white/10 flex-shrink-0"
+           onerror="this.src='https://ui-avatars.com/api/?background=7c3aed&color=fff&name=${encodeURIComponent(c.peerDisplayName||'U')}'">
+      <div class="flex-1 min-w-0">
+        <div class="font-semibold text-white truncate">${escHtml(c.peerDisplayName||'Friend')}</div>
+        <div class="text-zinc-500 text-xs truncate mt-0.5">${escHtml(lastMsg || 'No messages yet')}</div>
+      </div>
+    </div>`).join('');
+}
+
+async function openDMChat(chatId, peerUid, peerDisplayName) {
+  _activeChatId = chatId;
+  _chatPeerUid  = peerUid;
+
+  document.getElementById('chat-thread-list').classList.add('hidden');
+  document.getElementById('chat-dm-window').classList.remove('hidden');
+  document.getElementById('dm-peer-name').textContent = peerDisplayName;
+
+  if (_dmMsgsRef) { _dmMsgsRef.off(); _dmMsgsRef = null; }
+
+  const myUid = auth.currentUser ? auth.currentUser.uid : null;
+  _dmMsgsRef = db.ref('directChats/' + chatId + '/messages')
+    .orderByChild('timestamp').limitToLast(60);
+  _dmMsgsRef.on('value', snap => {
+    const entries = Object.entries(snap.val() || {}).sort((a,b) => a[1].timestamp - b[1].timestamp);
+    const el = document.getElementById('dm-messages');
+    if (!el) return;
+    el.innerHTML = entries.length === 0
+      ? '<div class="text-zinc-600 text-xs italic text-center py-8">No messages yet. Say hello!</div>'
+      : entries.map(([, m]) => {
+          const isSelf = m.senderUid === myUid;
+          return `<div class="chat-bubble${isSelf?' self':''}">
+            <div class="chat-bubble-text">
+              ${!isSelf ? `<div style="font-size:0.7rem;color:#a78bfa;font-weight:700;margin-bottom:3px;">@${escHtml(m.senderUsername||'?')}</div>` : ''}
+              ${escHtml(m.text||'')}
+            </div>
+          </div>`;
+        }).join('');
+    el.scrollTop = el.scrollHeight;
+  });
+}
+
+function closeDMChat() {
+  if (_dmMsgsRef) { _dmMsgsRef.off(); _dmMsgsRef = null; }
+  _activeChatId = null;
+  _chatPeerUid  = null;
+  document.getElementById('chat-dm-window').classList.add('hidden');
+  document.getElementById('chat-thread-list').classList.remove('hidden');
+  loadChatList();
+}
+
+async function sendDM() {
+  const user = auth.currentUser;
+  if (!user || !_activeChatId) return;
+  const input = document.getElementById('dm-input');
+  const text  = input ? input.value.trim() : '';
+  if (!text) return;
+  const mySnap = await db.ref('users/' + user.uid).once('value').catch(() => null);
+  const me = mySnap ? (mySnap.val() || {}) : {};
+  try {
+    await db.ref('directChats/' + _activeChatId + '/messages').push({
+      senderUid:      user.uid,
+      senderUsername: me.username || user.displayName || 'user',
+      text,
+      timestamp: Date.now()
+    });
+    if (input) input.value = '';
+  } catch(err) {
+    alert('Could not send message: ' + (err.message || err));
+  }
+}
+
+// ── GROUP CHAT ────────────────────────────────────────────────────────────────
+
+function setGroupSubTab(tab) {
+  _groupSubTab = tab;
+  document.getElementById('btn-group-posts-tab').classList.toggle('active-ct', tab === 'posts');
+  document.getElementById('btn-group-chat-tab').classList.toggle('active-ct', tab === 'chat');
+  document.getElementById('group-posts-panel').classList.toggle('hidden', tab !== 'posts');
+  document.getElementById('group-chat-panel').classList.toggle('hidden', tab !== 'chat');
+
+  if (tab === 'chat' && _currentGroupId && !_groupMsgsRef) {
+    const myUid = auth.currentUser ? auth.currentUser.uid : null;
+    _groupMsgsRef = db.ref('groupMessages/' + _currentGroupId)
+      .orderByChild('timestamp').limitToLast(80);
+    _groupMsgsRef.on('value', snap => {
+      const entries = Object.entries(snap.val() || {}).sort((a,b) => a[1].timestamp - b[1].timestamp);
+      const el = document.getElementById('group-messages');
+      if (!el) return;
+      el.innerHTML = entries.length === 0
+        ? '<div class="text-zinc-600 text-xs italic text-center py-8">No messages yet. Say hello!</div>'
+        : entries.map(([, m]) => {
+            const isSelf = m.senderUid === myUid;
+            return `<div class="chat-bubble${isSelf?' self':''}">
+              <div class="chat-bubble-text">
+                ${!isSelf ? `<div style="font-size:0.7rem;color:#a78bfa;font-weight:700;margin-bottom:3px;">@${escHtml(m.senderUsername||'?')}</div>` : ''}
+                ${escHtml(m.text||'')}
+              </div>
+            </div>`;
+          }).join('');
+      el.scrollTop = el.scrollHeight;
+    });
+  }
+}
+
+async function sendGroupMessage() {
+  const user = auth.currentUser;
+  if (!user || !_currentGroupId) return;
+  const input = document.getElementById('group-msg-input');
+  const text  = input ? input.value.trim() : '';
+  if (!text) return;
+  const mySnap = await db.ref('users/' + user.uid).once('value').catch(() => null);
+  const me = mySnap ? (mySnap.val() || {}) : {};
+  try {
+    await db.ref('groupMessages/' + _currentGroupId).push({
+      senderUid:      user.uid,
+      senderUsername: me.username || user.displayName || 'user',
+      text,
+      timestamp: Date.now()
+    });
+    if (input) input.value = '';
+  } catch(err) {
+    alert('Could not send message: ' + (err.message || err));
+  }
 }
 
 function openCreateGroupModal() {
