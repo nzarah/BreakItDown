@@ -4267,13 +4267,17 @@ async function requestBorrow(postAuthorUid, groupId, postId, postTitle) {
   } catch(_) {}
   const mySnap = await db.ref('users/' + user.uid).once('value');
   const me     = mySnap.val() || {};
-  await db.ref('borrowRequests/' + postAuthorUid).push({
-    requesterUid:      user.uid,
-    requesterUsername: me.username || user.displayName || 'user',
-    requesterPhotoUrl: me.photoUrl || user.photoURL || '',
-    groupId, postId, postTitle, timestamp: Date.now(), status: 'pending'
-  });
-  alert('Borrow request sent! The author will be notified.');
+  try {
+    await db.ref('borrowRequests/' + postAuthorUid).push({
+      requesterUid:      user.uid,
+      requesterUsername: me.username || user.displayName || 'user',
+      requesterPhotoUrl: me.photoUrl || user.photoURL || '',
+      groupId, postId, postTitle, timestamp: Date.now(), status: 'pending'
+    });
+    alert('Borrow request sent! The author will be notified.');
+  } catch(err) {
+    alert('Could not send borrow request: ' + (err.message || err));
+  }
 }
 
 async function approveBorrow(reqId, requesterUid, requesterUsername, groupId, postId) {
@@ -4366,8 +4370,8 @@ async function _renderBorrowModal(allEntries, myUid, groupId) {
   const lentEl    = document.getElementById('borrow-modal-lent');
   if (!pendingEl || !lentEl) return;
 
-  // Pending requests for THIS group
-  const pending = allEntries.filter(([, r]) => r.status === 'pending' && r.groupId === groupId);
+  // Show ALL pending requests (across all groups)
+  const pending = allEntries.filter(([, r]) => r.status === 'pending');
   if (pending.length === 0) {
     pendingEl.innerHTML = '<div style="color:#52525b;font-size:0.82rem;font-style:italic;padding:8px 0;">No pending requests.</div>';
   } else {
