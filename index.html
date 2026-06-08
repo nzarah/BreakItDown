@@ -4256,17 +4256,19 @@ async function addComment(groupId, postId) {
 async function requestBorrow(postAuthorUid, groupId, postId, postTitle) {
   const user = auth.currentUser;
   if (!user || postAuthorUid === user.uid) return;
-  // Check for an existing pending request to avoid duplicates
-  const existing = await db.ref('borrowRequests/' + postAuthorUid)
-    .orderByChild('postId').equalTo(postId).once('value');
-  const alreadySent = Object.values(existing.val() || {}).some(
-    r => r.requesterUid === user.uid && r.status === 'pending'
-  );
-  if (alreadySent) { alert('You already have a pending borrow request for this post.'); return; }
+  // Check for duplicate — wrapped in try/catch so a rules read-denial doesn't block the push
+  try {
+    const existing = await db.ref('borrowRequests/' + postAuthorUid)
+      .orderByChild('postId').equalTo(postId).once('value');
+    const alreadySent = Object.values(existing.val() || {}).some(
+      r => r.requesterUid === user.uid && r.status === 'pending'
+    );
+    if (alreadySent) { alert('You already have a pending borrow request for this post.'); return; }
+  } catch(_) {}
   const mySnap = await db.ref('users/' + user.uid).once('value');
   const me     = mySnap.val() || {};
   await db.ref('borrowRequests/' + postAuthorUid).push({
-    requesterUid: user.uid,
+    requesterUid:      user.uid,
     requesterUsername: me.username || user.displayName || 'user',
     requesterPhotoUrl: me.photoUrl || user.photoURL || '',
     groupId, postId, postTitle, timestamp: Date.now(), status: 'pending'
