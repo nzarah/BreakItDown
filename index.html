@@ -496,6 +496,10 @@
     .borrow-view-modal-overlay { position: fixed; inset: 0; z-index: 80; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 20px; }
     .borrow-view-modal-inner { background: #1a1825; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; width: 100%; max-width: 680px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 32px 80px rgba(0,0,0,0.7); overflow: hidden; }
 
+    .feed-group-tag { display:inline-flex; align-items:center; gap:6px; font-size:0.65rem; font-weight:800; color:#7c3aed; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:8px; cursor:pointer; transition:color 0.15s; }
+    .feed-group-tag:hover { color:#a78bfa; }
+    .feed-group-tag::before { content:''; display:inline-block; width:6px; height:6px; border-radius:50%; background:#7c3aed; flex-shrink:0; }
+
     .posts-label {
       font-size: 0.65rem; font-weight: 800; color: #7c3aed;
       text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 16px;
@@ -1427,6 +1431,12 @@
     <!-- ── STUDY GROUPS PAGE ── -->
     <section id="pg-groups" class="page-section p-10 max-w-5xl mx-auto">
 
+      <!-- Groups / Feed tab bar -->
+      <div id="groups-tab-bar" class="flex gap-2 mb-6">
+        <button id="btn-groups-tab" onclick="setGroupsTab('groups')" class="chart-type-btn active-ct">Study Groups</button>
+        <button id="btn-feed-tab"   onclick="setGroupsTab('feed')"   class="chart-type-btn">My Feed</button>
+      </div>
+
       <!-- Groups list view -->
       <div id="groups-list-view">
         <div class="flex justify-between items-center mb-8">
@@ -1438,6 +1448,13 @@
         </div>
         <div id="groups-list" class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="text-zinc-600 italic text-sm py-16 text-center col-span-full">No groups yet. Create one or ask a friend to add you!</div>
+        </div>
+      </div>
+
+      <!-- My Feed view -->
+      <div id="my-feed-view" class="hidden">
+        <div id="my-feed-list" class="space-y-6">
+          <div class="text-zinc-600 italic text-sm py-16 text-center">Loading your feed…</div>
         </div>
       </div>
 
@@ -3815,6 +3832,7 @@ function declineFriendRequest(fromUid) {
 let _currentGroupId   = null;
 let _groupPostsRef    = null;
 let _borrowReqRef     = null;
+let _groupsTab        = 'groups'; // 'groups' | 'feed'
 
 function loadGroupsPage() {
   const user = auth.currentUser;
@@ -3853,7 +3871,9 @@ async function openGroup(groupId) {
   if (!user) return;
   _currentGroupId = groupId;
 
+  document.getElementById('groups-tab-bar').classList.add('hidden');
   document.getElementById('groups-list-view').classList.add('hidden');
+  document.getElementById('my-feed-view').classList.add('hidden');
   document.getElementById('group-detail-view').classList.remove('hidden');
 
   const gSnap = await db.ref('studyGroups/' + groupId).once('value');
@@ -3972,9 +3992,90 @@ function closeGroupDetail() {
   if (_borrowReqRef)  { _borrowReqRef.off();  _borrowReqRef  = null; }
   _currentGroupId = null;
   closeBorrowRequestsModal();
-  document.getElementById('groups-list-view').classList.remove('hidden');
   document.getElementById('group-detail-view').classList.add('hidden');
-  loadGroupsPage();
+  document.getElementById('groups-tab-bar').classList.remove('hidden');
+  if (_groupsTab === 'feed') {
+    document.getElementById('my-feed-view').classList.remove('hidden');
+    loadMyFeed();
+  } else {
+    document.getElementById('groups-list-view').classList.remove('hidden');
+    loadGroupsPage();
+  }
+}
+
+function setGroupsTab(tab) {
+  _groupsTab = tab;
+  document.getElementById('btn-groups-tab').classList.toggle('active-ct', tab === 'groups');
+  document.getElementById('btn-feed-tab').classList.toggle('active-ct', tab === 'feed');
+  document.getElementById('groups-list-view').classList.toggle('hidden', tab !== 'groups');
+  document.getElementById('my-feed-view').classList.toggle('hidden', tab !== 'feed');
+  if (tab === 'feed') loadMyFeed();
+  else loadGroupsPage();
+}
+
+async function loadMyFeed() {
+  const user = auth.currentUser;
+  if (!user) return;
+  const feedList = document.getElementById('my-feed-list');
+  if (!feedList) return;
+  feedList.innerHTML = '<div class="text-zinc-600 italic text-sm py-16 text-center">Loading your feed…</div>';
+
+  // 1. Fetch friends directly (don't rely on _friendsCache which needs the Friends page to be visited)
+  const friendsSnap = await db.ref('friends/' + user.uid).once('value').catch(() => null);
+  const friendMap   = friendsSnap ? (friendsSnap.val() || {}) : {};
+  const friendIds   = Object.keys(friendMap);
+  if (friendIds.length === 0) {
+    feedList.innerHTML = '<div class="text-zinc-600 italic text-sm py-16 text-center">Add friends to see their posts here.</div>';
+    return;
+  }
+
+  // 2. Get every group each friend belongs to
+  const friendSet  = new Set(friendIds);
+  const groupSnaps = await Promise.all(friendIds.map(fuid =>
+    db.ref('userGroups/' + fuid).once('value').catch(() => null)
+  ));
+  const groupIds = new Set();
+  groupSnaps.forEach(s => s && Object.keys(s.val() || {}).forEach(gid => groupIds.add(gid)));
+
+  if (groupIds.size === 0) {
+    feedList.innerHTML = '<div class="text-zinc-600 italic text-sm py-16 text-center">Your friends haven\'t posted in any groups yet.</div>';
+    return;
+  }
+
+  // 3. Fetch recent posts + group name for each group in parallel
+  const allPosts = [];
+  await Promise.all([...groupIds].map(async gid => {
+    const [postsSnap, nameSnap] = await Promise.all([
+      db.ref('groupPosts/' + gid).orderByChild('timestamp').limitToLast(20).once('value').catch(() => null),
+      db.ref('studyGroups/' + gid + '/name').once('value').catch(() => null)
+    ]);
+    const groupName = (nameSnap && nameSnap.val()) || 'Unknown Group';
+    const posts     = postsSnap ? (postsSnap.val() || {}) : {};
+    Object.entries(posts).forEach(([pid, p]) => {
+      if (friendSet.has(p.authorUid)) {
+        allPosts.push({ groupId: gid, groupName, postId: pid, post: p });
+      }
+    });
+  }));
+
+  // 4. Sort newest-first, cap at 50
+  allPosts.sort((a, b) => b.post.timestamp - a.post.timestamp);
+  const recent = allPosts.slice(0, 50);
+
+  if (recent.length === 0) {
+    feedList.innerHTML = '<div class="text-zinc-600 italic text-sm py-16 text-center">No recent posts from your friends yet.</div>';
+    return;
+  }
+
+  // 5. Render — each post preceded by a clickable group-name tag
+  feedList.innerHTML = recent.map(({ groupId, groupName, postId, post }) =>
+    `<div>
+       <div class="feed-group-tag" onclick="openGroup('${groupId}')">${escHtml(groupName)}</div>
+       ${renderPost(groupId, postId, post, user.uid)}
+     </div>`
+  ).join('');
+
+  requestAnimationFrame(() => { requestAnimationFrame(_scaleAllSlides); _fillSlideshowPreviews(); });
 }
 
 function openCreateGroupModal() {
