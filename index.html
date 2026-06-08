@@ -3950,7 +3950,7 @@ function renderPost(groupId, postId, p, myUid) {
     <div class="flex items-center gap-2 pt-3 border-t border-white/5 flex-wrap">
       <button onclick="likePost('${groupId}','${postId}')" class="like-btn${iLiked?' liked':''}">♥ ${likeCount || 0}</button>
       <button onclick="toggleComments('${groupId}','${postId}')" class="comment-btn">💬 <span id="cmt-lbl-${postId}">Comments</span></button>
-      ${!isMine?`<button onclick="requestBorrow('${p.authorUid}','${groupId}','${postId}',${JSON.stringify(p.title||'this post').replace(/</g,'\\u003c')})" class="borrow-btn">↓ Borrow</button>`:''}
+      ${!isMine?`<button onclick="requestBorrow('${p.authorUid}','${groupId}','${postId}')" class="borrow-btn">↓ Borrow</button>`:''}
     </div>
     <div id="comments-${postId}" class="hidden mt-5 pt-4 border-t border-white/5">
       <div id="cmt-list-${postId}" class="space-y-2 mb-4"></div>
@@ -4253,10 +4253,17 @@ async function addComment(groupId, postId) {
   loadComments(groupId, postId);
 }
 
-async function requestBorrow(postAuthorUid, groupId, postId, postTitle) {
+async function requestBorrow(postAuthorUid, groupId, postId) {
   const user = auth.currentUser;
   if (!user || postAuthorUid === user.uid) return;
-  // Check for duplicate — wrapped in try/catch so a rules read-denial doesn't block the push
+  // Fetch post title and current user profile in parallel
+  const [pSnap, mySnap] = await Promise.all([
+    db.ref('groupPosts/' + groupId + '/' + postId).once('value'),
+    db.ref('users/' + user.uid).once('value')
+  ]);
+  const postTitle = (pSnap.val() || {}).title || 'Untitled';
+  const me        = mySnap.val() || {};
+  // Check for duplicate pending request
   try {
     const existing = await db.ref('borrowRequests/' + postAuthorUid)
       .orderByChild('postId').equalTo(postId).once('value');
@@ -4265,8 +4272,6 @@ async function requestBorrow(postAuthorUid, groupId, postId, postTitle) {
     );
     if (alreadySent) { alert('You already have a pending borrow request for this post.'); return; }
   } catch(_) {}
-  const mySnap = await db.ref('users/' + user.uid).once('value');
-  const me     = mySnap.val() || {};
   try {
     await db.ref('borrowRequests/' + postAuthorUid).push({
       requesterUid:      user.uid,
