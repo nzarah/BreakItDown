@@ -56,7 +56,7 @@ async function callGemini(prompt, extraParts = [], model = "gemini-2.5-flash") {
 }
 
 // ── ROUTES ──────────────────────────────────────────────────────────────────
-app.get("/", (req, res) => res.json({ status: "BreakItDown backend running." }));
+app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 
 app.get("/app", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
