@@ -1259,11 +1259,31 @@
           <h2 class="text-2xl font-bold">My Stuff</h2>
           <p class="text-zinc-500 text-sm mt-1">All your saved notes, roadmaps, video breakdowns, and slideshows.</p>
         </div>
+        <button onclick="openCreateFolderModal()" style="display:flex;align-items:center;gap:6px;padding:9px 18px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.3);border-radius:12px;color:#a78bfa;font-size:0.82rem;font-weight:700;cursor:pointer;transition:all 0.15s;font-family:inherit;" onmouseover="this.style.background='rgba(139,92,246,0.22)'" onmouseout="this.style.background='rgba(139,92,246,0.12)'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+          New Folder
+        </button>
       </div>
       <div class="flex gap-2 mb-6">
         <button id="btn-mystuff-mine" onclick="setMyStuffTab('mine')" class="chart-type-btn active-ct">My Stuff</button>
         <button id="btn-mystuff-shared" onclick="setMyStuffTab('shared')" class="chart-type-btn">Shared with me</button>
         <button id="btn-mystuff-borrowed" onclick="setMyStuffTab('borrowed')" class="chart-type-btn">Borrowed</button>
+      </div>
+      <!-- Folder view header (shown when inside a folder) -->
+      <div id="folder-view-header" class="hidden mb-6">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);border-radius:14px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <button onclick="closeFolderView()" style="display:flex;align-items:center;gap:5px;padding:6px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#a1a1aa;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:inherit;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#a1a1aa'">&#8592; All</button>
+            <span id="folder-view-emoji" style="font-size:1.4rem;"></span>
+            <span id="folder-view-name" style="font-size:1.1rem;font-weight:800;color:white;"></span>
+          </div>
+          <button id="folder-post-btn" onclick="" style="display:flex;align-items:center;gap:6px;padding:7px 16px;background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;border-radius:10px;color:white;font-size:0.8rem;font-weight:700;cursor:pointer;transition:opacity 0.15s;font-family:inherit;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">Post Folder</button>
+        </div>
+      </div>
+      <!-- Folder cards row (shown in all-items view) -->
+      <div id="mystuff-folders-row" class="hidden mb-6">
+        <div class="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">Folders</div>
+        <div id="mystuff-folders-list" class="flex flex-wrap gap-3"></div>
       </div>
       <div id="mystuff-empty" class="hidden text-center py-24 text-zinc-600 italic">
         Nothing saved yet. Generate some notes or a roadmap and hit Save!
@@ -1274,6 +1294,34 @@
       <div id="borrowed-empty" class="hidden text-center py-24 text-zinc-600 italic">You haven't borrowed anything yet. Use the Borrow button on a group post to request access.</div>
       <div id="borrowed-list" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6"></div>
     </section>
+
+    <!-- ── CREATE FOLDER MODAL ── -->
+    <div id="create-folder-modal" class="js-hidden fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+      <div style="background:#13111C;border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:32px;width:100%;max-width:420px;">
+        <h3 style="font-size:1.1rem;font-weight:800;color:white;margin-bottom:20px;">New Folder</h3>
+        <div style="margin-bottom:14px;">
+          <label style="display:block;font-size:0.7rem;font-weight:700;color:#71717a;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:7px;">Folder Name</label>
+          <input id="new-folder-name" type="text" placeholder="e.g. Math, Biology, Finals..." class="settings-input" maxlength="40">
+        </div>
+        <div style="margin-bottom:20px;">
+          <label style="display:block;font-size:0.7rem;font-weight:700;color:#71717a;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:7px;">Emoji (optional)</label>
+          <input id="new-folder-emoji" type="text" placeholder="📁" class="settings-input" maxlength="2" style="max-width:80px;">
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button onclick="submitCreateFolder()" class="sett-save-btn" style="flex:1;">Create</button>
+          <button onclick="closeCreateFolderModal()" style="flex:1;padding:10px 20px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#a1a1aa;font-size:0.875rem;font-weight:700;cursor:pointer;transition:all 0.15s;font-family:inherit;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#a1a1aa'">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── MOVE TO FOLDER MODAL ── -->
+    <div id="move-to-folder-modal" class="js-hidden fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+      <div style="background:#13111C;border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:32px;width:100%;max-width:400px;">
+        <h3 style="font-size:1rem;font-weight:800;color:white;margin-bottom:16px;">Move to Folder</h3>
+        <div id="move-folder-list" style="display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto;margin-bottom:18px;"></div>
+        <button onclick="closeMoveToFolderModal()" style="width:100%;padding:10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#a1a1aa;font-size:0.875rem;font-weight:700;cursor:pointer;transition:all 0.15s;font-family:inherit;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#a1a1aa'">Cancel</button>
+      </div>
+    </div>
 
     <!-- ── SETTINGS PAGE ── -->
     <section id="pg-settings" class="page-section p-10 max-w-4xl mx-auto">
@@ -1884,12 +1932,16 @@
     let _currentCardSourceTitle = '';
     let _currentSharedNoteContext = null; // { ownerUid, noteId, role, shareId }
     let _myStuffTab = 'mine';
+    let _viewingFolderId = null;
+    let _movingItemKind  = null;
+    let _movingItemId    = null;
 
     function _clearCardsState() {
       _currentCards = null;
       _currentCardSourceTitle = '';
       _currentSharedNoteContext = null;
       _myStuffTab = 'mine';
+      _viewingFolderId = null;
       const c = document.getElementById('cards-container');
       if (c) c.innerHTML = '<div class="col-span-full text-center py-20 text-zinc-600 italic">Generate notes first, then click AI Generate — or pick a saved note from My Stuff!</div>';
       const sa = document.getElementById('cards-save-area');
@@ -2432,100 +2484,344 @@ async function loadMyStuff() {
   const user = _appUser;
   if (!user) return;
 
-  const [notesSnap, fcSnap] = await Promise.all([
+  const [notesSnap, fcSnap, foldersSnap] = await Promise.all([
     db.ref('notes/' + user.uid).once('value'),
-    db.ref('flashcards/' + user.uid).once('value')
+    db.ref('flashcards/' + user.uid).once('value'),
+    db.ref('folders/' + user.uid).once('value')
   ]);
 
-  // Slideshows fetched separately so a missing security-rule doesn't break existing items
   let slidesSnap = null;
   try { slidesSnap = await db.ref('slideshows/' + user.uid).once('value'); } catch (_) {}
 
-  // Skip note-mirror entries written for slideshow sharing (type: 'Slideshow' in notes/)
   const notes  = Object.values(notesSnap.val() || {}).filter(n => n.type !== 'Slideshow').map(n => ({ ...n, _kind: 'note' }));
   const fcSets = Object.values(fcSnap.val() || {}).map(s => ({ ...s, _kind: 'flashcards' }));
   const slides = slidesSnap ? Object.values(slidesSnap.val() || {}).map(s => ({ ...s, _kind: 'slideshow' })) : [];
-  const all = [...notes, ...fcSets, ...slides].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  const folders = Object.values(foldersSnap.val() || {}).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-  const list = document.getElementById('mystuff-list');
+  const folderViewHeader = document.getElementById('folder-view-header');
+  const foldersRow       = document.getElementById('mystuff-folders-row');
+  const foldersList      = document.getElementById('mystuff-folders-list');
+  const list  = document.getElementById('mystuff-list');
   const empty = document.getElementById('mystuff-empty');
 
-  if (all.length === 0) {
-    list.innerHTML = '';
-    empty.classList.remove('hidden');
-    return;
+  // Build item counts per folder
+  const allItems = [...notes, ...fcSets, ...slides];
+  const folderCounts = {};
+  allItems.forEach(item => {
+    if (item.folderId) folderCounts[item.folderId] = (folderCounts[item.folderId] || 0) + 1;
+  });
+
+  if (_viewingFolderId) {
+    // Folder view mode
+    const folder = folders.find(f => f.id === _viewingFolderId);
+    folderViewHeader.classList.remove('hidden');
+    foldersRow.classList.add('hidden');
+    document.getElementById('folder-view-emoji').textContent = folder ? (folder.emoji || '📁') : '📁';
+    document.getElementById('folder-view-name').textContent  = folder ? folder.name : '';
+    const postBtn = document.getElementById('folder-post-btn');
+    postBtn.onclick = () => openPostFolderToGroupModal(_viewingFolderId);
+
+    const folderItems = allItems.filter(i => i.folderId === _viewingFolderId)
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    if (folderItems.length === 0) {
+      list.innerHTML = '<div class="col-span-full text-center py-16 text-zinc-600 italic">This folder is empty. Move items here using the "Move" button on any item.</div>';
+      empty.classList.add('hidden');
+    } else {
+      empty.classList.add('hidden');
+      list.innerHTML = folderItems.map(item => _renderMyStuffItem(item, null, true)).join('');
+    }
+  } else {
+    // All-items view
+    folderViewHeader.classList.add('hidden');
+
+    if (folders.length > 0) {
+      foldersRow.classList.remove('hidden');
+      foldersList.innerHTML = folders.map(f => {
+        const count = folderCounts[f.id] || 0;
+        return `<div onclick="openFolder('${f.id}')" style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:rgba(139,92,246,0.07);border:1px solid rgba(139,92,246,0.18);border-radius:12px;cursor:pointer;transition:all 0.15s;min-width:140px;" onmouseover="this.style.background='rgba(139,92,246,0.15)';this.style.borderColor='rgba(139,92,246,0.35)';" onmouseout="this.style.background='rgba(139,92,246,0.07)';this.style.borderColor='rgba(139,92,246,0.18)';">
+          <span style="font-size:1.2rem;">${escHtml(f.emoji || '📁')}</span>
+          <div style="min-width:0;">
+            <div style="font-weight:700;color:white;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;">${escHtml(f.name)}</div>
+            <div style="font-size:0.7rem;color:#71717a;">${count} item${count !== 1 ? 's' : ''}</div>
+          </div>
+          <button onclick="event.stopPropagation();deleteFolderConfirm('${f.id}')" style="margin-left:auto;background:none;border:none;color:#52525b;cursor:pointer;font-size:0.7rem;padding:2px 6px;border-radius:6px;transition:color 0.15s;font-family:inherit;" onmouseover="this.style.color='#f87171'" onmouseout="this.style.color='#52525b'">✕</button>
+        </div>`;
+      }).join('');
+    } else {
+      foldersRow.classList.add('hidden');
+    }
+
+    const all = allItems.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    if (all.length === 0) {
+      list.innerHTML = '';
+      empty.classList.remove('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+    list.innerHTML = all.map(item => _renderMyStuffItem(item, folders, false)).join('');
   }
-  empty.classList.add('hidden');
+}
 
-  const typeColors = { 'Note': 'violet', 'Roadmap': 'emerald', 'Video': 'red' };
+function _renderMyStuffItem(item, folders, inFolderView) {
+  const date = new Date(item.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const folderBadge = (!inFolderView && item.folderId && folders)
+    ? (() => { const f = folders.find(fl => fl.id === item.folderId); return f ? `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:999px;font-size:0.65rem;font-weight:700;color:#a78bfa;margin-left:6px;">${escHtml(f.emoji||'📁')} ${escHtml(f.name)}</span>` : ''; })()
+    : '';
+  const moveBtn = `<button onclick="openMoveToFolderModal('${item._kind}','${item.id}')" class="py-2 px-3 rounded-lg bg-white/5 hover:bg-violet-500/20 text-zinc-500 hover:text-violet-400 text-sm font-semibold transition-colors" title="Move to folder">📁</button>`;
 
-  list.innerHTML = all.map(item => {
-    const date = new Date(item.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-
-    if (item._kind === 'slideshow') {
-      const count = (item.slides || []).length;
-      const preview = item.slides && item.slides[0] ? item.slides[0].heading || '' : '';
-      return `
-        <div class="action-card-landing group flex flex-col gap-3 border-l-4 border-l-violet-500">
-          <div class="flex items-start justify-between gap-2">
-            <div>
-              <span class="text-[10px] font-bold text-violet-400 uppercase tracking-widest">Slideshow · ${escHtml(item.subject || '')}</span>
-              <h3 class="text-white font-bold mt-0.5 leading-tight">${escHtml(item.title || 'Untitled Slideshow')}</h3>
-            </div>
-            <span class="text-[10px] text-zinc-600 whitespace-nowrap mt-1">${date}</span>
-          </div>
-          <p class="text-zinc-500 text-sm flex-1">${count} slide${count !== 1 ? 's' : ''}${preview ? ' · ' + escHtml(preview.slice(0, 60)) : ''}</p>
-          <div class="flex gap-2 mt-2 flex-wrap">
-            <button onclick="openSlideEditor(null,'${item.id}')" class="flex-1 py-2 rounded-lg bg-white/5 hover:bg-violet-500/20 text-zinc-300 hover:text-white text-sm font-semibold transition-colors">Edit</button>
-            <button onclick="openSlidePreview('${item.id}')" class="flex-1 py-2 rounded-lg bg-violet-500/10 hover:bg-violet-500/25 text-violet-400 hover:text-violet-300 text-sm font-semibold transition-colors">Preview</button>
-            <button onclick="openPostToGroupModalFromSlideshow('${item.id}')" class="flex-1 py-2 rounded-lg bg-violet-500/10 hover:bg-violet-500/25 text-violet-400 hover:text-violet-300 text-sm font-semibold transition-colors">Post</button>
-            <button onclick="shareSlideshow('${item.id}')" class="flex-1 py-2 rounded-lg bg-white/5 hover:bg-violet-500/20 text-zinc-300 hover:text-white text-sm font-semibold transition-colors">Share</button>
-            <button onclick="deleteSavedSlideshow('${item.id}')" class="py-2 px-4 rounded-lg bg-white/5 hover:bg-red-500/20 text-zinc-500 hover:text-red-400 text-sm font-semibold transition-colors">Delete</button>
-          </div>
-        </div>`;
-    }
-
-    if (item._kind === 'flashcards') {
-      const count = (item.cards || []).length;
-      return `
-        <div class="action-card-landing group flex flex-col gap-3 border-l-4 border-l-pink-500">
-          <div class="flex items-start justify-between gap-2">
-            <div>
-              <span class="text-[10px] font-bold text-pink-400 uppercase tracking-widest">Flashcards</span>
-              <h3 class="text-white font-bold mt-0.5 leading-tight">${item.title}</h3>
-            </div>
-            <span class="text-[10px] text-zinc-600 whitespace-nowrap mt-1">${date}</span>
-          </div>
-          <p class="text-zinc-500 text-sm flex-1">${count} card${count !== 1 ? 's' : ''}</p>
-          <div class="flex gap-2 mt-2">
-            <button onclick="studyFlashcardSet('${item.id}')" class="flex-1 py-2 rounded-lg bg-pink-500/10 hover:bg-pink-500/25 text-pink-400 hover:text-pink-300 text-sm font-semibold transition-colors">Study</button>
-            <button onclick="openPostToGroupModalFromFlashcards('${item.id}')" class="flex-1 py-2 rounded-lg bg-violet-500/10 hover:bg-violet-500/25 text-violet-400 hover:text-violet-300 text-sm font-semibold transition-colors">Post in Group</button>
-            <button onclick="deleteFlashcardSet('${item.id}')" class="py-2 px-4 rounded-lg bg-white/5 hover:bg-red-500/20 text-zinc-500 hover:text-red-400 text-sm font-semibold transition-colors">Delete</button>
-          </div>
-        </div>`;
-    }
-
-    const n = item;
-    const color = typeColors[n.type] || 'violet';
-    const preview = (n.content || '').replace(/<[^>]+>/g, '').slice(0, 120) + '...';
+  if (item._kind === 'slideshow') {
+    const count = (item.slides || []).length;
+    const preview = item.slides && item.slides[0] ? item.slides[0].heading || '' : '';
     return `
-      <div class="action-card-landing group flex flex-col gap-3 border-l-4 border-l-${color}-500">
+      <div class="action-card-landing group flex flex-col gap-3 border-l-4 border-l-violet-500">
         <div class="flex items-start justify-between gap-2">
           <div>
-            <span class="text-[10px] font-bold text-${color}-400 uppercase tracking-widest">${n.type || 'Note'}</span>
-            <h3 class="text-white font-bold mt-0.5 leading-tight">${n.title}</h3>
+            <span class="text-[10px] font-bold text-violet-400 uppercase tracking-widest">Slideshow · ${escHtml(item.subject || '')}</span>${folderBadge}
+            <h3 class="text-white font-bold mt-0.5 leading-tight">${escHtml(item.title || 'Untitled Slideshow')}</h3>
           </div>
           <span class="text-[10px] text-zinc-600 whitespace-nowrap mt-1">${date}</span>
         </div>
-        <p class="text-zinc-500 text-sm leading-relaxed flex-1">${preview}</p>
-        <div class="flex gap-2 mt-2">
-          <button onclick="openEditor('${n.id}')" class="flex-1 py-2 rounded-lg bg-white/5 hover:bg-violet-500/20 text-zinc-300 hover:text-white text-sm font-semibold transition-colors">Edit</button>
-          <button onclick="generateCardsFromSaved('${n.id}')" class="flex-1 py-2 rounded-lg bg-pink-500/10 hover:bg-pink-500/25 text-pink-400 hover:text-pink-300 text-sm font-semibold transition-colors">Make Cards</button>
-          <button onclick="openPostToGroupModalFromNote('${n.id}')" class="flex-1 py-2 rounded-lg bg-violet-500/10 hover:bg-violet-500/25 text-violet-400 hover:text-violet-300 text-sm font-semibold transition-colors">Post in Group</button>
-          <button onclick="deleteNote('${n.id}')" class="py-2 px-4 rounded-lg bg-white/5 hover:bg-red-500/20 text-zinc-500 hover:text-red-400 text-sm font-semibold transition-colors">Delete</button>
+        <p class="text-zinc-500 text-sm flex-1">${count} slide${count !== 1 ? 's' : ''}${preview ? ' · ' + escHtml(preview.slice(0, 60)) : ''}</p>
+        <div class="flex gap-2 mt-2 flex-wrap">
+          <button onclick="openSlideEditor(null,'${item.id}')" class="flex-1 py-2 rounded-lg bg-white/5 hover:bg-violet-500/20 text-zinc-300 hover:text-white text-sm font-semibold transition-colors">Edit</button>
+          <button onclick="openSlidePreview('${item.id}')" class="flex-1 py-2 rounded-lg bg-violet-500/10 hover:bg-violet-500/25 text-violet-400 hover:text-violet-300 text-sm font-semibold transition-colors">Preview</button>
+          <button onclick="openPostToGroupModalFromSlideshow('${item.id}')" class="flex-1 py-2 rounded-lg bg-violet-500/10 hover:bg-violet-500/25 text-violet-400 hover:text-violet-300 text-sm font-semibold transition-colors">Post</button>
+          <button onclick="shareSlideshow('${item.id}')" class="flex-1 py-2 rounded-lg bg-white/5 hover:bg-violet-500/20 text-zinc-300 hover:text-white text-sm font-semibold transition-colors">Share</button>
+          ${moveBtn}
+          <button onclick="deleteSavedSlideshow('${item.id}')" class="py-2 px-4 rounded-lg bg-white/5 hover:bg-red-500/20 text-zinc-500 hover:text-red-400 text-sm font-semibold transition-colors">Delete</button>
         </div>
       </div>`;
-  }).join('');
+  }
+
+  if (item._kind === 'flashcards') {
+    const count = (item.cards || []).length;
+    return `
+      <div class="action-card-landing group flex flex-col gap-3 border-l-4 border-l-pink-500">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <span class="text-[10px] font-bold text-pink-400 uppercase tracking-widest">Flashcards</span>${folderBadge}
+            <h3 class="text-white font-bold mt-0.5 leading-tight">${item.title}</h3>
+          </div>
+          <span class="text-[10px] text-zinc-600 whitespace-nowrap mt-1">${date}</span>
+        </div>
+        <p class="text-zinc-500 text-sm flex-1">${count} card${count !== 1 ? 's' : ''}</p>
+        <div class="flex gap-2 mt-2">
+          <button onclick="studyFlashcardSet('${item.id}')" class="flex-1 py-2 rounded-lg bg-pink-500/10 hover:bg-pink-500/25 text-pink-400 hover:text-pink-300 text-sm font-semibold transition-colors">Study</button>
+          <button onclick="openPostToGroupModalFromFlashcards('${item.id}')" class="flex-1 py-2 rounded-lg bg-violet-500/10 hover:bg-violet-500/25 text-violet-400 hover:text-violet-300 text-sm font-semibold transition-colors">Post in Group</button>
+          ${moveBtn}
+          <button onclick="deleteFlashcardSet('${item.id}')" class="py-2 px-4 rounded-lg bg-white/5 hover:bg-red-500/20 text-zinc-500 hover:text-red-400 text-sm font-semibold transition-colors">Delete</button>
+        </div>
+      </div>`;
+  }
+
+  const typeColors = { 'Note': 'violet', 'Roadmap': 'emerald', 'Video': 'red' };
+  const n = item;
+  const color = typeColors[n.type] || 'violet';
+  const preview = (n.content || '').replace(/<[^>]+>/g, '').slice(0, 120) + '...';
+  return `
+    <div class="action-card-landing group flex flex-col gap-3 border-l-4 border-l-${color}-500">
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <span class="text-[10px] font-bold text-${color}-400 uppercase tracking-widest">${n.type || 'Note'}</span>${folderBadge}
+          <h3 class="text-white font-bold mt-0.5 leading-tight">${n.title}</h3>
+        </div>
+        <span class="text-[10px] text-zinc-600 whitespace-nowrap mt-1">${date}</span>
+      </div>
+      <p class="text-zinc-500 text-sm leading-relaxed flex-1">${preview}</p>
+      <div class="flex gap-2 mt-2 flex-wrap">
+        <button onclick="openEditor('${n.id}')" class="flex-1 py-2 rounded-lg bg-white/5 hover:bg-violet-500/20 text-zinc-300 hover:text-white text-sm font-semibold transition-colors">Edit</button>
+        <button onclick="generateCardsFromSaved('${n.id}')" class="flex-1 py-2 rounded-lg bg-pink-500/10 hover:bg-pink-500/25 text-pink-400 hover:text-pink-300 text-sm font-semibold transition-colors">Make Cards</button>
+        <button onclick="openPostToGroupModalFromNote('${n.id}')" class="flex-1 py-2 rounded-lg bg-violet-500/10 hover:bg-violet-500/25 text-violet-400 hover:text-violet-300 text-sm font-semibold transition-colors">Post in Group</button>
+        ${moveBtn}
+        <button onclick="deleteNote('${n.id}')" class="py-2 px-4 rounded-lg bg-white/5 hover:bg-red-500/20 text-zinc-500 hover:text-red-400 text-sm font-semibold transition-colors">Delete</button>
+      </div>
+    </div>`;
+}
+
+// ── FOLDER MANAGEMENT ────────────────────────────────────────────────────────
+
+function openFolder(folderId) {
+  _viewingFolderId = folderId;
+  loadMyStuff();
+}
+
+function closeFolderView() {
+  _viewingFolderId = null;
+  loadMyStuff();
+}
+
+function openCreateFolderModal() {
+  document.getElementById('new-folder-name').value  = '';
+  document.getElementById('new-folder-emoji').value = '';
+  const m = document.getElementById('create-folder-modal');
+  m.classList.remove('js-hidden'); m.style.display = 'flex';
+}
+
+function closeCreateFolderModal() {
+  const m = document.getElementById('create-folder-modal');
+  m.classList.add('js-hidden'); m.style.display = 'none';
+}
+
+async function submitCreateFolder() {
+  const user = _appUser;
+  if (!user) return;
+  const name  = document.getElementById('new-folder-name').value.trim();
+  const emoji = document.getElementById('new-folder-emoji').value.trim() || '📁';
+  if (!name) { alert('Please enter a folder name.'); return; }
+  const folderId = 'folder_' + Date.now();
+  await db.ref('folders/' + user.uid + '/' + folderId).set({
+    id: folderId, name, emoji, timestamp: new Date().toISOString()
+  });
+  closeCreateFolderModal();
+  loadMyStuff();
+}
+
+async function deleteFolderConfirm(folderId) {
+  if (!confirm('Delete this folder? Items inside will move back to All Items.')) return;
+  const user = _appUser;
+  if (!user) return;
+  await db.ref('folders/' + user.uid + '/' + folderId).remove();
+  // Clear folderId from all items
+  const [notesSnap, slidesSnap, fcSnap] = await Promise.all([
+    db.ref('notes/' + user.uid).once('value'),
+    db.ref('slideshows/' + user.uid).once('value').catch(() => ({ val: () => null })),
+    db.ref('flashcards/' + user.uid).once('value')
+  ]);
+  const updates = {};
+  Object.entries(notesSnap.val() || {}).forEach(([id, n]) => {
+    if (n.folderId === folderId) updates['notes/' + user.uid + '/' + id + '/folderId'] = null;
+  });
+  const slidesVal = slidesSnap && typeof slidesSnap.val === 'function' ? slidesSnap.val() : null;
+  Object.entries(slidesVal || {}).forEach(([id, s]) => {
+    if (s.folderId === folderId) updates['slideshows/' + user.uid + '/' + id + '/folderId'] = null;
+  });
+  Object.entries(fcSnap.val() || {}).forEach(([id, fc]) => {
+    if (fc.folderId === folderId) updates['flashcards/' + user.uid + '/' + id + '/folderId'] = null;
+  });
+  if (Object.keys(updates).length > 0) await db.ref().update(updates);
+  if (_viewingFolderId === folderId) _viewingFolderId = null;
+  loadMyStuff();
+}
+
+async function openMoveToFolderModal(kind, itemId) {
+  const user = _appUser;
+  if (!user) return;
+  _movingItemKind = kind;
+  _movingItemId   = itemId;
+  const foldersSnap = await db.ref('folders/' + user.uid).once('value');
+  const folders = Object.values(foldersSnap.val() || {});
+  const list = document.getElementById('move-folder-list');
+
+  // Find current folder of this item
+  const pathMap = { note: 'notes', slideshow: 'slideshows', flashcards: 'flashcards' };
+  const itemSnap = await db.ref(pathMap[kind] + '/' + user.uid + '/' + itemId).once('value');
+  const currentFolderId = (itemSnap.val() || {}).folderId || null;
+
+  list.innerHTML = '';
+
+  // Option: remove from folder
+  if (currentFolderId) {
+    const removeRow = document.createElement('div');
+    removeRow.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.03);cursor:pointer;transition:all 0.15s;" onmouseover="this.style.background='rgba(239,68,68,0.08)';this.style.borderColor='rgba(239,68,68,0.2)';" onmouseout="this.style.background='rgba(255,255,255,0.03)';this.style.borderColor='rgba(255,255,255,0.07)';">
+      <span style="font-size:1rem;">✕</span>
+      <span style="font-weight:600;color:#f87171;font-size:0.85rem;">Remove from folder</span>
+    </div>`;
+    removeRow.querySelector('div').addEventListener('click', () => applyMoveToFolder(null));
+    list.appendChild(removeRow);
+  }
+
+  if (folders.length === 0) {
+    const emptyRow = document.createElement('div');
+    emptyRow.style.cssText = 'text-align:center;padding:16px;color:#71717a;font-size:0.82rem;';
+    emptyRow.textContent = 'No folders yet. Create one first!';
+    list.appendChild(emptyRow);
+  } else {
+    folders.forEach(f => {
+      const row = document.createElement('div');
+      const isActive = f.id === currentFolderId;
+      row.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;border:1px solid ${isActive ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.07)'};background:${isActive ? 'rgba(139,92,246,0.12)' : 'rgba(255,255,255,0.03)'};cursor:pointer;transition:all 0.15s;" onmouseover="this.style.background='rgba(139,92,246,0.15)';this.style.borderColor='rgba(139,92,246,0.35)';" onmouseout="this.style.background='${isActive ? 'rgba(139,92,246,0.12)' : 'rgba(255,255,255,0.03)'}';this.style.borderColor='${isActive ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.07)'}';">
+        <span style="font-size:1.1rem;">${escHtml(f.emoji || '📁')}</span>
+        <span style="font-weight:700;color:${isActive ? '#a78bfa' : 'white'};font-size:0.85rem;">${escHtml(f.name)}</span>
+        ${isActive ? '<span style="margin-left:auto;font-size:0.7rem;color:#a78bfa;font-weight:700;">Current</span>' : ''}
+      </div>`;
+      row.querySelector('div').addEventListener('click', () => applyMoveToFolder(f.id));
+      list.appendChild(row);
+    });
+  }
+
+  const m = document.getElementById('move-to-folder-modal');
+  m.classList.remove('js-hidden'); m.style.display = 'flex';
+}
+
+function closeMoveToFolderModal() {
+  const m = document.getElementById('move-to-folder-modal');
+  m.classList.add('js-hidden'); m.style.display = 'none';
+  _movingItemKind = null;
+  _movingItemId   = null;
+}
+
+async function applyMoveToFolder(folderId) {
+  const user = _appUser;
+  if (!user || !_movingItemId || !_movingItemKind) return;
+  const pathMap = { note: 'notes', slideshow: 'slideshows', flashcards: 'flashcards' };
+  const path = pathMap[_movingItemKind];
+  if (!path) return;
+  await db.ref(path + '/' + user.uid + '/' + _movingItemId + '/folderId').set(folderId || null);
+  closeMoveToFolderModal();
+  loadMyStuff();
+}
+
+async function openPostFolderToGroupModal(folderId) {
+  const user = _appUser;
+  if (!user) return;
+  const [foldersSnap, notesSnap, fcSnap] = await Promise.all([
+    db.ref('folders/' + user.uid + '/' + folderId).once('value'),
+    db.ref('notes/' + user.uid).once('value'),
+    db.ref('flashcards/' + user.uid).once('value')
+  ]);
+  let slidesSnap = null;
+  try { slidesSnap = await db.ref('slideshows/' + user.uid).once('value'); } catch(_) {}
+
+  const folder = foldersSnap.val();
+  if (!folder) return;
+
+  const notes  = Object.values(notesSnap.val() || {}).filter(n => n.folderId === folderId && n.type !== 'Slideshow');
+  const fcSets = Object.values(fcSnap.val() || {}).filter(s => s.folderId === folderId);
+  const slides = slidesSnap ? Object.values(slidesSnap.val() || {}).filter(s => s.folderId === folderId) : [];
+
+  const allItems = [
+    ...notes.map(n  => ({ id: n.id,  title: n.title,  type: n.type || 'Note',       contentPreview: (n.content||'').replace(/<[^>]+>/g,'').slice(0,120) })),
+    ...fcSets.map(s => ({ id: s.id,  title: s.title,  type: 'Flashcards',           contentPreview: (s.cards||[]).length + ' cards' })),
+    ...slides.map(s => ({ id: s.id,  title: s.title,  type: 'Slideshow',            contentPreview: (s.slides||[]).length + ' slides' }))
+  ];
+
+  if (allItems.length === 0) { alert('This folder is empty — add some items before posting!'); return; }
+
+  // Populate group selector for folder post
+  const select = document.getElementById('pm-group-select');
+  select.innerHTML = '<option value="">Select a group…</option>';
+  try {
+    const ugSnap = await db.ref('userGroups/' + user.uid).once('value');
+    const groupIds = Object.keys(ugSnap.val() || {});
+    await Promise.all(groupIds.map(async gid => {
+      const gSnap = await db.ref('studyGroups/' + gid).once('value');
+      const g = gSnap.val();
+      if (g && g.name) {
+        const opt = document.createElement('option');
+        opt.value = gid; opt.textContent = g.name;
+        select.appendChild(opt);
+      }
+    }));
+  } catch(_) {}
+
+  _pendingFolderPost = { folder, items: allItems };
+  document.getElementById('pm-title').value   = folder.name;
+  document.getElementById('pm-content').value = allItems.map(i => i.type + ': ' + i.title).join('\n');
+  setPostType('folder');
+  document.getElementById('pm-group-selector-row').classList.remove('hidden');
+  const m = document.getElementById('post-group-modal');
+  m.classList.remove('js-hidden'); m.style.display = 'flex';
 }
 
 // ── ECHO AI SIDEBAR ──────────────────────────────────────────────────────────
@@ -3181,6 +3477,11 @@ async function unshareNote(recipientUid, shareId) {
 
 function setMyStuffTab(tab) {
   _myStuffTab = tab;
+  if (tab !== 'mine') {
+    _viewingFolderId = null;
+    document.getElementById('folder-view-header').classList.add('hidden');
+    document.getElementById('mystuff-folders-row').classList.add('hidden');
+  }
   document.getElementById('btn-mystuff-mine').classList.toggle('active-ct', tab === 'mine');
   document.getElementById('btn-mystuff-shared').classList.toggle('active-ct', tab === 'shared');
   document.getElementById('btn-mystuff-borrowed').classList.toggle('active-ct', tab === 'borrowed');
@@ -4101,16 +4402,62 @@ function renderPost(groupId, postId, p, myUid) {
   const iLiked     = p.likes && p.likes[myUid];
   const isMine     = p.authorUid === myUid;
   const timeStr    = p.timestamp ? new Date(p.timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
-  const typeColors = { note:'#c4b5fd', roadmap:'#6ee7b7', text:'#a5b4fc', slideshow:'#a78bfa' };
-  const typeBgs    = { note:'rgba(124,58,237,0.15)', roadmap:'rgba(16,185,129,0.12)', text:'rgba(99,102,241,0.12)', slideshow:'rgba(139,92,246,0.15)' };
-  const accentColors = { note:'#7c3aed', roadmap:'#10b981', text:'#6366f1', slideshow:'#7c3aed' };
+  const typeColors = { note:'#c4b5fd', roadmap:'#6ee7b7', text:'#a5b4fc', slideshow:'#a78bfa', folder:'#c084fc' };
+  const typeBgs    = { note:'rgba(124,58,237,0.15)', roadmap:'rgba(16,185,129,0.12)', text:'rgba(99,102,241,0.12)', slideshow:'rgba(139,92,246,0.15)', folder:'rgba(192,132,252,0.13)' };
+  const accentColors = { note:'#7c3aed', roadmap:'#10b981', text:'#6366f1', slideshow:'#7c3aed', folder:'#a855f7' };
   const accentBorder = accentColors[p.type] || accentColors.text;
+
+  // Folder post: render items list
+  if (p.type === 'folder') {
+    const items = p.folderItems || [];
+    const typeIcon = { Note:'📝', Roadmap:'🗺️', Video:'🎬', Flashcards:'🃏', Slideshow:'🖼️' };
+    const itemsHTML = items.slice(0, 6).map(item =>
+      `<div style="display:flex;align-items:center;gap:8px;padding:7px 12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:9px;">
+        <span style="font-size:0.85rem;">${typeIcon[item.type] || '📄'}</span>
+        <div style="min-width:0;flex:1;">
+          <div style="font-size:0.8rem;font-weight:700;color:#e4e4e7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(item.title||'Untitled')}</div>
+          <div style="font-size:0.68rem;color:#71717a;">${escHtml(item.type||'')}</div>
+        </div>
+      </div>`
+    ).join('');
+    const moreCount = items.length > 6 ? items.length - 6 : 0;
+    const actionsRow = `<div class="flex items-center gap-2 pt-3 border-t border-white/5 flex-wrap">
+      <button onclick="likePost('${groupId}','${postId}')" class="like-btn${iLiked?' liked':''}">♥ ${likeCount || 0}</button>
+      <button onclick="toggleComments('${groupId}','${postId}')" class="comment-btn">💬 <span id="cmt-lbl-${postId}">Comments</span></button>
+      ${!isMine?`<button onclick="requestBorrow('${p.authorUid}','${groupId}','${postId}')" class="borrow-btn">↓ Borrow Folder</button>`:''}
+    </div>`;
+    return `<div class="post-card" id="post-card-${postId}" style="border-left-color:${accentBorder};">
+      <div class="flex items-center gap-3 mb-4">
+        <img src="${escHtml(p.authorPhotoUrl||'')}" class="post-author-avatar" onerror="this.src='https://ui-avatars.com/api/?background=7c3aed&color=fff&name=${encodeURIComponent(p.authorUsername||'U')}'">
+        <div class="flex-1 min-w-0">
+          <span class="font-extrabold text-white tracking-tight">@${escHtml(p.authorUsername||'user')}</span>
+          <span class="text-zinc-600 text-xs ml-2">${timeStr}</span>
+        </div>
+        <span class="group-badge" style="background:${typeBgs.folder};color:${typeColors.folder};">folder</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <span style="font-size:1.5rem;">${escHtml(p.folderEmoji||'📁')}</span>
+        <div>
+          <div class="font-bold text-white text-base tracking-tight">${escHtml(p.folderName||p.title||'Folder')}</div>
+          <div style="font-size:0.72rem;color:#71717a;">${items.length} item${items.length !== 1 ? 's' : ''}</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">${itemsHTML}${moreCount > 0 ? `<div style="font-size:0.72rem;color:#71717a;padding:4px 12px;">+${moreCount} more item${moreCount !== 1 ? 's' : ''}…</div>` : ''}</div>
+      ${actionsRow}
+      <div id="comments-${postId}" class="hidden mt-5 pt-4 border-t border-white/5">
+        <div id="cmt-list-${postId}" class="space-y-2 mb-4"></div>
+        <div class="flex gap-2">
+          <input type="text" id="cmt-input-${postId}" placeholder="Write a comment…" class="settings-input" style="font-size:0.82rem;" onkeydown="if(event.key==='Enter')addComment('${groupId}','${postId}')">
+          <button onclick="addComment('${groupId}','${postId}')" style="padding:8px 18px;background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;border-radius:10px;color:white;font-size:0.82rem;font-weight:700;cursor:pointer;flex-shrink:0;font-family:inherit;opacity:1;transition:opacity 0.15s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">Send</button>
+        </div>
+      </div>
+    </div>`;
+  }
 
   // Slideshow: render an interactive carousel preview
   let slideVisual = '';
   if (p.type === 'slideshow') {
     if (p.slideshowSlides && p.slideshowSlides.length > 0) {
-      // Fast path: slides embedded in post data — build inline carousel
       const slides = p.slideshowSlides;
       _postSlidesCache[postId] = slides;
       const firstSlide = slides[0];
@@ -4124,7 +4471,6 @@ function renderPost(groupId, postId, p, myUid) {
         : `<div style="font-size:0.7rem;color:#52525b;padding:5px 0 12px;text-align:center;">1 slide</div>`;
       slideVisual = `<div class="slide-16-9-wrap" id="slide-carousel-wrap-${postId}" data-idx="0">${_buildSlideHTML(firstSlide, ck, COLOR_BGSTYLE_MAP[ck] || 'gradient-diagonal')}</div>${nav}`;
     } else if (p.slideshowId && p.slideshowAuthorUid) {
-      // Async fetch path: placeholder filled by _fillSlideshowPreviews after render
       slideVisual = `<div class="slide-post-fetch-placeholder" data-sid="${escHtml(p.slideshowId)}" data-auid="${escHtml(p.slideshowAuthorUid)}" data-postid="${escHtml(postId)}"
         style="width:100%;aspect-ratio:16/9;border-radius:10px;overflow:hidden;position:relative;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.12);display:flex;align-items:center;justify-content:center;margin-bottom:0;">
         <span style="color:#52525b;font-size:0.78rem;">Loading preview…</span>
@@ -4771,7 +5117,7 @@ async function createGroup() {
 let _currentPostType = 'text';
 function setPostType(type) {
   _currentPostType = type;
-  ['text','note','roadmap'].forEach(t => document.getElementById('pt-'+t).classList.toggle('active-ct', t === type));
+  ['text','note','roadmap'].forEach(t => { const el = document.getElementById('pt-'+t); if (el) el.classList.toggle('active-ct', t === type); });
 }
 function openPostToGroupModal() {
   // Called from inside a group — hide group selector, use _currentGroupId
@@ -4788,6 +5134,7 @@ function closePostModal() {
   document.getElementById('pm-group-selector-row').classList.add('hidden');
   _pendingSlideshowPostSlides = null;
   _pendingSlideshowId         = null;
+  _pendingFolderPost          = null;
   setPostType('text');
   setPmMode('new');
 }
@@ -4925,14 +5272,14 @@ async function submitPostToGroup() {
   if (!targetGroupId) { alert('Please select a group to post to.'); return; }
   const title   = document.getElementById('pm-title').value.trim();
   const content = document.getElementById('pm-content').value.trim();
-  if (!content) { alert('Please add some content to your post.'); return; }
+  if (!content && !_pendingFolderPost) { alert('Please add some content to your post.'); return; }
   const mySnap = await db.ref('users/' + user.uid).once('value');
   const me     = mySnap.val() || {};
   const postData = {
     authorUid:      user.uid,
     authorUsername: me.username  || user.displayName || 'user',
     authorPhotoUrl: me.photoUrl  || user.photoURL    || '',
-    type: _pendingSlideshowPostSlides ? 'slideshow' : _currentPostType,
+    type: _pendingFolderPost ? 'folder' : (_pendingSlideshowPostSlides ? 'slideshow' : _currentPostType),
     title, content,
     timestamp: Date.now()
   };
@@ -4941,8 +5288,15 @@ async function submitPostToGroup() {
     postData.slideshowId        = _pendingSlideshowId;
     postData.slideshowAuthorUid = user.uid;
   }
+  if (_pendingFolderPost) {
+    postData.folderEmoji       = _pendingFolderPost.folder.emoji || '📁';
+    postData.folderName        = _pendingFolderPost.folder.name  || title;
+    postData.folderItems       = _pendingFolderPost.items;
+    postData.folderAuthorUid   = user.uid;
+  }
   _pendingSlideshowPostSlides = null;
   _pendingSlideshowId         = null;
+  _pendingFolderPost          = null;
   await db.ref('groupPosts/' + targetGroupId).push(postData);
   closePostModal();
 }
@@ -5030,6 +5384,40 @@ async function approveBorrow(reqId, requesterUid, requesterUsername, groupId, po
   const post       = pSnap.val() || {};
   const me         = mySnap.val() || {};
   const authorName = me.username || user.displayName || 'user';
+
+  // Folder borrow: save each item in folder to borrower's Borrowed tab
+  if (post.type === 'folder') {
+    const folderItems = post.folderItems || [];
+    const lentRef = db.ref('lentItems/' + user.uid).push();
+    const lentKey = lentRef.key;
+    const writes = [];
+    for (const item of folderItems) {
+      const borrowedRef = db.ref('borrowedItems/' + requesterUid).push();
+      writes.push(borrowedRef.set({
+        type:         item.type || 'Note',
+        title:        item.title || 'Untitled',
+        content:      item.contentPreview || '',
+        fromUid:      user.uid,
+        fromUsername: authorName,
+        authorUid:    user.uid,
+        borrowedAt:   Date.now(),
+        lentItemKey:  lentKey,
+        folderName:   post.folderName || post.title || 'Folder',
+        folderEmoji:  post.folderEmoji || '📁'
+      }));
+    }
+    writes.push(lentRef.set({
+      borrowerUid:      requesterUid,
+      borrowerUsername: requesterUsername || '?',
+      type:             'Folder',
+      title:            post.folderName || post.title || 'Folder',
+      lentAt:           Date.now()
+    }));
+    writes.push(db.ref('borrowRequests/' + user.uid + '/' + reqId).update({ status: 'accepted' }));
+    await Promise.all(writes);
+    alert(`Approved! The folder "${post.folderName || post.title || 'Folder'}" (${folderItems.length} items) is now accessible to @${requesterUsername} in their Borrowed tab.`);
+    return;
+  }
 
   // Determine item type and content
   let itemType = 'Note';
@@ -5510,6 +5898,7 @@ let _slideIdx        = 0;      // current slide index
 let _editingSlideshowId = null; // null = new, string = existing id
 let _pendingSlideshowPostSlides = null; // slides to attach when posting a slideshow
 let _pendingSlideshowId         = null; // id of slideshow being posted (for old-post fallback fetch)
+let _pendingFolderPost          = null; // { folder, items } for folder post
 const _postSlidesCache          = {};   // postId → slides[], used by in-feed carousel
 
 function renderTemplateGallery() {
