@@ -1579,8 +1579,9 @@
 
         <!-- Group sub-tab bar -->
         <div id="group-subtab-bar" class="flex gap-2 mb-4">
-          <button id="btn-group-posts-tab" onclick="setGroupSubTab('posts')" class="chart-type-btn active-ct">Posts</button>
-          <button id="btn-group-chat-tab"  onclick="setGroupSubTab('chat')"  class="chart-type-btn">Chat</button>
+          <button id="btn-group-posts-tab"   onclick="setGroupSubTab('posts')"   class="chart-type-btn active-ct">Posts</button>
+          <button id="btn-group-chat-tab"    onclick="setGroupSubTab('chat')"    class="chart-type-btn">Chat</button>
+          <button id="btn-group-members-tab" onclick="setGroupSubTab('members')" class="chart-type-btn">Members</button>
         </div>
 
         <!-- Posts panel -->
@@ -1604,6 +1605,13 @@
             <input type="text" id="group-msg-input" placeholder="Send a message to the group…" class="settings-input flex-1"
                    onkeydown="if(event.key==='Enter') sendGroupMessage()">
             <button onclick="sendGroupMessage()" class="sett-save-btn" style="flex-shrink:0;padding:9px 18px;">Send</button>
+          </div>
+        </div>
+
+        <!-- Members panel -->
+        <div id="group-members-panel" class="hidden">
+          <div id="group-members-list" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+            <div class="text-zinc-600 italic text-sm py-16 text-center col-span-full">Loading members…</div>
           </div>
         </div>
       </div>
@@ -4046,8 +4054,11 @@ async function openGroup(groupId) {
   if (_groupMsgsRef) { _groupMsgsRef.off(); _groupMsgsRef = null; }
   document.getElementById('btn-group-posts-tab').classList.add('active-ct');
   document.getElementById('btn-group-chat-tab').classList.remove('active-ct');
+  document.getElementById('btn-group-members-tab').classList.remove('active-ct');
   document.getElementById('group-posts-panel').classList.remove('hidden');
   document.getElementById('group-chat-panel').classList.add('hidden');
+  document.getElementById('group-members-panel').classList.add('hidden');
+  document.getElementById('group-members-list').innerHTML = '<div class="text-zinc-600 italic text-sm py-16 text-center col-span-full">Loading members…</div>';
 
   const gSnap = await db.ref('studyGroups/' + groupId).once('value');
   const g     = gSnap.val() || {};
@@ -4573,8 +4584,11 @@ function setGroupSubTab(tab) {
   _groupSubTab = tab;
   document.getElementById('btn-group-posts-tab').classList.toggle('active-ct', tab === 'posts');
   document.getElementById('btn-group-chat-tab').classList.toggle('active-ct', tab === 'chat');
+  document.getElementById('btn-group-members-tab').classList.toggle('active-ct', tab === 'members');
   document.getElementById('group-posts-panel').classList.toggle('hidden', tab !== 'posts');
   document.getElementById('group-chat-panel').classList.toggle('hidden', tab !== 'chat');
+  document.getElementById('group-members-panel').classList.toggle('hidden', tab !== 'members');
+  if (tab === 'members') loadGroupMembers();
 
   if (tab === 'chat' && _currentGroupId && !_groupMsgsRef) {
     const myUid = auth.currentUser ? auth.currentUser.uid : null;
@@ -4597,6 +4611,83 @@ function setGroupSubTab(tab) {
           }).join('');
       el.scrollTop = el.scrollHeight;
     });
+  }
+}
+
+async function loadGroupMembers() {
+  const user = auth.currentUser;
+  if (!user || !_currentGroupId) return;
+  const list = document.getElementById('group-members-list');
+  if (!list) return;
+  list.innerHTML = '<div class="text-zinc-600 italic text-sm py-16 text-center col-span-full">Loading members…</div>';
+  try {
+    const gSnap = await db.ref('studyGroups/' + _currentGroupId + '/members').once('value');
+    const memberUids = Object.keys(gSnap.val() || {});
+    if (memberUids.length === 0) {
+      list.innerHTML = '<div class="text-zinc-600 italic text-sm py-16 text-center col-span-full">No members found.</div>';
+      return;
+    }
+    const [friendsSnap, ...profileSnaps] = await Promise.all([
+      db.ref('friends/' + user.uid).once('value'),
+      ...memberUids.map(uid => db.ref('users/' + uid).once('value').catch(() => null))
+    ]);
+    const friendsMap = friendsSnap.val() || {};
+    const sentReqSnaps = await Promise.all(
+      memberUids.map(uid => db.ref('friendRequests/' + uid + '/' + user.uid).once('value').catch(() => null))
+    );
+    list.innerHTML = memberUids.map((uid, i) => {
+      const p = (profileSnaps[i] && profileSnaps[i].val()) || {};
+      const isSelf     = uid === user.uid;
+      const isFriend   = !!friendsMap[uid];
+      const reqSent    = !isSelf && !isFriend && sentReqSnaps[i] && sentReqSnaps[i].exists();
+      const name       = escHtml(p.displayName || 'User');
+      const uname      = escHtml(p.username || '?');
+      const photo      = escHtml(p.photoUrl || '');
+      const avatarUrl  = `https://ui-avatars.com/api/?background=7c3aed&color=fff&name=${encodeURIComponent(p.displayName||'U')}`;
+      let actions = '';
+      if (isSelf) {
+        actions = '<span style="padding:6px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#a1a1aa;border-radius:10px;font-size:0.75rem;font-weight:700;">You</span>';
+      } else if (isFriend) {
+        actions = `
+          <button onclick="sendChatRequest('${uid}')" class="chart-type-btn" style="font-size:0.78rem;padding:7px 14px;">💬 Message</button>
+          <button onclick="removeFriend('${uid}',this)" style="margin-top:6px;padding:6px 14px;width:100%;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.2);color:#f87171;border-radius:10px;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;" onmouseover="this.style.background='rgba(239,68,68,0.14)'" onmouseout="this.style.background='rgba(239,68,68,0.07)'">Remove Friend</button>`;
+      } else if (reqSent) {
+        actions = '<span style="padding:6px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#a1a1aa;border-radius:10px;font-size:0.75rem;font-weight:700;">Request Sent</span>';
+      } else {
+        actions = `<button onclick="sendFriendRequest('${uid}',this)" class="sett-save-btn" style="padding:7px 14px;font-size:0.78rem;width:100%;">+ Add Friend</button>`;
+      }
+      return `
+        <div class="social-card">
+          <div class="flex items-center gap-3">
+            <img src="${photo}" class="w-10 h-10 rounded-full object-cover border border-white/10 flex-shrink-0" onerror="this.src='${avatarUrl}'">
+            <div class="min-w-0">
+              <div class="font-semibold text-white truncate">${name}</div>
+              <div class="username-tag">@${uname}</div>
+            </div>
+          </div>
+          ${p.status ? `<div class="text-zinc-400 text-xs mt-2 italic">${escHtml(p.status)}</div>` : ''}
+          <div class="flex flex-col gap-1 mt-3">${actions}</div>
+        </div>`;
+    }).join('');
+  } catch (err) {
+    list.innerHTML = `<div class="text-red-400 text-sm py-8 text-center col-span-full">Error loading members.</div>`;
+  }
+}
+
+async function removeFriend(friendUid, btn) {
+  const user = auth.currentUser;
+  if (!user) return;
+  try {
+    await Promise.all([
+      db.ref('friends/' + user.uid + '/' + friendUid).remove(),
+      db.ref('friends/' + friendUid + '/' + user.uid).remove().catch(() => {})
+    ]);
+    if (btn) {
+      const actionsDiv = btn.parentElement;
+      actionsDiv.innerHTML = `<button onclick="sendFriendRequest('${friendUid}',this)" class="sett-save-btn" style="padding:7px 14px;font-size:0.78rem;width:100%;">+ Add Friend</button>`;
+    }
+  } catch (err) {
+    alert('Could not remove friend: ' + (err.message || err));
   }
 }
 
