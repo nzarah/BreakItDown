@@ -2484,19 +2484,20 @@ async function loadMyStuff() {
   const user = _appUser;
   if (!user) return;
 
-  const [notesSnap, fcSnap, foldersSnap] = await Promise.all([
+  const [notesSnap, fcSnap] = await Promise.all([
     db.ref('notes/' + user.uid).once('value'),
-    db.ref('flashcards/' + user.uid).once('value'),
-    db.ref('folders/' + user.uid).once('value')
+    db.ref('flashcards/' + user.uid).once('value')
   ]);
 
   let slidesSnap = null;
   try { slidesSnap = await db.ref('slideshows/' + user.uid).once('value'); } catch (_) {}
+  let foldersSnap = null;
+  try { foldersSnap = await db.ref('folders/' + user.uid).once('value'); } catch (_) {}
 
   const notes  = Object.values(notesSnap.val() || {}).filter(n => n.type !== 'Slideshow').map(n => ({ ...n, _kind: 'note' }));
   const fcSets = Object.values(fcSnap.val() || {}).map(s => ({ ...s, _kind: 'flashcards' }));
   const slides = slidesSnap ? Object.values(slidesSnap.val() || {}).map(s => ({ ...s, _kind: 'slideshow' })) : [];
-  const folders = Object.values(foldersSnap.val() || {}).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  const folders = foldersSnap ? Object.values(foldersSnap.val() || {}).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)) : [];
 
   const folderViewHeader = document.getElementById('folder-view-header');
   const foldersRow       = document.getElementById('mystuff-folders-row');
