@@ -1,0 +1,1278 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BreakItDown </title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCuHI_VhHOd_0LmUkMlJgFhC0cWcnfMRck",
+      authDomain: "breakitdown-b1293.firebaseapp.com",
+      databaseURL: "https://breakitdown-b1293-default-rtdb.firebaseio.com",
+      projectId: "breakitdown-b1293",
+      storageBucket: "breakitdown-b1293.firebasestorage.app",
+      messagingSenderId: "882657130967",
+      appId: "1:882657130967:web:aa9feadd917a80a56ef392",
+      measurementId: "G-TD66JWQTWS"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
+    // Keep app hidden until auth state is known
+    auth.onAuthStateChanged(user => {
+      const landing = document.getElementById('landingPage');
+      const appInterface = document.getElementById('app-interface');
+      const welcomeScreen = document.getElementById('welcome-screen');
+
+      if (user) {
+        // Signed in — show app, hide everything else
+        if (landing) landing.classList.add('js-hidden');
+        welcomeScreen.classList.add('js-hidden');
+        welcomeScreen.style.display = 'none';
+        appInterface.classList.remove('hidden');
+        appInterface.style.display = 'flex';
+
+        // Show user name in sidebar if element exists
+        const nameEl = document.getElementById('sidebar-username');
+        if (nameEl) nameEl.textContent = user.displayName || user.email || 'Student';
+        const avatarEl = document.getElementById('sidebar-avatar');
+        if (avatarEl && user.photoURL) avatarEl.src = user.photoURL;
+
+        showPage('pg-home');
+      } else {
+        // Signed out — show landing
+        appInterface.classList.add('hidden');
+        appInterface.style.display = 'none';
+        welcomeScreen.classList.add('js-hidden');
+        welcomeScreen.style.display = 'none';
+        if (landing) {
+          landing.classList.remove('js-hidden');
+          landing.style.display = 'block';
+        }
+      }
+    });
+  </script>
+
+  <style>
+    :root {
+      --sidebar-bg: #0B0A10;
+      --main-bg: #0B0A10;
+      --card-bg: #13111C;
+      --accent: #8B5CF6;
+      --accent-soft: rgba(139, 92, 246, 0.1);
+    }
+.js-hidden { display: none !important; }
+
+    /* Editor toolbar */
+    .ed-btn { display:inline-flex; align-items:center; justify-content:center; min-width:2rem; height:2rem; padding:0 0.35rem; border-radius:0.5rem; background:transparent; border:none; color:#a1a1aa; cursor:pointer; font-size:0.8rem; transition:background 0.15s, color 0.15s; }
+    .ed-btn:hover { background:rgba(139,92,246,0.15); color:white; }
+    .ed-sep { width:1px; height:1.25rem; background:rgba(255,255,255,0.08); margin:0 0.2rem; flex-shrink:0; }
+    .ed-select { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:0.5rem; color:#a1a1aa; font-size:0.75rem; padding:0.2rem 0.4rem; outline:none; cursor:pointer; height:2rem; }
+    .ed-select:hover { border-color:#7c3aed; color:white; }
+    /* Chart type buttons */
+    .chart-type-btn { flex:1; padding:0.5rem; border-radius:0.75rem; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.03); color:#a1a1aa; font-size:0.8rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
+    .chart-type-btn:hover { background:rgba(139,92,246,0.1); color:white; }
+    .active-ct { background:rgba(139,92,246,0.2) !important; border-color:#7c3aed !important; color:white !important; }
+    /* Inserted SVG charts */
+    .inserted-chart { display:block; margin:1rem auto; border-radius:0.75rem; overflow:hidden; border:1px solid rgba(255,255,255,0.08); }
+
+    body {
+      background-color: var(--main-bg);
+      color: #FAFAFA;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      width: 260px;
+      background-color: var(--sidebar-bg);
+      border-right: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      margin: 4px 16px;
+      border-radius: 12px;
+      color: #A1A1AA;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .nav-item:hover, .nav-item.active {
+      background: rgba(255, 255, 255, 0.05);
+      color: #FFFFFF;
+    }
+
+    .action-card-landing {
+      background: #13111C;
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 24px;
+      padding: 32px;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .action-card-landing:hover {
+      border-color: rgba(139, 92, 246, 0.3);
+      transform: translateY(-4px);
+      background: #181622;
+    }
+
+    .page-section { display: none; }
+    .page-section.active { display: block; animation: fadeIn 0.4s forwards; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .loader {
+      border: 2px solid rgba(139, 92, 246, 0.1);
+      border-top: 2px solid var(--accent);
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    .premium-btn {
+      background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%);
+      box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+    }
+  </style>
+  <style>
+  .feature-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 40px 30px;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    cursor: default;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .feature-card:hover {
+    transform: translateY(-10px);
+    background: rgba(168, 85, 247, 0.08); /* Faint purple glow */
+    border-color: #a855f7;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Decorative glow circle inside card */
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(168, 85, 247, 0.1) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+
+  .feature-card:hover::before {
+    opacity: 1;
+  }
+
+  .feature-card i {
+    background: rgba(168, 85, 247, 0.1);
+    padding: 12px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    display: inline-block;
+  }
+
+  .feature-card h3 {
+    color: white;
+    font-size: 1.5rem;
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+
+  .feature-card p {
+    color: #a1a1aa;
+    line-height: 1.6;
+    font-size: 1rem;
+  }
+</style>
+
+</head>
+<body class="bg-[#0a0a0a] text-white">
+<div id="landingPage" style="width:100%;min-height:100vh;display:block;position:relative;z-index:10;background:#0a0a0a;overflow-x:hidden;">
+
+  <!-- Ambient background blobs -->
+  <div style="position:fixed;top:-20%;left:-10%;width:600px;height:600px;background:radial-gradient(circle,rgba(139,92,246,0.12) 0%,transparent 70%);pointer-events:none;z-index:0;"></div>
+  <div style="position:fixed;bottom:-20%;right:-10%;width:500px;height:500px;background:radial-gradient(circle,rgba(168,85,247,0.08) 0%,transparent 70%);pointer-events:none;z-index:0;"></div>
+
+  <!-- Nav -->
+  <nav style="display:flex;justify-content:space-between;align-items:center;padding:22px 60px;position:sticky;top:0;z-index:100;background:rgba(10,10,10,0.8);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.05);">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:32px;height:32px;background:linear-gradient(135deg,#7c3aed,#a855f7);border-radius:8px;display:flex;align-items:center;justify-content:center;">
+        <svg width="18" height="18" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      </div>
+      <span style="font-size:1.2rem;font-weight:800;color:white;letter-spacing:-0.02em;">BreakItDown</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button onclick="showLogin()" style="background:transparent;color:#a1a1aa;border:1px solid rgba(255,255,255,0.12);padding:8px 22px;border-radius:8px;cursor:pointer;font-size:0.875rem;font-weight:600;transition:all 0.2s;" onmouseover="this.style.color='white';this.style.borderColor='rgba(255,255,255,0.3)';" onmouseout="this.style.color='#a1a1aa';this.style.borderColor='rgba(255,255,255,0.12)';">Log in</button>
+      <button onclick="showLogin()" style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:white;border:none;padding:8px 22px;border-radius:8px;cursor:pointer;font-size:0.875rem;font-weight:700;box-shadow:0 4px 15px rgba(124,58,237,0.3);">Get Started</button>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section style="text-align:center;padding:110px 20px 80px;position:relative;z-index:1;">
+    <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);border-radius:100px;padding:6px 16px;margin-bottom:28px;">
+      <div style="width:6px;height:6px;background:#a855f7;border-radius:50%;box-shadow:0 0 8px #a855f7;"></div>
+      <span style="color:#c4b5fd;font-size:0.78rem;font-weight:600;letter-spacing:0.05em;">Powered by Gemini AI</span>
+    </div>
+    <h1 style="font-size:clamp(2.8rem,7vw,5.5rem);font-weight:900;color:white;margin:0 0 24px;line-height:1.05;letter-spacing:-0.03em;">Study Smarter.<br><span style="background:linear-gradient(135deg,#a855f7,#7c3aed,#c4b5fd);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Not Harder.</span></h1>
+    <p style="color:#71717a;font-size:1.15rem;max-width:560px;margin:0 auto 40px;line-height:1.7;">BreakItDown turns lectures, videos, and textbooks into clear notes, roadmaps, and flashcards — in seconds.</p>
+    <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
+      <button onclick="showLogin()" style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:white;border:none;padding:15px 38px;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;box-shadow:0 8px 30px rgba(124,58,237,0.35);letter-spacing:-0.01em;">Start for Free →</button>
+      <button onclick="document.getElementById('ld-how').scrollIntoView({behavior:'smooth'})" style="background:rgba(255,255,255,0.05);color:#d4d4d8;border:1px solid rgba(255,255,255,0.1);padding:15px 38px;border-radius:12px;font-size:1rem;font-weight:600;cursor:pointer;">See how it works</button>
+    </div>
+
+    <!-- Stats row -->
+    <div style="display:flex;gap:40px;justify-content:center;margin-top:70px;flex-wrap:wrap;">
+      <div style="text-align:center;">
+        <div style="font-size:2rem;font-weight:800;color:white;">5+</div>
+        <div style="font-size:0.8rem;color:#71717a;margin-top:2px;">AI Tools</div>
+      </div>
+      <div style="width:1px;background:rgba(255,255,255,0.08);"></div>
+      <div style="text-align:center;">
+        <div style="font-size:2rem;font-weight:800;color:white;">10×</div>
+        <div style="font-size:0.8rem;color:#71717a;margin-top:2px;">Faster Notes</div>
+      </div>
+      <div style="width:1px;background:rgba(255,255,255,0.08);"></div>
+      <div style="text-align:center;">
+        <div style="font-size:2rem;font-weight:800;color:white;">100%</div>
+        <div style="font-size:0.8rem;color:#71717a;margin-top:2px;">Free to Start</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Feature Showcase -->
+  <section style="max-width:1100px;margin:0 auto;padding:40px 40px 100px;position:relative;z-index:1;">
+
+    <!-- Row 1: Notes — text left, mockup right -->
+    <div style="display:flex;align-items:center;gap:60px;margin-bottom:100px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:280px;">
+        <div style="display:inline-block;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:4px 12px;font-size:0.72rem;font-weight:700;color:#a78bfa;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:16px;">Smart Notes</div>
+        <h2 style="font-size:2.2rem;font-weight:800;color:white;line-height:1.15;margin:0 0 16px;letter-spacing:-0.02em;">Paste anything.<br>Get perfect notes.</h2>
+        <p style="color:#71717a;font-size:1rem;line-height:1.75;margin:0 0 28px;">Drop in a lecture transcript, textbook chapter, or any text. Echo instantly structures it into clean, hierarchical study notes with key terms highlighted.</p>
+        <button onclick="showLogin()" style="background:rgba(139,92,246,0.15);color:#c4b5fd;border:1px solid rgba(139,92,246,0.3);padding:10px 24px;border-radius:10px;font-size:0.875rem;font-weight:700;cursor:pointer;">Try Smart Notes →</button>
+      </div>
+      <div style="flex:1;min-width:280px;background:linear-gradient(135deg,#13111C,#1a1825);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+        <div style="display:flex;gap:6px;margin-bottom:18px;"><div style="width:10px;height:10px;border-radius:50%;background:#ff5f57;"></div><div style="width:10px;height:10px;border-radius:50%;background:#febc2e;"></div><div style="width:10px;height:10px;border-radius:50%;background:#28c840;"></div></div>
+        <div style="font-size:0.7rem;font-weight:700;color:#a78bfa;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:12px;">Echo — Study Notes</div>
+        <div style="font-size:0.92rem;color:#e4e4e7;font-weight:600;margin-bottom:8px;">&#9632; The French Revolution</div>
+        <div style="font-size:0.82rem;color:#a1a1aa;line-height:1.7;margin-bottom:6px;">&#8226; Causes: financial crisis, social inequality, Enlightenment ideas</div>
+        <div style="font-size:0.82rem;color:#a1a1aa;line-height:1.7;margin-bottom:6px;">&#8226; Key date: <span style="color:#c4b5fd;font-weight:600;">1789</span> — Storming of the Bastille</div>
+        <div style="font-size:0.82rem;color:#a1a1aa;line-height:1.7;margin-bottom:14px;">&#8226; Outcome: Abolition of monarchy, rise of Napoleon</div>
+        <div style="font-size:0.7rem;font-weight:700;color:#a78bfa;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">&#9632; Key Vocabulary</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <span style="background:rgba(139,92,246,0.15);color:#c4b5fd;border:1px solid rgba(139,92,246,0.2);border-radius:6px;padding:3px 10px;font-size:0.75rem;font-weight:600;">Ancien Régime</span>
+          <span style="background:rgba(139,92,246,0.15);color:#c4b5fd;border:1px solid rgba(139,92,246,0.2);border-radius:6px;padding:3px 10px;font-size:0.75rem;font-weight:600;">Republic</span>
+          <span style="background:rgba(139,92,246,0.15);color:#c4b5fd;border:1px solid rgba(139,92,246,0.2);border-radius:6px;padding:3px 10px;font-size:0.75rem;font-weight:600;">Jacobins</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Video — mockup left, text right -->
+    <div style="display:flex;align-items:center;gap:60px;margin-bottom:100px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:280px;background:linear-gradient(135deg,#13111C,#1a1825);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+        <div style="display:flex;gap:6px;margin-bottom:18px;"><div style="width:10px;height:10px;border-radius:50%;background:#ff5f57;"></div><div style="width:10px;height:10px;border-radius:50%;background:#febc2e;"></div><div style="width:10px;height:10px;border-radius:50%;background:#28c840;"></div></div>
+        <div style="font-size:0.7rem;font-weight:700;color:#ef4444;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:12px;">&#9654; Video Insights</div>
+        <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.15);border-radius:10px;padding:10px 14px;font-size:0.8rem;color:#fca5a5;margin-bottom:14px;display:flex;align-items:center;gap:8px;">
+          <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          youtube.com/watch?v=dQw4...
+        </div>
+        <div style="font-size:0.82rem;color:#a1a1aa;line-height:1.7;margin-bottom:6px;">&#8226; Introduction to Quantum Mechanics</div>
+        <div style="font-size:0.82rem;color:#a1a1aa;line-height:1.7;margin-bottom:6px;">&#8226; Wave-particle duality explained</div>
+        <div style="font-size:0.82rem;color:#a1a1aa;line-height:1.7;">&#8226; Heisenberg uncertainty principle: <span style="color:#c4b5fd;font-weight:600;">ΔxΔp ≥ ℏ/2</span></div>
+      </div>
+      <div style="flex:1;min-width:280px;">
+        <div style="display:inline-block;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:4px 12px;font-size:0.72rem;font-weight:700;color:#fca5a5;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:16px;">Video Insights</div>
+        <h2 style="font-size:2.2rem;font-weight:800;color:white;line-height:1.15;margin:0 0 16px;letter-spacing:-0.02em;">Any video.<br>Instant notes.</h2>
+        <p style="color:#71717a;font-size:1rem;line-height:1.75;margin:0 0 28px;">Paste a YouTube link and Echo extracts the real transcript to generate accurate, topic-specific study notes — not guesses.</p>
+        <button onclick="showLogin()" style="background:rgba(239,68,68,0.1);color:#fca5a5;border:1px solid rgba(239,68,68,0.25);padding:10px 24px;border-radius:10px;font-size:0.875rem;font-weight:700;cursor:pointer;">Try Video Insights →</button>
+      </div>
+    </div>
+
+    <!-- Row 3: Roadmap — text left, mockup right -->
+    <div style="display:flex;align-items:center;gap:60px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:280px;">
+        <div style="display:inline-block;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:4px 12px;font-size:0.72rem;font-weight:700;color:#6ee7b7;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:16px;">AI Roadmaps</div>
+        <h2 style="font-size:2.2rem;font-weight:800;color:white;line-height:1.15;margin:0 0 16px;letter-spacing:-0.02em;">Your path<br>to an A.</h2>
+        <p style="color:#71717a;font-size:1rem;line-height:1.75;margin:0 0 28px;">Tell Echo your subject and grade. Get a personalised 3-step action plan, the top concepts to master, and essential vocabulary — all in one click.</p>
+        <button onclick="showLogin()" style="background:rgba(16,185,129,0.1);color:#6ee7b7;border:1px solid rgba(16,185,129,0.25);padding:10px 24px;border-radius:10px;font-size:0.875rem;font-weight:700;cursor:pointer;">Try AI Roadmaps →</button>
+      </div>
+      <div style="flex:1;min-width:280px;background:linear-gradient(135deg,#13111C,#1a1825);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+        <div style="display:flex;gap:6px;margin-bottom:18px;"><div style="width:10px;height:10px;border-radius:50%;background:#ff5f57;"></div><div style="width:10px;height:10px;border-radius:50%;background:#febc2e;"></div><div style="width:10px;height:10px;border-radius:50%;background:#28c840;"></div></div>
+        <div style="font-size:0.7rem;font-weight:700;color:#6ee7b7;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:14px;">&#9632; Roadmap — Biology, 10th Grade</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <div style="width:24px;height:24px;border-radius:50%;background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:800;color:#6ee7b7;flex-shrink:0;">1</div>
+            <div style="font-size:0.82rem;color:#d4d4d8;line-height:1.5;">Master cell structure, mitosis & meiosis</div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <div style="width:24px;height:24px;border-radius:50%;background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:800;color:#6ee7b7;flex-shrink:0;">2</div>
+            <div style="font-size:0.82rem;color:#d4d4d8;line-height:1.5;">Study genetics: DNA replication & Punnett squares</div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <div style="width:24px;height:24px;border-radius:50%;background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:800;color:#6ee7b7;flex-shrink:0;">3</div>
+            <div style="font-size:0.82rem;color:#d4d4d8;line-height:1.5;">Practice past papers & active recall daily</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section id="ld-how" style="background:rgba(255,255,255,0.02);border-top:1px solid rgba(255,255,255,0.05);border-bottom:1px solid rgba(255,255,255,0.05);padding:100px 40px;position:relative;z-index:1;">
+    <div style="max-width:900px;margin:0 auto;text-align:center;">
+      <div style="font-size:0.72rem;font-weight:700;color:#a78bfa;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:16px;">How it works</div>
+      <h2 style="font-size:2.5rem;font-weight:800;color:white;margin:0 0 60px;letter-spacing:-0.02em;">Three steps to study mastery</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:40px;">
+        <div style="text-align:center;">
+          <div style="width:56px;height:56px;background:linear-gradient(135deg,rgba(139,92,246,0.2),rgba(168,85,247,0.1));border:1px solid rgba(139,92,246,0.3);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:1.5rem;">&#128196;</div>
+          <div style="font-size:0.65rem;font-weight:800;color:#a78bfa;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">Step 01</div>
+          <h3 style="color:white;font-size:1.1rem;font-weight:700;margin:0 0 10px;">Add your content</h3>
+          <p style="color:#71717a;font-size:0.875rem;line-height:1.7;margin:0;">Paste text, drop a YouTube link, or enter your subject and grade level.</p>
+        </div>
+        <div style="text-align:center;">
+          <div style="width:56px;height:56px;background:linear-gradient(135deg,rgba(139,92,246,0.2),rgba(168,85,247,0.1));border:1px solid rgba(139,92,246,0.3);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:1.5rem;">&#9889;</div>
+          <div style="font-size:0.65rem;font-weight:800;color:#a78bfa;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">Step 02</div>
+          <h3 style="color:white;font-size:1.1rem;font-weight:700;margin:0 0 10px;">Echo processes it</h3>
+          <p style="color:#71717a;font-size:0.875rem;line-height:1.7;margin:0;">Our AI instantly generates structured notes, roadmaps, or flashcards.</p>
+        </div>
+        <div style="text-align:center;">
+          <div style="width:56px;height:56px;background:linear-gradient(135deg,rgba(139,92,246,0.2),rgba(168,85,247,0.1));border:1px solid rgba(139,92,246,0.3);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:1.5rem;">&#127941;</div>
+          <div style="font-size:0.65rem;font-weight:800;color:#a78bfa;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">Step 03</div>
+          <h3 style="color:white;font-size:1.1rem;font-weight:700;margin:0 0 10px;">Study &amp; succeed</h3>
+          <p style="color:#71717a;font-size:0.875rem;line-height:1.7;margin:0;">Save, edit, and review your material. Track progress with daily goals.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Final CTA -->
+  <section style="text-align:center;padding:120px 20px;position:relative;z-index:1;">
+    <h2 style="font-size:clamp(2rem,5vw,3.5rem);font-weight:900;color:white;margin:0 0 20px;letter-spacing:-0.03em;">Ready to break it down?</h2>
+    <p style="color:#71717a;font-size:1.05rem;margin:0 0 40px;">Join students already studying smarter with BreakItDown.</p>
+    <button onclick="showLogin()" style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:white;border:none;padding:18px 50px;border-radius:14px;font-size:1.05rem;font-weight:700;cursor:pointer;box-shadow:0 8px 30px rgba(124,58,237,0.4);letter-spacing:-0.01em;">Get Started — It's Free →</button>
+  </section>
+
+  <!-- Footer -->
+  <footer style="border-top:1px solid rgba(255,255,255,0.05);padding:30px 60px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+    <span style="color:#3f3f46;font-size:0.8rem;font-weight:700;">BreakItDown</span>
+    <span style="color:#3f3f46;font-size:0.75rem;">Built with Gemini AI</span>
+  </footer>
+
+</div>
+
+<div id="welcome-screen" class="fixed inset-0 z-50 bg-[#0a0a0a] js-hidden items-center justify-center p-6">
+  <div class="max-w-md w-full">
+
+    <div id="auth-step-1" class="bg-zinc-900/50 border border-zinc-800 p-8 rounded-3xl backdrop-blur-xl shadow-2xl space-y-6">
+      <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-white tracking-tighter">Echo</h1>
+        <p class="text-zinc-500 text-sm">Step 1 of 2: Create your account</p>
+      </div>
+
+      <button onclick="loginWithGoogle()" class="w-full py-4 bg-white text-black font-bold rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] transition-all">
+        <img src="https://www.google.com/favicon.ico" class="w-5 h-5"> Continue with Google
+      </button>
+
+      <div class="space-y-3">
+        <input type="email" id="userEmail" placeholder="Email address" class="w-full p-4 bg-zinc-800/50 border border-zinc-700 rounded-2xl text-white">
+        <button onclick="loginWithEmail()" class="w-full py-4 bg-zinc-800 text-zinc-300 font-semibold rounded-2xl border border-zinc-700 hover:bg-zinc-700 transition-all">
+          Continue with Email
+        </button>
+      </div>
+    </div>
+
+    <div id="auth-step-2" class="hidden bg-zinc-900/50 border border-zinc-800 p-8 rounded-3xl backdrop-blur-xl shadow-2xl space-y-6">
+
+  <button onclick="goToStepOne()" class="flex items-center gap-2 text-zinc-500 hover:text-white transition-all text-xs font-bold uppercase tracking-widest mb-4 group">
+    <span class="group-hover:-translate-x-1 transition-transform">←</span> Back to Step 1
+  </button>
+
+  <div class="text-center mb-6">
+    <h2 class="text-2xl font-bold text-white">Tell us about you</h2>
+    <p class="text-zinc-500 text-sm">Customize your Echo experience</p>
+  </div>
+</div>
+      <div class="text-center mb-6">
+        <h2 class="text-2xl font-bold text-white">Tell us about you</h2>
+        <p class="text-zinc-500 text-sm">Customize your Echo experience</p>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="text-zinc-400 text-xs font-bold uppercase ml-1">Full Name</label>
+          <input type="text" id="fullName" placeholder="Enter your name" class="w-full p-4 bg-zinc-800/50 border border-zinc-700 rounded-2xl text-white">
+        </div>
+
+        <div>
+          <label class="text-zinc-400 text-xs font-bold uppercase ml-1">Current Courses</label>
+          <input type="text" id="userCourses" placeholder="e.g. 8th Grade Science, Algebra 1" class="w-full p-4 bg-zinc-800/50 border border-zinc-700 rounded-2xl text-white">
+        </div>
+
+        <div>
+          <label class="text-zinc-400 text-xs font-bold uppercase ml-1">Study Goal</label>
+          <select id="studyGoal" class="w-full p-4 bg-zinc-800/50 border border-zinc-700 rounded-2xl text-zinc-300">
+            <option value="grades">Improve my grades</option>
+            <option value="time">Save study time</option>
+            <option value="prep">Prep for high school</option>
+          </select>
+        </div>
+
+        <button onclick="completeSignup()" class="w-full py-4 bg-white text-black font-bold rounded-2xl hover:bg-zinc-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]">
+          Launch Dashboard →
+        </button>
+<button onclick="completeSignup()" class="w-full py-4 bg-white text-black font-bold rounded-2xl hover:bg-zinc-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]">
+          Launch Dashboard →
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="app-interface" class="flex h-screen hidden">
+  
+  <aside class="sidebar h-full flex flex-col flex-shrink-0">
+    <div class="p-8">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-2xl font-extrabold tracking-tight">BreakItDown<span class="text-violet-500">.</span></span>
+      </div>
+      <div class="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em]">Intelligence Studio</div>
+    </div>
+
+    <nav class="flex-1 mt-4">
+      <div onclick="showPage('pg-home')" id="nav-pg-home" class="nav-item active">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        Dashboard
+      </div>
+      <div onclick="showPage('pg-notes')" id="nav-pg-notes" class="nav-item">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+        Smart Editor
+      </div>
+      <div onclick="showPage('pg-yt')" id="nav-pg-yt" class="nav-item">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+        Video Insights
+      </div>
+      <div onclick="showPage('pg-roadmap')" id="nav-pg-roadmap" class="nav-item">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+        Roadmaps
+      </div>
+      <div onclick="showPage('pg-cards')" id="nav-pg-cards" class="nav-item">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Study Center
+      </div>
+      <div onclick="showPage('pg-mystuff'); loadMyStuff();" id="nav-pg-mystuff" class="nav-item">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+        My Stuff
+      </div>
+    </nav>
+
+    <div class="p-6 space-y-3">
+        <div class="bg-white/5 rounded-xl p-4 border border-white/5">
+            <div class="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-2">Engine Status</div>
+            <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.8)]"></div>
+                <span class="text-xs font-semibold text-zinc-300">Gemini Active</span>
+            </div>
+        </div>
+        <div class="bg-white/5 rounded-xl p-4 border border-white/5 flex items-center gap-3">
+            <img id="sidebar-avatar" src="https://www.google.com/favicon.ico" class="w-7 h-7 rounded-full object-cover hidden">
+            <span id="sidebar-username" class="text-xs text-zinc-300 font-semibold flex-1 truncate">Student</span>
+            <button onclick="signOut()" title="Sign out" class="text-zinc-500 hover:text-red-400 transition-colors text-xs font-bold">Sign out</button>
+        </div>
+    </div>
+  </aside>
+
+  <main class="flex-1 h-full overflow-y-auto">
+    <section id="pg-home" class="page-section active p-20 max-w-7xl mx-auto">
+      <div class="mb-16">
+        <h1 class="text-7xl font-extrabold mb-6 tracking-tight">Your Digital Brain<span class="text-violet-500">.</span></h1>
+        <p class="text-xl text-zinc-500 max-w-2xl leading-relaxed">
+          The ultimate workspace for students to decompose complex subjects into simple, manageable insights.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div class="action-card-landing" onclick="showPage('pg-yt')">
+          <div class="w-12 h-12 bg-red-500/10 text-red-400 rounded-xl flex items-center justify-center mb-8 border border-red-500/20">
+             <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+          </div>
+          <h3 class="text-2xl font-bold mb-4">Video Intake</h3>
+          <p class="text-zinc-500 leading-relaxed">Paste YouTube links for instant, structured summaries.</p>
+        </div>
+
+        <div class="action-card-landing" onclick="showPage('pg-roadmap')">
+          <div class="w-12 h-12 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center mb-8 border border-emerald-500/20">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
+          </div>
+          <h3 class="text-2xl font-bold mb-4">Pathfinder</h3>
+          <p class="text-zinc-500 leading-relaxed">Generate curricula and action plans for any subject.</p>
+        </div>
+
+        <div class="action-card-landing" onclick="showPage('pg-cards')">
+          <div class="w-12 h-12 bg-pink-500/10 text-pink-400 rounded-xl flex items-center justify-center mb-8 border border-pink-500/20">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          </div>
+          <h3 class="text-2xl font-bold mb-4">Retain Center</h3>
+          <p class="text-zinc-500 leading-relaxed">Transform notes into high-recall flashcards.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="pg-notes" class="page-section p-10 max-w-5xl mx-auto">
+      <div class="flex justify-between items-center mb-8">
+        <h2 class="text-2xl font-bold">Smart Intake Editor</h2>
+        <div id="notes-loader" class="hidden"><div class="loader"></div></div>
+      </div>
+      <div class="grid grid-cols-1 gap-6">
+        <textarea id="note-input" placeholder="Paste your study material here..." 
+          class="w-full h-48 bg-[#13111C] border border-white/10 rounded-2xl p-6 text-zinc-300 focus:border-violet-500 outline-none resize-none"></textarea>
+        <div class="flex gap-4">
+          <button id="btn-gen-notes" onclick="generateNotes('text')" class="premium-btn flex-1 py-4 rounded-xl font-bold">Process Content</button>
+          <button onclick="saveCurrentNote('note-output')" class="bg-white/5 border border-white/10 px-8 rounded-xl font-bold hover:bg-white/10 transition-colors">Save Result</button>
+        </div>
+        <div id="note-output" class="mt-8 bg-[#13111C] border border-white/5 p-8 rounded-3xl min-h-[200px] text-zinc-300 leading-relaxed">
+          <div class="text-zinc-600 italic">Echo is waiting for your input...</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="pg-yt" class="page-section p-10 max-w-5xl mx-auto">
+      <div class="flex justify-between items-center mb-8">
+        <h2 class="text-2xl font-bold">Video Insights</h2>
+        <div id="yt-loader" class="hidden"><div class="loader"></div></div>
+      </div>
+      <div class="grid grid-cols-1 gap-6">
+        <div class="bg-[#13111C] border border-white/10 rounded-2xl p-6">
+          <label class="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">YouTube URL</label>
+          <input type="text" id="yt-url" placeholder="https://www.youtube.com/watch?v=..." 
+            class="w-full bg-transparent border-b border-white/10 py-2 text-zinc-200 outline-none focus:border-red-500 mb-6">
+          <div class="flex gap-3">
+            <button id="btn-gen-yt" onclick="generateNotes('yt')" class="bg-red-600 hover:bg-red-700 flex-1 py-4 rounded-xl font-bold transition-colors">Generate Video Breakdown</button>
+            <button onclick="saveCurrentNote('yt-output', 'Video')" class="bg-white/5 border border-white/10 px-6 rounded-xl font-bold hover:bg-white/10 transition-colors">Save</button>
+          </div>
+        </div>
+        <div id="yt-output" class="mt-8 bg-[#13111C] border border-white/5 p-8 rounded-3xl min-h-[200px] text-zinc-300 leading-relaxed">
+          <div class="text-zinc-600 italic">Echo will breakdown the video here...</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="pg-roadmap" class="page-section p-10 max-w-5xl mx-auto">
+      <div class="flex justify-between items-center mb-8">
+        <h2 class="text-2xl font-bold">Pathfinder Roadmaps</h2>
+        <div id="roadmap-loader" class="hidden"><div class="loader"></div></div>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-1 space-y-6">
+          <div class="bg-[#13111C] border border-white/10 rounded-2xl p-6">
+            <label class="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Class Details</label>
+            <input type="text" id="rm-subject" placeholder="e.g. Biology, Calculus" 
+              class="w-full bg-black/20 border border-white/5 rounded-lg p-3 text-zinc-200 outline-none focus:border-emerald-500 mb-4">
+            <select id="rm-grade" class="w-full bg-black/20 border border-white/5 rounded-lg p-3 text-zinc-200 outline-none focus:border-emerald-500 mb-6">
+              <option value="8">8th Grade</option>
+              <option value="9">High School</option>
+              <option value="College">College</option>
+            </select>
+            <button onclick="generateRoadmap()" class="bg-emerald-600 hover:bg-emerald-700 w-full py-4 rounded-xl font-bold transition-colors">Generate Pathfinder</button>
+            <button onclick="saveCurrentNote('roadmap-output', 'Roadmap')" class="bg-white/5 border border-white/10 w-full py-3 rounded-xl font-bold hover:bg-white/10 transition-colors mt-2">Save Roadmap</button>
+          </div>
+        </div>
+        <div class="lg:col-span-2">
+          <div id="roadmap-output" class="bg-[#13111C] border border-white/5 p-8 rounded-3xl min-h-[400px] text-zinc-300">
+            <div class="text-zinc-600 italic text-center py-20">Echo is ready to map your path...</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="pg-cards" class="page-section p-10 max-w-6xl mx-auto">
+      <div class="flex justify-between items-end mb-10">
+        <div>
+          <h2 class="text-4xl font-bold mb-2 text-pink-400">Retain Center</h2>
+          <p class="text-zinc-500">Echo transforms your notes into high-recall cards.</p>
+        </div>
+        <button id="btn-gen-cards" onclick="prepareAndGenerateCards()" class="premium-btn px-8 py-3 rounded-xl font-bold transition-all hover:scale-105">
+          ✨ AI Generate from Notes
+        </button>
+      </div>
+      <div id="cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="col-span-full text-center py-20 text-zinc-600 italic">
+          Generate notes first, then click AI Generate!
+        </div>
+      </div>
+    </section>
+
+    <section id="pg-mystuff" class="page-section p-10 max-w-5xl mx-auto">
+      <div class="flex justify-between items-center mb-8">
+        <div>
+          <h2 class="text-2xl font-bold">My Stuff</h2>
+          <p class="text-zinc-500 text-sm mt-1">All your saved notes, roadmaps, and video breakdowns.</p>
+        </div>
+      </div>
+      <div id="mystuff-empty" class="hidden text-center py-24 text-zinc-600 italic">
+        Nothing saved yet. Generate some notes or a roadmap and hit Save!
+      </div>
+      <div id="mystuff-list" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+    </section>
+  </main>
+</div>
+
+  <!-- Note Editor Modal -->
+  <!-- Chart Insert Modal -->
+  <div id="chart-modal" class="js-hidden fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+    <div class="bg-[#1a1825] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl p-6">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="font-bold text-white text-lg">Insert Visual</h3>
+        <button onclick="closeChartModal()" class="text-zinc-500 hover:text-white transition-colors text-xl">&#x2715;</button>
+      </div>
+      <div class="flex gap-3 mb-5">
+        <button onclick="setChartType('bar')"   id="ct-bar"  class="chart-type-btn active-ct">Bar Chart</button>
+        <button onclick="setChartType('pie')"   id="ct-pie"  class="chart-type-btn">Pie Chart</button>
+        <button onclick="setChartType('mind')"  id="ct-mind" class="chart-type-btn">Mind Map</button>
+      </div>
+      <!-- Bar / Pie inputs -->
+      <div id="chart-data-inputs">
+        <div class="text-xs text-zinc-500 mb-2">Enter items (one per line, format: <span class="text-violet-400">Label, Value</span>)</div>
+        <textarea id="chart-data-text" rows="5" placeholder="Photosynthesis, 40&#10;Respiration, 30&#10;Transpiration, 30"
+          class="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-zinc-300 outline-none resize-none focus:border-violet-500 transition-colors"></textarea>
+      </div>
+      <!-- Mind map inputs -->
+      <div id="mindmap-inputs" class="hidden">
+        <div class="text-xs text-zinc-500 mb-2">Central topic</div>
+        <input id="mm-center" type="text" placeholder="e.g. Photosynthesis" class="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-zinc-300 outline-none mb-3 focus:border-violet-500 transition-colors">
+        <div class="text-xs text-zinc-500 mb-2">Branches (one per line)</div>
+        <textarea id="mm-branches" rows="4" placeholder="Light Reactions&#10;Calvin Cycle&#10;Chlorophyll&#10;ATP Production"
+          class="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-zinc-300 outline-none resize-none focus:border-violet-500 transition-colors"></textarea>
+      </div>
+      <button onclick="insertChart()" class="mt-4 w-full py-3 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-xl transition-colors">Insert into Note</button>
+    </div>
+  </div>
+
+  <div id="editor-modal" class="js-hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+    <div class="bg-[#13111C] border border-white/10 rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">
+
+      <!-- Title row -->
+      <div class="flex items-center gap-3 px-6 pt-5 pb-4 border-b border-white/5">
+        <input id="editor-title" class="bg-transparent text-xl font-bold text-white outline-none flex-1" placeholder="Note title...">
+        <button onclick="saveEditorNote()" class="px-4 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-lg transition-colors flex-shrink-0">Save</button>
+        <button onclick="closeEditor()" class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 transition-colors flex-shrink-0">&#x2715;</button>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="flex flex-wrap items-center gap-1 px-4 py-2 border-b border-white/5 bg-white/[0.02]">
+        <!-- Text style -->
+        <button onclick="editorFormat('bold')"          title="Bold"      class="ed-btn font-bold">B</button>
+        <button onclick="editorFormat('italic')"        title="Italic"    class="ed-btn italic">I</button>
+        <button onclick="editorFormat('underline')"     title="Underline" class="ed-btn underline">U</button>
+        <button onclick="editorFormat('strikeThrough')" title="Strikethrough" class="ed-btn line-through">S</button>
+        <button onclick="editorHighlight()"             title="Highlight" class="ed-btn text-yellow-400">H</button>
+        <div class="ed-sep"></div>
+        <!-- Lists -->
+        <button onclick="editorFormat('insertUnorderedList')" title="Bullet list"   class="ed-btn text-base">&#8226;&#8212;</button>
+        <button onclick="editorFormat('insertOrderedList')"   title="Numbered list" class="ed-btn text-base">1.</button>
+        <div class="ed-sep"></div>
+        <!-- Align -->
+        <button onclick="editorFormat('justifyLeft')"   title="Align left"   class="ed-btn">&#8676;</button>
+        <button onclick="editorFormat('justifyCenter')" title="Align center" class="ed-btn">&#8660;</button>
+        <button onclick="editorFormat('justifyRight')"  title="Align right"  class="ed-btn">&#8677;</button>
+        <div class="ed-sep"></div>
+        <!-- Font -->
+        <select onchange="changeFont(this.value)" title="Font" class="ed-select">
+          <option value="inherit">Default</option>
+          <option value="Georgia, serif">Georgia</option>
+          <option value="'Courier New', monospace">Courier</option>
+          <option value="Arial, sans-serif">Arial</option>
+        </select>
+        <!-- Size -->
+        <select onchange="changeSize(this.value)" title="Text size" class="ed-select">
+          <option value="">Size</option>
+          <option value="1">XS</option>
+          <option value="2">S</option>
+          <option value="3">M</option>
+          <option value="4">L</option>
+          <option value="5">XL</option>
+          <option value="6">XXL</option>
+        </select>
+        <!-- Color -->
+        <input type="color" onchange="changeColor(this.value)" title="Text color" value="#ffffff"
+          class="w-7 h-7 rounded cursor-pointer bg-transparent border border-white/10 p-0.5">
+        <div class="ed-sep"></div>
+        <!-- Visuals -->
+        <button onclick="openChartModal()" title="Insert chart / mind map" class="ed-btn text-violet-400 font-semibold px-2 text-xs">&#9741; Chart</button>
+        <!-- Divider -->
+        <button onclick="insertDivider()" title="Insert divider" class="ed-btn text-zinc-400 px-2 text-xs">&#8213; Rule</button>
+      </div>
+
+      <!-- Body -->
+      <div id="editor-body" contenteditable="true"
+        class="flex-1 overflow-y-auto px-8 py-6 text-zinc-300 leading-relaxed outline-none min-h-[340px]">
+      </div>
+
+      <!-- Footer -->
+      <div class="flex items-center justify-between px-6 py-3 border-t border-white/5">
+        <span id="editor-meta" class="text-xs text-zinc-600"></span>
+        <button onclick="deleteNoteFromEditor()" class="text-xs text-red-500 hover:text-red-400 font-semibold transition-colors">Delete Note</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentActiveOutputId = 'note-output';
+
+ function showPage(pageId) {
+    // 1. Hide all sections
+    document.querySelectorAll('.page-section').forEach(p => {
+        p.classList.remove('active');
+        p.style.display = 'none';
+    });
+    
+    // 2. Remove active styling from all nav items
+    document.querySelectorAll('.nav-item').forEach(n => {
+        n.classList.remove('active', 'bg-white/5', 'text-white');
+    });
+
+    // 3. Show the target page
+    const targetPage = document.getElementById(pageId);
+    if (targetPage) {
+        targetPage.classList.add('active');
+        targetPage.style.display = 'block';
+    }
+
+    // 4. Highlight the current nav item
+    const navItem = document.getElementById('nav-' + pageId);
+    if (navItem) {
+        navItem.classList.add('active', 'bg-white/5', 'text-white');
+    }
+    
+    // 5. Re-render icons if using Lucide
+    if (window.lucide) {
+        lucide.createIcons();
+    }
+}
+// --- AUTH & NAVIGATION LOGIC ---
+
+function goToStepOne() {
+    document.getElementById('auth-step-2').classList.add('hidden');
+    document.getElementById('auth-step-1').classList.remove('hidden');
+}
+
+function showLogin() {
+    // Hide landing, show auth screen
+    document.getElementById('landingPage').classList.add('js-hidden');
+    document.getElementById('welcome-screen').classList.remove('js-hidden');
+    document.getElementById('welcome-screen').style.display = 'flex';
+}
+
+async function loginWithGoogle() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    try {
+        await auth.signInWithPopup(provider);
+        // onAuthStateChanged handles showing the app
+    } catch (err) {
+        alert('Google sign-in failed: ' + err.message);
+    }
+}
+
+async function loginWithEmail() {
+    const email = document.getElementById('userEmail').value.trim();
+    if (!email) { alert('Please enter your email address.'); return; }
+    try {
+        // Try sign in first, create account if not found
+        try {
+            await auth.signInWithEmailAndPassword(email, 'breakitdown2024');
+        } catch(e) {
+            await auth.createUserWithEmailAndPassword(email, 'breakitdown2024');
+        }
+        // onAuthStateChanged handles showing the app
+    } catch (err) {
+        alert('Email sign-in failed: ' + err.message);
+    }
+}
+
+async function signOut() {
+    await auth.signOut();
+}
+
+function completeSignup() {
+    // Legacy: onAuthStateChanged now handles this, but keep for safety
+    document.getElementById('welcome-screen').classList.add('js-hidden');
+    document.getElementById('welcome-screen').style.display = 'none';
+    const app = document.getElementById('app-interface');
+    app.classList.remove('hidden');
+    app.style.display = 'flex';
+    showPage('pg-home');
+}
+async function generateNotes(type) {
+    const inputId = type === 'text' ? 'note-input' : 'yt-url';
+    const outputId = type === 'text' ? 'note-output' : 'yt-output';
+    const loaderId = type === 'text' ? 'notes-loader' : 'yt-loader';
+    const btnId = type === 'text' ? 'btn-gen-notes' : 'btn-gen-yt';
+    
+    const val = document.getElementById(inputId).value;
+    if (!val.trim()) return;
+
+    const loader = document.getElementById(loaderId);
+    const output = document.getElementById(outputId);
+    const btn = document.getElementById(btnId);
+    
+    // UI Feedback
+    loader.classList.remove('hidden');
+    btn.disabled = true;
+    output.innerHTML = '<div class="text-zinc-500">Echo is analyzing your content...</div>';
+
+    try {
+        const endpoint = type === 'yt' ? '/api/video' : '/api/notes';
+        const body     = type === 'yt' ? { url: val } : { text: val };
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        const res = await response.json();
+        if (!response.ok) throw new Error(res.error || 'Network response was not ok');
+
+        loader.classList.add('hidden');
+        btn.disabled = false;
+        output.innerHTML = formatAIResponse(res.notes);
+        currentActiveOutputId = outputId;
+
+    } catch (err) {
+        loader.classList.add('hidden');
+        btn.disabled = false;
+        output.innerHTML = `<div class="text-red-400 p-4">Error: ${err.message}</div>`;
+        console.error('Notes Error:', err);
+    }
+}
+  async function generateRoadmap() {
+  const subject = document.getElementById('rm-subject').value;
+  const grade = document.getElementById('rm-grade').value;
+  
+  if (!subject) return;
+
+  const loader = document.getElementById('roadmap-loader');
+  const output = document.getElementById('roadmap-output');
+  
+  // UI Feedback: Show loader and initial message
+  loader.classList.remove('hidden');
+  output.innerHTML = '<div class="text-zinc-500 text-center py-20">Echo is mapping your educational journey...</div>';
+
+  try {
+    // Replace with your Firebase Function URL or your specific API endpoint
+    const response = await fetch('/api/roadmap', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subject: subject, grade: grade })
+    });
+
+    if (!response.ok) throw new Error('Failed to generate roadmap');
+
+    const res = await response.json();
+
+    loader.classList.add('hidden');
+    output.innerHTML = formatAIResponse(res.roadmap);
+    currentActiveOutputId = 'roadmap-output';
+
+  } catch (err) {
+    // Failure Logic: Hide loader and show error
+    loader.classList.add('hidden');
+    output.innerHTML = `<div class="text-red-400 p-4 text-center">Error: ${err.message}</div>`;
+    console.error("Roadmap Logic Error:", err);
+  }
+}
+
+function formatAIResponse(text) {
+  if (!text) return "";
+  
+  // Clean up the text and handle markdown-style formatting
+  let html = text
+    .replace(/### (.*?)(?:\n|$)/g, '<h3 class="text-lg font-bold text-violet-400 mt-6 mb-2 tracking-tight">$1</h3>')
+    .replace(/## (.*?)(?:\n|$)/g, '<h2 class="text-xl font-bold text-white mt-8 mb-4 border-b border-white/5 pb-2 tracking-tight">$1</h2>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-bold">$1</strong>')
+    .replace(/- (.*?)(?:\n|$)/g, '<div class="flex gap-3 mb-2 text-zinc-400"><span class="text-violet-500">•</span><span>$1</span></div>')
+    .replace(/\n/g, '<br>');
+
+  return `<div class="prose prose-invert max-w-none">${html}</div>`;
+}
+
+// ── MY STUFF ──────────────────────────────────────────────
+let currentEditingId = null;
+
+function saveCurrentNote(outputId, type = 'Note') {
+  const outputElement = document.getElementById(outputId);
+  const content = outputElement.innerHTML;
+  const text = outputElement.innerText;
+
+  if (!text.trim() || text.includes('Echo is analyzing your content...') || text.includes('Echo will breakdown the video here...')) {
+    alert("Nothing to save yet! Generate some content first.");
+    return;
+  }
+
+  const noteObj = {
+    id: 'note-' + Date.now(),
+    title: type + ': ' + new Date().toLocaleDateString(),
+    content: content,
+    type: type,
+    timestamp: new Date().toISOString()
+  };
+
+  try {
+    const existing = JSON.parse(localStorage.getItem('bid_vault') || '[]');
+    existing.unshift(noteObj);
+    localStorage.setItem('bid_vault', JSON.stringify(existing));
+
+    const btn = event.target;
+    const orig = btn.innerHTML;
+    btn.innerHTML = '✓ Saved!';
+    btn.classList.add('text-green-400');
+    setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('text-green-400'); }, 2000);
+  } catch (err) {
+    alert("Could not save. Storage might be full.");
+  }
+}
+
+function loadMyStuff() {
+  const notes = JSON.parse(localStorage.getItem('bid_vault') || '[]');
+  const list = document.getElementById('mystuff-list');
+  const empty = document.getElementById('mystuff-empty');
+
+  if (notes.length === 0) {
+    list.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+
+  const typeColors = { 'Note': 'violet', 'Roadmap': 'emerald', 'Video': 'red' };
+
+  list.innerHTML = notes.map(n => {
+    const color = typeColors[n.type] || 'violet';
+    const preview = (n.content || '').replace(/<[^>]+>/g, '').slice(0, 120) + '...';
+    const date = new Date(n.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `
+      <div class="action-card-landing group flex flex-col gap-3 border-l-4 border-l-${color}-500">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <span class="text-[10px] font-bold text-${color}-400 uppercase tracking-widest">${n.type || 'Note'}</span>
+            <h3 class="text-white font-bold mt-0.5 leading-tight">${n.title}</h3>
+          </div>
+          <span class="text-[10px] text-zinc-600 whitespace-nowrap mt-1">${date}</span>
+        </div>
+        <p class="text-zinc-500 text-sm leading-relaxed flex-1">${preview}</p>
+        <div class="flex gap-2 mt-2">
+          <button onclick="openEditor('${n.id}')" class="flex-1 py-2 rounded-lg bg-white/5 hover:bg-violet-500/20 text-zinc-300 hover:text-white text-sm font-semibold transition-colors">Edit</button>
+          <button onclick="deleteNote('${n.id}')" class="py-2 px-4 rounded-lg bg-white/5 hover:bg-red-500/20 text-zinc-500 hover:text-red-400 text-sm font-semibold transition-colors">Delete</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function openEditor(id) {
+  const notes = JSON.parse(localStorage.getItem('bid_vault') || '[]');
+  const note = notes.find(n => n.id === id);
+  if (!note) return;
+
+  currentEditingId = id;
+  document.getElementById('editor-title').value = note.title;
+  document.getElementById('editor-body').innerHTML = note.content;
+  document.getElementById('editor-meta').textContent = 'Last saved: ' + new Date(note.timestamp).toLocaleString();
+
+  const modal = document.getElementById('editor-modal');
+  modal.classList.remove('js-hidden');
+  modal.style.display = 'flex';
+}
+
+function closeEditor() {
+  const modal = document.getElementById('editor-modal');
+  modal.classList.add('js-hidden');
+  modal.style.display = 'none';
+  currentEditingId = null;
+}
+
+function saveEditorNote() {
+  if (!currentEditingId) return;
+  const notes = JSON.parse(localStorage.getItem('bid_vault') || '[]');
+  const idx = notes.findIndex(n => n.id === currentEditingId);
+  if (idx === -1) return;
+
+  notes[idx].title = document.getElementById('editor-title').value || notes[idx].title;
+  notes[idx].content = document.getElementById('editor-body').innerHTML;
+  notes[idx].timestamp = new Date().toISOString();
+  localStorage.setItem('bid_vault', JSON.stringify(notes));
+
+  document.getElementById('editor-meta').textContent = 'Last saved: ' + new Date().toLocaleString();
+  const btn = event.target;
+  const orig = btn.innerHTML;
+  btn.innerHTML = '✓ Saved';
+  setTimeout(() => { btn.innerHTML = orig; loadMyStuff(); }, 1500);
+}
+
+function editorFormat(command) {
+  document.getElementById('editor-body').focus();
+  document.execCommand(command, false, null);
+}
+
+function editorHighlight() {
+  document.getElementById('editor-body').focus();
+  document.execCommand('hiliteColor', false, '#7C3AED55');
+}
+
+function changeFont(font) {
+  document.getElementById('editor-body').focus();
+  document.execCommand('fontName', false, font);
+}
+
+function changeSize(size) {
+  if (!size) return;
+  document.getElementById('editor-body').focus();
+  document.execCommand('fontSize', false, size);
+}
+
+function changeColor(color) {
+  document.getElementById('editor-body').focus();
+  document.execCommand('foreColor', false, color);
+}
+
+function insertDivider() {
+  document.getElementById('editor-body').focus();
+  document.execCommand('insertHTML', false, '<hr style="border:none;border-top:1px solid rgba(255,255,255,0.12);margin:1rem 0;">');
+}
+
+// ── CHART / MIND MAP ──────────────────────────────────────
+let currentChartType = 'bar';
+
+function openChartModal() {
+  const m = document.getElementById('chart-modal');
+  m.classList.remove('js-hidden');
+  m.style.display = 'flex';
+}
+
+function closeChartModal() {
+  const m = document.getElementById('chart-modal');
+  m.classList.add('js-hidden');
+  m.style.display = 'none';
+}
+
+function setChartType(type) {
+  currentChartType = type;
+  document.querySelectorAll('.chart-type-btn').forEach(b => b.classList.remove('active-ct'));
+  document.getElementById('ct-' + type).classList.add('active-ct');
+  document.getElementById('chart-data-inputs').classList.toggle('hidden', type === 'mind');
+  document.getElementById('mindmap-inputs').classList.toggle('hidden', type !== 'mind');
+}
+
+function insertChart() {
+  let svg = '';
+  if (currentChartType === 'bar')  svg = buildBarChart();
+  if (currentChartType === 'pie')  svg = buildPieChart();
+  if (currentChartType === 'mind') svg = buildMindMap();
+  if (!svg) return;
+
+  document.getElementById('editor-body').focus();
+  document.execCommand('insertHTML', false, '<div contenteditable="false" style="margin:1.25rem 0;">' + svg + '</div><p><br></p>');
+  closeChartModal();
+}
+
+function parseChartData() {
+  const raw = document.getElementById('chart-data-text').value.trim();
+  if (!raw) return [];
+  return raw.split('\n').map(line => {
+    const parts = line.split(',');
+    return { label: (parts[0] || '').trim(), value: parseFloat((parts[1] || '1').trim()) || 1 };
+  }).filter(d => d.label);
+}
+
+function buildBarChart() {
+  const data = parseChartData();
+  if (!data.length) { alert('Enter at least one row.'); return ''; }
+  const W = 480, H = 260, pad = 48, barGap = 12;
+  const max = Math.max(...data.map(d => d.value));
+  const barW = Math.max(20, Math.floor((W - pad * 2 - barGap * (data.length - 1)) / data.length));
+  const colors = ['#7c3aed','#a78bfa','#6d28d9','#8b5cf6','#c4b5fd','#4c1d95'];
+  let bars = '', labels = '', vals = '';
+  data.forEach((d, i) => {
+    const x = pad + i * (barW + barGap);
+    const bh = Math.round(((H - pad * 2) * d.value) / max);
+    const y = H - pad - bh;
+    const col = colors[i % colors.length];
+    bars   += `<rect x="${x}" y="${y}" width="${barW}" height="${bh}" rx="4" fill="${col}" opacity="0.9"/>`;
+    vals   += `<text x="${x + barW/2}" y="${y - 5}" text-anchor="middle" fill="#e4e4e7" font-size="10">${d.value}</text>`;
+    const lbl = d.label.length > 8 ? d.label.slice(0,7)+'…' : d.label;
+    labels += `<text x="${x + barW/2}" y="${H - pad + 14}" text-anchor="middle" fill="#a1a1aa" font-size="10">${lbl}</text>`;
+  });
+  return '<svg class="inserted-chart" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" style="background:#1a1825;">'
+    + '<line x1="'+pad+'" y1="'+(pad/2)+'" x2="'+pad+'" y2="'+(H-pad)+'" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>'
+    + '<line x1="'+pad+'" y1="'+(H-pad)+'" x2="'+(W-pad/2)+'" y2="'+(H-pad)+'" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>'
+    + bars + vals + labels
+    + '</'+'svg>';
+}
+
+function buildPieChart() {
+  const data = parseChartData();
+  if (!data.length) { alert('Enter at least one row.'); return ''; }
+  const total = data.reduce((s, d) => s + d.value, 0);
+  const colors = ['#7c3aed','#a78bfa','#6d28d9','#8b5cf6','#c4b5fd','#4c1d95','#ddd6fe'];
+  const cx = 140, cy = 130, r = 100, W = 420, H = 260;
+  let slices = '', legend = '', angle = -Math.PI / 2;
+  data.forEach((d, i) => {
+    const sweep = (d.value / total) * 2 * Math.PI;
+    const x1 = cx + r * Math.cos(angle), y1 = cy + r * Math.sin(angle);
+    const x2 = cx + r * Math.cos(angle + sweep), y2 = cy + r * Math.sin(angle + sweep);
+    const large = sweep > Math.PI ? 1 : 0;
+    const col = colors[i % colors.length];
+    slices += `<path d="M${cx},${cy} L${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 ${large},1 ${x2.toFixed(1)},${y2.toFixed(1)} Z" fill="${col}" opacity="0.9" stroke="#13111C" stroke-width="1.5"/>`;
+    const ly = 36 + i * 20;
+    legend += `<rect x="290" y="${ly - 9}" width="12" height="12" rx="2" fill="${col}"/>`;
+    const pct = Math.round((d.value / total) * 100);
+    const lbl = d.label.length > 14 ? d.label.slice(0,13)+'…' : d.label;
+    legend += `<text x="308" y="${ly}" fill="#d4d4d8" font-size="11">${lbl} (${pct}%)</text>`;
+    angle += sweep;
+  });
+  return '<svg class="inserted-chart" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" style="background:#1a1825;">'
+    + slices + legend
+    + '</'+'svg>';
+}
+
+function buildMindMap() {
+  const center = (document.getElementById('mm-center').value || 'Topic').trim();
+  const branches = document.getElementById('mm-branches').value.trim().split('\n').map(s => s.trim()).filter(Boolean);
+  if (!branches.length) { alert('Add at least one branch.'); return ''; }
+  const W = 520, H = 300, cx = W/2, cy = H/2, r = 95, nodeR = 38;
+  const colors = ['#7c3aed','#8b5cf6','#a78bfa','#6d28d9','#c4b5fd','#4c1d95'];
+  let lines = '', nodes = '';
+  branches.forEach((b, i) => {
+    const angle = (2 * Math.PI * i / branches.length) - Math.PI / 2;
+    const bx = cx + r * Math.cos(angle), by = cy + r * Math.sin(angle);
+    const col = colors[i % colors.length];
+    lines += `<line x1="${cx}" y1="${cy}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}" stroke="${col}" stroke-width="2" opacity="0.6"/>`;
+    nodes += `<ellipse cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" rx="${nodeR}" ry="18" fill="${col}" opacity="0.85"/>`;
+    const lbl = b.length > 12 ? b.slice(0,11)+'…' : b;
+    nodes += `<text x="${bx.toFixed(1)}" y="${(by+0.5).toFixed(1)}" text-anchor="middle" dominant-baseline="middle" fill="white" font-size="10" font-weight="600">${lbl}</text>`;
+  });
+  var cLabel = center.length > 10 ? center.slice(0,9)+'...' : center;
+  return '<svg class="inserted-chart" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" style="background:#1a1825;">'
+    + lines
+    + '<circle cx="'+cx+'" cy="'+cy+'" r="48" fill="#7c3aed"/>'
+    + '<text x="'+cx+'" y="'+cy+'" text-anchor="middle" dominant-baseline="middle" fill="white" font-size="12" font-weight="700">'+cLabel+'</text>'
+    + nodes
+    + '</'+'svg>';
+}
+
+function deleteNote(id) {
+  if (!confirm('Delete this note? This cannot be undone.')) return;
+  const notes = JSON.parse(localStorage.getItem('bid_vault') || '[]').filter(n => n.id !== id);
+  localStorage.setItem('bid_vault', JSON.stringify(notes));
+  loadMyStuff();
+}
+
+function deleteNoteFromEditor() {
+  if (!currentEditingId) return;
+  if (!confirm('Delete this note? This cannot be undone.')) return;
+  deleteNote(currentEditingId);
+  closeEditor();
+}
+async function prepareAndGenerateCards() {
+  const notesText = document.getElementById('note-output').innerText;
+  
+  // Validation logic from your original code
+  if (notesText.includes('Echo is waiting') || notesText.length < 20) {
+    alert("Wait! You need to generate some notes in the Smart Editor first.");
+    showPage('pg-notes');
+    return;
+  }
+
+  const container = document.getElementById('cards-container');
+  const btn = document.getElementById('btn-gen-cards');
+  
+  // UI State: Loading
+  btn.disabled = true;
+  btn.innerHTML = "Echo is Studying...";
+  container.innerHTML = '<div class="col-span-full text-center py-20 text-zinc-500">Echo is extracting core concepts...</div>';
+
+  try {
+    // Firebase/Linux standard fetch call
+    const response = await fetch('/api/flashcards', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notesContent: notesText })
+    });
+
+    if (!response.ok) throw new Error('Generation failed');
+
+    const res = await response.json();
+    const cards = res.flashcards;
+
+    btn.disabled = false;
+    btn.innerHTML = "✨ AI Generate from Notes";
+    
+    if (!cards || cards.length === 0) {
+      container.innerHTML = '<div class="col-span-full text-center text-zinc-500">No cards could be generated.</div>';
+      return;
+    }
+
+    // Modernized card rendering using your established styles
+    container.innerHTML = cards.map(c => `
+      <div class="action-card-landing group relative border-l-4 border-l-pink-500 cursor-pointer transition-all duration-300" 
+           onclick="toggleCard(this)">
+        <div class="card-content">
+          <div class="text-[10px] font-bold text-pink-500 uppercase tracking-widest mb-2">Question</div>
+          <div class="text-white font-bold mb-4 card-front">${c.front}</div>
+          <div class="card-back hidden pt-4 border-t border-white/5">
+            <div class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Answer</div>
+            <div class="text-zinc-400 text-sm">${c.back}</div>
+          </div>
+        </div>
+        <div class="text-[9px] text-zinc-600 mt-4 uppercase">Click to reveal answer</div>
+      </div>
+    `).join('');
+
+  } catch (err) {
+    btn.disabled = false;
+    btn.innerHTML = "AI Generate";
+    container.innerHTML = `<div class="col-span-full text-red-400 text-center p-4">Error: ${err.message}</div>`;
+    console.error("Study Center Error:", err);
+  }
+}
+
+// Simple helper to handle the flip effect in a standard browser environment
+function toggleCard(cardElement) {
+  const back = cardElement.querySelector('.card-back');
+  back.classList.toggle('hidden');
+}
+    // Add this line to make the flip animation work
+    var s=document.createElement('style');s.textContent='.flipped .card-front{opacity:0.3;}.flipped .card-back{display:block!important;}';document.head.appendChild(s);
+    document.addEventListener('DOMContentLoaded', () => {
+    if (window.lucide) {
+        lucide.createIcons();
+    }
+});
+  </script>
+</body>
+</html>
