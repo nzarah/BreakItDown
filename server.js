@@ -1,5 +1,6 @@
 import path from "path";
 import { fileURLToPath } from "url";
+import https from "https";
 import "dotenv/config";
 import express from "express";
 import Stripe from "stripe";
@@ -56,27 +57,21 @@ async function callGemini(prompt, extraParts = [], model = "gemini-2.5-flash") {
 }
 
 // ── FIREBASE AUTH PROXY ─────────────────────────────────────────────────────
-app.use("/__/auth", async (req, res) => {
-  const target = `https://breakitdown-b1293.firebaseapp.com/__/auth${req.url}`;
-  const headers = { ...req.headers, host: "breakitdown-b1293.firebaseapp.com" };
-  delete headers["content-length"];
-  try {
-    const upstream = await fetch(target, {
-      method: req.method,
-      headers,
-      redirect: "manual",
-    });
-    upstream.headers.forEach((v, k) => res.setHeader(k, v));
-    res.status(upstream.status === 0 ? 302 : upstream.status);
-    if (upstream.status === 0) {
-      // opaque redirect — shouldn't happen with manual, but just in case
-      return res.end();
-    }
-    const buf = await upstream.arrayBuffer();
-    res.end(Buffer.from(buf));
-  } catch (e) {
-    res.status(502).send("Auth proxy error");
-  }
+app.use("/__/auth", (req, res) => {
+  const options = {
+    hostname: "breakitdown-b1293.firebaseapp.com",
+    path: `/__/auth${req.url}`,
+    method: req.method,
+    headers: { ...req.headers, host: "breakitdown-b1293.firebaseapp.com" },
+  };
+  delete options.headers["content-length"];
+  delete options.headers["connection"];
+  const proxy = https.request(options, (upstream) => {
+    res.writeHead(upstream.statusCode, upstream.headers);
+    upstream.pipe(res, { end: true });
+  });
+  proxy.on("error", () => { if (!res.headersSent) res.status(502).send("Auth proxy error"); });
+  req.pipe(proxy, { end: true });
 });
 
 // ── ROUTES ──────────────────────────────────────────────────────────────────
