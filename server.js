@@ -56,6 +56,9 @@ async function callGemini(prompt, extraParts = [], model = "gemini-2.5-flash") {
 }
 
 // ── ROUTES ──────────────────────────────────────────────────────────────────
+app.get("/favicon.png", (req, res) => res.sendFile(path.join(__dirname, "favicon.png")));
+app.get("/favicon.ico", (req, res) => res.sendFile(path.join(__dirname, "favicon.png")));
+
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 
 app.get("/app", (req, res) => {
