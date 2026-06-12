@@ -1628,12 +1628,16 @@
         <div class="group-detail-header">
           <div class="flex items-center gap-4 min-w-0">
             <button onclick="closeGroupDetail()" style="padding:7px 15px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#a1a1aa;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;flex-shrink:0;display:flex;align-items:center;gap:6px;" onmouseover="this.style.color='white';this.style.borderColor='rgba(255,255,255,0.2)';" onmouseout="this.style.color='#a1a1aa';this.style.borderColor='rgba(255,255,255,0.1)';">← Back</button>
-            <div class="min-w-0">
-              <h2 id="group-detail-name" class="text-3xl font-extrabold text-white tracking-tight truncate"></h2>
-              <p id="group-detail-desc" class="text-zinc-400 text-sm mt-1 truncate"></p>
+            <div class="flex items-center gap-3 min-w-0">
+              <div id="group-detail-avatar" class="group-avatar flex-shrink-0" style="width:44px;height:44px;font-size:1.1rem;"></div>
+              <div class="min-w-0">
+                <h2 id="group-detail-name" class="text-3xl font-extrabold text-white tracking-tight truncate"></h2>
+                <p id="group-detail-desc" class="text-zinc-400 text-sm mt-1 truncate"></p>
+              </div>
             </div>
           </div>
           <div class="flex gap-2 flex-shrink-0">
+            <button id="btn-edit-group" onclick="openEditGroupModal()" class="hidden" style="padding:9px 18px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);color:#a78bfa;border-radius:12px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.15s;" onmouseover="this.style.background='rgba(139,92,246,0.16)';this.style.borderColor='rgba(139,92,246,0.4)';" onmouseout="this.style.background='rgba(139,92,246,0.08)';this.style.borderColor='rgba(139,92,246,0.2)';">✎ Edit</button>
             <button onclick="openPostToGroupModal()" class="sett-save-btn" style="padding:9px 20px;">+ Post to Group</button>
             <button onclick="leaveGroup()" style="padding:9px 18px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#f87171;border-radius:12px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.15s;" onmouseover="this.style.background='rgba(239,68,68,0.16)';this.style.borderColor='rgba(239,68,68,0.4)';" onmouseout="this.style.background='rgba(239,68,68,0.08)';this.style.borderColor='rgba(239,68,68,0.2)';">Leave</button>
           </div>
@@ -1852,6 +1856,40 @@
         </div>
       </div>
       <button onclick="createGroup()" class="mt-5 w-full sett-save-btn">Create Group</button>
+    </div>
+  </div>
+
+  <!-- ── EDIT GROUP MODAL ── -->
+  <div id="edit-group-modal" class="js-hidden fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+    <div class="bg-[#1a1825] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl p-6">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="font-bold text-white text-lg">Edit Group</h3>
+        <button onclick="closeEditGroupModal()" class="text-zinc-500 hover:text-white transition-colors text-xl">&#x2715;</button>
+      </div>
+      <!-- Profile pic -->
+      <div class="flex items-center gap-4 mb-5">
+        <div id="eg-avatar-preview" class="group-avatar" style="width:56px;height:56px;font-size:1.3rem;cursor:pointer;position:relative;overflow:hidden;" onclick="document.getElementById('eg-photo-input').click()"></div>
+        <div>
+          <div class="text-xs font-bold text-zinc-400 mb-1">Group Photo</div>
+          <button onclick="document.getElementById('eg-photo-input').click()" style="padding:6px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#a1a1aa;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;" onmouseover="this.style.color='white';" onmouseout="this.style.color='#a1a1aa';">Upload image</button>
+          <input type="file" id="eg-photo-input" accept="image/*" class="hidden" onchange="previewGroupPhoto(this)">
+          <div class="text-[10px] text-zinc-600 mt-1">JPG, PNG or GIF · max 1 MB</div>
+        </div>
+      </div>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Group Name</label>
+          <input type="text" id="eg-name" placeholder="Group name" class="settings-input">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Description</label>
+          <input type="text" id="eg-desc" placeholder="What does this group study?" class="settings-input">
+        </div>
+      </div>
+      <div class="flex gap-3 mt-5">
+        <button onclick="saveEditGroup()" class="sett-save-btn flex-1">Save Changes</button>
+        <button onclick="closeEditGroupModal()" style="flex:1;padding:10px 20px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#a1a1aa;font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;" onmouseover="this.style.color='white';" onmouseout="this.style.color='#a1a1aa';">Cancel</button>
+      </div>
     </div>
   </div>
 
@@ -4382,6 +4420,18 @@ async function openGroup(groupId) {
   const g     = gSnap.val() || {};
   document.getElementById('group-detail-name').textContent = g.name        || 'Group';
   document.getElementById('group-detail-desc').textContent = g.description || '';
+  const avatarEl = document.getElementById('group-detail-avatar');
+  if (g.photoURL) {
+    avatarEl.style.backgroundImage = `url('${g.photoURL}')`;
+    avatarEl.style.backgroundSize = 'cover';
+    avatarEl.style.backgroundPosition = 'center';
+    avatarEl.textContent = '';
+  } else {
+    avatarEl.style.backgroundImage = '';
+    avatarEl.textContent = (g.name || 'G').charAt(0).toUpperCase();
+  }
+  const editBtn = document.getElementById('btn-edit-group');
+  if (editBtn) editBtn.classList.toggle('hidden', g.createdBy !== user.uid);
 
   // Detach previous listeners
   if (_groupPostsRef)  { _groupPostsRef.off();  _groupPostsRef  = null; }
@@ -5094,6 +5144,86 @@ function closeCreateGroupModal() {
   const m = document.getElementById('create-group-modal');
   m.classList.add('js-hidden'); m.style.display = 'none';
 }
+
+// ── EDIT GROUP ─────────────────────────────────────────────
+let _editGroupPhotoDataUrl = null;
+
+function openEditGroupModal() {
+  if (!_currentGroupId) return;
+  db.ref('studyGroups/' + _currentGroupId).once('value').then(snap => {
+    const g = snap.val() || {};
+    document.getElementById('eg-name').value = g.name || '';
+    document.getElementById('eg-desc').value = g.description || '';
+    _editGroupPhotoDataUrl = g.photoURL || null;
+    const prev = document.getElementById('eg-avatar-preview');
+    if (g.photoURL) {
+      prev.style.backgroundImage = `url('${g.photoURL}')`;
+      prev.style.backgroundSize = 'cover';
+      prev.style.backgroundPosition = 'center';
+      prev.textContent = '';
+    } else {
+      prev.style.backgroundImage = '';
+      prev.textContent = (g.name || 'G').charAt(0).toUpperCase();
+    }
+    const m = document.getElementById('edit-group-modal');
+    m.classList.remove('js-hidden'); m.style.display = 'flex';
+  });
+}
+
+function closeEditGroupModal() {
+  const m = document.getElementById('edit-group-modal');
+  m.classList.add('js-hidden'); m.style.display = 'none';
+  _editGroupPhotoDataUrl = null;
+  document.getElementById('eg-photo-input').value = '';
+}
+
+function previewGroupPhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 1024 * 1024) { alert('Image must be under 1 MB.'); input.value = ''; return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    _editGroupPhotoDataUrl = e.target.result;
+    const prev = document.getElementById('eg-avatar-preview');
+    prev.style.backgroundImage = `url('${e.target.result}')`;
+    prev.style.backgroundSize = 'cover';
+    prev.style.backgroundPosition = 'center';
+    prev.textContent = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveEditGroup() {
+  const user = auth.currentUser;
+  if (!user || !_currentGroupId) return;
+  const name = document.getElementById('eg-name').value.trim();
+  const desc = document.getElementById('eg-desc').value.trim();
+  if (!name) { alert('Please enter a group name.'); return; }
+
+  const updates = { name, description: desc };
+  if (_editGroupPhotoDataUrl) updates.photoURL = _editGroupPhotoDataUrl;
+
+  try {
+    await db.ref('studyGroups/' + _currentGroupId).update(updates);
+    // Reflect changes in the header immediately
+    document.getElementById('group-detail-name').textContent = name;
+    document.getElementById('group-detail-desc').textContent = desc;
+    const avatarEl = document.getElementById('group-detail-avatar');
+    if (updates.photoURL) {
+      avatarEl.style.backgroundImage = `url('${updates.photoURL}')`;
+      avatarEl.style.backgroundSize = 'cover';
+      avatarEl.style.backgroundPosition = 'center';
+      avatarEl.textContent = '';
+    } else {
+      avatarEl.textContent = name.charAt(0).toUpperCase();
+    }
+    closeEditGroupModal();
+    loadGroupsPage();
+  } catch (err) {
+    alert('Could not save changes: ' + err.message);
+  }
+}
+// ── END EDIT GROUP ─────────────────────────────────────────
 
 async function createGroup() {
   const user = auth.currentUser;
