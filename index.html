@@ -147,22 +147,11 @@
       border-right: 1px solid rgba(255,255,255,0.05);
     }
 
-    .pg-tab {
-      padding: 6px 16px;
-      border-radius: 8px;
-      border: none;
-      background: transparent;
-      color: #71717a;
-      font-size: 0.8rem;
-      font-weight: 600;
-      cursor: pointer;
-      font-family: inherit;
-      transition: all 0.18s;
-      white-space: nowrap;
-    }
-    .pg-tab:hover { background: rgba(255,255,255,0.06); color: #e4e4e7; }
-    .pg-tab.active { background: rgba(124,58,237,0.18); color: #c4b5fd; }
-    #page-tab-bar::-webkit-scrollbar { display: none; }
+    #app-main-content { overflow-y: scroll; }
+    #app-main-content::-webkit-scrollbar { width: 6px; }
+    #app-main-content::-webkit-scrollbar-track { background: transparent; }
+    #app-main-content::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.35); border-radius: 999px; }
+    #app-main-content::-webkit-scrollbar-thumb:hover { background: rgba(124,58,237,0.6); }
 
     .nav-item {
       display: flex;
@@ -1117,20 +1106,7 @@
     </div>
   </aside>
 
-  <main class="flex-1 h-full overflow-y-auto">
-    <div id="page-tab-bar" style="position:sticky;top:0;z-index:50;background:rgba(10,10,10,0.85);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.06);overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;white-space:nowrap;padding:0 20px;">
-      <div style="display:inline-flex;gap:2px;padding:8px 0;">
-        <button class="pg-tab active" data-page="pg-home" onclick="showPage('pg-home')">Dashboard</button>
-        <button class="pg-tab" data-page="pg-notes" onclick="showPage('pg-notes')">Smart Editor</button>
-        <button class="pg-tab" data-page="pg-yt" onclick="showPage('pg-yt')">Video Insights</button>
-        <button class="pg-tab" data-page="pg-roadmap" onclick="showPage('pg-roadmap')">Roadmaps</button>
-        <button class="pg-tab" data-page="pg-cards" onclick="showPage('pg-cards')">Study Center</button>
-        <button class="pg-tab" data-page="pg-mystuff" onclick="showPage('pg-mystuff'); loadMyStuff();">My Stuff</button>
-        <button class="pg-tab" data-page="pg-settings" onclick="showPage('pg-settings'); loadSettings();">Settings</button>
-        <button class="pg-tab" data-page="pg-friends" onclick="showPage('pg-friends'); loadFriendsPage();">Friends</button>
-        <button class="pg-tab" data-page="pg-groups" onclick="showPage('pg-groups'); loadGroupsPage();">Study Groups</button>
-      </div>
-    </div>
+  <main id="app-main-content" class="flex-1 h-full overflow-y-auto">
     <section id="pg-home" class="page-section active p-20 max-w-7xl mx-auto">
       <div class="mb-16">
         <h1 class="text-7xl font-extrabold mb-6 tracking-tight">Your Digital Brain<span class="text-violet-500">.</span></h1>
@@ -2187,15 +2163,7 @@
         navItem.classList.add('active', 'bg-white/5', 'text-white');
     }
     
-    // 5. Sync scrollable tab bar
-    document.querySelectorAll('.pg-tab').forEach(t => t.classList.remove('active'));
-    const activeTab = document.querySelector(`.pg-tab[data-page="${pageId}"]`);
-    if (activeTab) {
-        activeTab.classList.add('active');
-        activeTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-    }
-
-    // 6. Re-render icons if using Lucide
+    // 5. Re-render icons if using Lucide
     if (window.lucide) {
         lucide.createIcons();
     }
