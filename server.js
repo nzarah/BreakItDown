@@ -462,7 +462,7 @@ app.post('/api/stripe-webhook', async (req, res) => {
 });
 
 // ── SPA FALLBACK ─────────────────────────────────────────────────────────────
-app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.use((req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
 // ── ERROR HANDLER ────────────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
