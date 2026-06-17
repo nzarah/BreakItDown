@@ -81,7 +81,7 @@
           avatarEl.classList.remove('hidden');
         }
 
-        showPage('pg-home');
+        navigateToHash(location.hash);
         loadUserProfile(user);
         if (typeof renderTemplateGallery === 'function') renderTemplateGallery();
       } else {
@@ -2150,6 +2150,8 @@
     }
 
  function showPage(pageId) {
+    const _hash = pageId.replace('pg-', '');
+    if (location.hash !== '#' + _hash) location.hash = _hash;
     // 1. Hide all sections
     document.querySelectorAll('.page-section').forEach(p => {
         p.classList.remove('active');
@@ -2179,6 +2181,23 @@
         lucide.createIcons();
     }
 }
+  function navigateToHash(hash) {
+    const map = {
+      'home':     () => showPage('pg-home'),
+      'notes':    () => showPage('pg-notes'),
+      'yt':       () => showPage('pg-yt'),
+      'roadmap':  () => showPage('pg-roadmap'),
+      'cards':    () => showPage('pg-cards'),
+      'mystuff':  () => { showPage('pg-mystuff'); loadMyStuff(); },
+      'settings': () => { showPage('pg-settings'); loadSettings(); },
+      'friends':  () => { showPage('pg-friends'); loadFriendsPage(); },
+      'groups':   () => { showPage('pg-groups'); loadGroupsPage(); },
+    };
+    const key = (hash || '').replace('#', '') || 'home';
+    (map[key] || map['home'])();
+  }
+  window.addEventListener('hashchange', () => navigateToHash(location.hash));
+
 // --- AUTH & NAVIGATION LOGIC ---
 
 function goToStepOne() {
