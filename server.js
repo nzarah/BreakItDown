@@ -461,6 +461,9 @@ app.post('/api/stripe-webhook', async (req, res) => {
   res.json({ received: true });
 });
 
+// ── SPA FALLBACK ─────────────────────────────────────────────────────────────
+app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+
 // ── ERROR HANDLER ────────────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: err.message || 'Internal server error' });

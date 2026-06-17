@@ -81,7 +81,7 @@
           avatarEl.classList.remove('hidden');
         }
 
-        navigateToHash(location.hash);
+        navigateTo(location.pathname);
         loadUserProfile(user);
         if (typeof renderTemplateGallery === 'function') renderTemplateGallery();
       } else {
@@ -2150,8 +2150,9 @@
     }
 
  function showPage(pageId) {
-    const _hash = pageId.replace('pg-', '');
-    if (location.hash !== '#' + _hash) location.hash = _hash;
+    const _slug = pageId.replace('pg-', '');
+    const _path = '/' + _slug;
+    if (location.pathname !== _path) history.pushState({}, '', _path);
     // 1. Hide all sections
     document.querySelectorAll('.page-section').forEach(p => {
         p.classList.remove('active');
@@ -2181,22 +2182,22 @@
         lucide.createIcons();
     }
 }
-  function navigateToHash(hash) {
+  function navigateTo(path) {
     const map = {
-      'home':     () => showPage('pg-home'),
-      'notes':    () => showPage('pg-notes'),
-      'yt':       () => showPage('pg-yt'),
-      'roadmap':  () => showPage('pg-roadmap'),
-      'cards':    () => showPage('pg-cards'),
-      'mystuff':  () => { showPage('pg-mystuff'); loadMyStuff(); },
-      'settings': () => { showPage('pg-settings'); loadSettings(); },
-      'friends':  () => { showPage('pg-friends'); loadFriendsPage(); },
-      'groups':   () => { showPage('pg-groups'); loadGroupsPage(); },
+      'home':      () => showPage('pg-home'),
+      'notes':     () => showPage('pg-notes'),
+      'yt':        () => showPage('pg-yt'),
+      'roadmap':   () => showPage('pg-roadmap'),
+      'cards':     () => showPage('pg-cards'),
+      'mystuff':   () => { showPage('pg-mystuff'); loadMyStuff(); },
+      'settings':  () => { showPage('pg-settings'); loadSettings(); },
+      'friends':   () => { showPage('pg-friends'); loadFriendsPage(); },
+      'groups':    () => { showPage('pg-groups'); loadGroupsPage(); },
     };
-    const key = (hash || '').replace('#', '') || 'home';
+    const key = (path || '/').replace(/^\//, '') || 'home';
     (map[key] || map['home'])();
   }
-  window.addEventListener('hashchange', () => navigateToHash(location.hash));
+  window.addEventListener('popstate', () => navigateTo(location.pathname));
 
 // --- AUTH & NAVIGATION LOGIC ---
 
