@@ -73,7 +73,13 @@
         const nameEl = document.getElementById('sidebar-username');
         if (nameEl) nameEl.textContent = user.displayName || user.email || 'Student';
         const avatarEl = document.getElementById('sidebar-avatar');
-        if (avatarEl && user.photoURL) avatarEl.src = user.photoURL;
+        if (avatarEl) {
+          const _aName = user.displayName || user.email || 'U';
+          const _aFallback = `https://ui-avatars.com/api/?background=7c3aed&color=fff&name=${encodeURIComponent(_aName)}`;
+          avatarEl.src = user.photoURL || _aFallback;
+          avatarEl.onerror = function() { this.onerror=null; this.src=_aFallback; };
+          avatarEl.classList.remove('hidden');
+        }
 
         showPage('pg-home');
         loadUserProfile(user);
@@ -1101,7 +1107,7 @@
             </div>
         </div>
         <div class="bg-white/5 rounded-xl p-4 border border-white/5 flex items-center gap-3">
-            <img id="sidebar-avatar" src="https://www.google.com/favicon.ico" class="w-7 h-7 rounded-full object-cover hidden">
+            <img id="sidebar-avatar" src="" class="w-7 h-7 rounded-full object-cover hidden">
             <span id="sidebar-username" class="text-xs text-zinc-300 font-semibold flex-1 truncate">Student</span>
             <span id="sidebar-pro-badge" class="pro-badge hidden">✦ Pro</span>
             <button onclick="signOut()" title="Sign out" class="text-zinc-500 hover:text-red-400 transition-colors text-xs font-bold">Sign out</button>
@@ -1357,7 +1363,7 @@
       <div class="settings-card">
         <div class="settings-section-title">Profile</div>
         <div class="flex flex-wrap items-center gap-6 mb-6 pb-6" style="border-bottom:1px solid rgba(255,255,255,0.06);">
-          <img id="sett-avatar-preview" class="sett-avatar" src="https://www.google.com/favicon.ico" alt="Profile photo">
+          <img id="sett-avatar-preview" class="sett-avatar" src="" alt="Profile photo">
           <div class="flex-1 min-w-0">
             <p class="text-zinc-500 text-sm mb-3">Update your profile photo by pasting an image URL below.</p>
             <div class="flex gap-2">
@@ -3844,8 +3850,12 @@ function loadSettings() {
     db.ref('users/' + user.uid).once('value').then(snap => {
       const p = snap.val() || {};
       const avatarPreview = document.getElementById('sett-avatar-preview');
-      const photoUrl = p.photoUrl || s.photoUrl || user.photoURL || '';
+      const photoUrl = p.photoUrl || s.photoUrl || '';
+      const _sName = p.displayName || s.displayName || user.displayName || user.email || 'U';
+      const _sFallback = `https://ui-avatars.com/api/?background=7c3aed&color=fff&name=${encodeURIComponent(_sName)}`;
+      avatarPreview.onerror = function() { this.onerror=null; this.src=_sFallback; };
       if (photoUrl) { avatarPreview.src = photoUrl; document.getElementById('sett-photo-url').value = photoUrl; }
+      else { avatarPreview.src = _sFallback; }
 
       document.getElementById('sett-display-name').value = p.displayName || s.displayName || user.displayName || '';
       document.getElementById('sett-email').value        = p.email       || s.email       || user.email       || '';
@@ -3886,10 +3896,19 @@ async function saveProfile(btn) {
 
   // Sync sidebar
   if (displayName) { const el = document.getElementById('sidebar-username'); if (el) el.textContent = displayName; }
+  const _spName = displayName || (user && (user.displayName || user.email)) || 'U';
+  const _spFallback = `https://ui-avatars.com/api/?background=7c3aed&color=fff&name=${encodeURIComponent(_spName)}`;
   if (s.photoUrl) {
     const av = document.getElementById('sidebar-avatar');
-    if (av) { av.src = s.photoUrl; av.classList.remove('hidden'); }
-    document.getElementById('sett-avatar-preview').src = s.photoUrl;
+    if (av) { av.src = s.photoUrl; av.onerror = function() { this.onerror=null; this.src=_spFallback; }; av.classList.remove('hidden'); }
+    const prev = document.getElementById('sett-avatar-preview');
+    prev.src = s.photoUrl;
+    prev.onerror = function() { this.onerror=null; this.src=_spFallback; };
+  } else {
+    const av = document.getElementById('sidebar-avatar');
+    if (av && !av.src) { av.src = _spFallback; av.classList.remove('hidden'); }
+    const prev = document.getElementById('sett-avatar-preview');
+    if (!prev.src) { prev.src = _spFallback; }
   }
   if (displayName) user.updateProfile({ displayName }).catch(() => {});
 
@@ -4000,7 +4019,12 @@ function applyFontSize(size) {
 
 function updateAvatarPreview() {
   const url = document.getElementById('sett-photo-url').value.trim();
-  if (url) document.getElementById('sett-avatar-preview').src = url;
+  if (!url) return;
+  const el = document.getElementById('sett-avatar-preview');
+  const name = document.getElementById('sett-display-name').value.trim() || (_appUser && (_appUser.displayName || _appUser.email)) || 'U';
+  const fallback = `https://ui-avatars.com/api/?background=7c3aed&color=fff&name=${encodeURIComponent(name)}`;
+  el.onerror = function() { this.onerror=null; this.src=fallback; };
+  el.src = url;
 }
 
 function clearAllNotes() {
@@ -4116,7 +4140,13 @@ function loadUserProfile(user) {
       const nameEl = document.getElementById('sidebar-username');
       if (nameEl && p.displayName) nameEl.textContent = p.displayName;
       const avatarEl = document.getElementById('sidebar-avatar');
-      if (avatarEl && p.photoUrl) { avatarEl.src = p.photoUrl; avatarEl.classList.remove('hidden'); }
+      if (avatarEl) {
+        const _pName = p.displayName || user.displayName || user.email || 'U';
+        const _pFallback = `https://ui-avatars.com/api/?background=7c3aed&color=fff&name=${encodeURIComponent(_pName)}`;
+        avatarEl.src = p.photoUrl || _pFallback;
+        avatarEl.onerror = function() { this.onerror=null; this.src=_pFallback; };
+        avatarEl.classList.remove('hidden');
+      }
 
       // Backfill username for existing accounts that don't have one yet
       await ensureUsername(p.username || null);
