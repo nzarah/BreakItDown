@@ -405,6 +405,9 @@ app.post('/api/create-checkout-session', async (req, res) => {
       line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
       customer_email: email || undefined,
       client_reference_id: uid,
+      metadata: {
+        promotekit_referral: req.body.referral,
+      },
       success_url: `${appUrl}/app?pro=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/app`,
     });
