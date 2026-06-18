@@ -810,13 +810,30 @@
     })();
   </script>
 
+  <style>
+    html, body { overflow-x: hidden; }
+
+    @media (max-width: 768px) {
+      .bg-blob { display: none !important; }
+      nav { padding: 16px 20px !important; }
+      footer { padding: 24px 20px !important; flex-direction: column !important; align-items: flex-start !important; }
+      .feature-row { gap: 24px !important; margin-bottom: 60px !important; }
+      .feature-col { min-width: unset !important; width: 100% !important; }
+    }
+
+    @media (max-width: 480px) {
+      nav { padding: 12px 14px !important; }
+      nav > div:last-child { gap: 8px !important; }
+      nav > div:last-child button { padding: 7px 14px !important; font-size: 0.8rem !important; }
+    }
+  </style>
 </head>
 <body class="bg-[#0a0a0a] text-white">
 <div id="landingPage" style="width:100%;min-height:100vh;display:block;position:relative;z-index:10;background:#0a0a0a;overflow-x:hidden;">
 
   <!-- Ambient background blobs -->
-  <div style="position:fixed;top:-20%;left:-10%;width:600px;height:600px;background:radial-gradient(circle,rgba(139,92,246,0.12) 0%,transparent 70%);pointer-events:none;z-index:0;"></div>
-  <div style="position:fixed;bottom:-20%;right:-10%;width:500px;height:500px;background:radial-gradient(circle,rgba(168,85,247,0.08) 0%,transparent 70%);pointer-events:none;z-index:0;"></div>
+  <div class="bg-blob" style="position:fixed;top:-20%;left:-10%;width:600px;height:600px;background:radial-gradient(circle,rgba(139,92,246,0.12) 0%,transparent 70%);pointer-events:none;z-index:0;"></div>
+  <div class="bg-blob" style="position:fixed;bottom:-20%;right:-10%;width:500px;height:500px;background:radial-gradient(circle,rgba(168,85,247,0.08) 0%,transparent 70%);pointer-events:none;z-index:0;"></div>
 
   <!-- Nav -->
   <nav style="display:flex;justify-content:space-between;align-items:center;padding:22px 60px;position:sticky;top:0;z-index:100;background:rgba(10,10,10,0.8);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.05);">
@@ -866,14 +883,14 @@
   <section style="max-width:1100px;margin:0 auto;padding:40px 40px 100px;position:relative;z-index:1;">
 
     <!-- Row 1: Notes — text left, mockup right -->
-    <div style="display:flex;align-items:center;gap:60px;margin-bottom:100px;flex-wrap:wrap;">
-      <div style="flex:1;min-width:280px;">
+    <div class="feature-row" style="display:flex;align-items:center;gap:60px;margin-bottom:100px;flex-wrap:wrap;">
+      <div class="feature-col" style="flex:1;min-width:280px;">
         <div style="display:inline-block;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:4px 12px;font-size:0.72rem;font-weight:700;color:#a78bfa;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:16px;">Smart Notes</div>
         <h2 style="font-size:2.2rem;font-weight:800;color:white;line-height:1.15;margin:0 0 16px;letter-spacing:-0.02em;">Paste anything.<br>Get perfect notes.</h2>
         <p style="color:#71717a;font-size:1rem;line-height:1.75;margin:0 0 28px;">Drop in a lecture transcript, textbook chapter, or any text. Echo instantly structures it into clean, hierarchical study notes with key terms highlighted.</p>
         <button onclick="showLogin()" style="background:rgba(139,92,246,0.15);color:#c4b5fd;border:1px solid rgba(139,92,246,0.3);padding:10px 24px;border-radius:10px;font-size:0.875rem;font-weight:700;cursor:pointer;">Try Smart Notes →</button>
       </div>
-      <div style="flex:1;min-width:280px;background:linear-gradient(135deg,#13111C,#1a1825);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+      <div class="feature-col" style="flex:1;min-width:280px;background:linear-gradient(135deg,#13111C,#1a1825);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
         <div style="display:flex;gap:6px;margin-bottom:18px;"><div style="width:10px;height:10px;border-radius:50%;background:#ff5f57;"></div><div style="width:10px;height:10px;border-radius:50%;background:#febc2e;"></div><div style="width:10px;height:10px;border-radius:50%;background:#28c840;"></div></div>
         <div style="font-size:0.7rem;font-weight:700;color:#a78bfa;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:12px;">Echo — Study Notes</div>
         <div style="font-size:0.92rem;color:#e4e4e7;font-weight:600;margin-bottom:8px;">&#9632; The French Revolution</div>
@@ -890,8 +907,8 @@
     </div>
 
     <!-- Row 2: Video — mockup left, text right -->
-    <div style="display:flex;align-items:center;gap:60px;margin-bottom:100px;flex-wrap:wrap;">
-      <div style="flex:1;min-width:280px;background:linear-gradient(135deg,#13111C,#1a1825);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+    <div class="feature-row" style="display:flex;align-items:center;gap:60px;margin-bottom:100px;flex-wrap:wrap;">
+      <div class="feature-col" style="flex:1;min-width:280px;background:linear-gradient(135deg,#13111C,#1a1825);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
         <div style="display:flex;gap:6px;margin-bottom:18px;"><div style="width:10px;height:10px;border-radius:50%;background:#ff5f57;"></div><div style="width:10px;height:10px;border-radius:50%;background:#febc2e;"></div><div style="width:10px;height:10px;border-radius:50%;background:#28c840;"></div></div>
         <div style="font-size:0.7rem;font-weight:700;color:#ef4444;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:12px;">&#9654; Video Insights</div>
         <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.15);border-radius:10px;padding:10px 14px;font-size:0.8rem;color:#fca5a5;margin-bottom:14px;display:flex;align-items:center;gap:8px;">
@@ -902,7 +919,7 @@
         <div style="font-size:0.82rem;color:#a1a1aa;line-height:1.7;margin-bottom:6px;">&#8226; Wave-particle duality explained</div>
         <div style="font-size:0.82rem;color:#a1a1aa;line-height:1.7;">&#8226; Heisenberg uncertainty principle: <span style="color:#c4b5fd;font-weight:600;">ΔxΔp ≥ ℏ/2</span></div>
       </div>
-      <div style="flex:1;min-width:280px;">
+      <div class="feature-col" style="flex:1;min-width:280px;">
         <div style="display:inline-block;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:4px 12px;font-size:0.72rem;font-weight:700;color:#fca5a5;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:16px;">Video Insights</div>
         <h2 style="font-size:2.2rem;font-weight:800;color:white;line-height:1.15;margin:0 0 16px;letter-spacing:-0.02em;">Any video.<br>Instant notes.</h2>
         <p style="color:#71717a;font-size:1rem;line-height:1.75;margin:0 0 28px;">Paste a YouTube link and Echo extracts the real transcript to generate accurate, topic-specific study notes — not guesses.</p>
@@ -911,14 +928,14 @@
     </div>
 
     <!-- Row 3: Roadmap — text left, mockup right -->
-    <div style="display:flex;align-items:center;gap:60px;flex-wrap:wrap;">
-      <div style="flex:1;min-width:280px;">
+    <div class="feature-row" style="display:flex;align-items:center;gap:60px;flex-wrap:wrap;">
+      <div class="feature-col" style="flex:1;min-width:280px;">
         <div style="display:inline-block;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:4px 12px;font-size:0.72rem;font-weight:700;color:#6ee7b7;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:16px;">AI Roadmaps</div>
         <h2 style="font-size:2.2rem;font-weight:800;color:white;line-height:1.15;margin:0 0 16px;letter-spacing:-0.02em;">Your path<br>to an A.</h2>
         <p style="color:#71717a;font-size:1rem;line-height:1.75;margin:0 0 28px;">Tell Echo your subject and grade. Get a personalised 3-step action plan, the top concepts to master, and essential vocabulary — all in one click.</p>
         <button onclick="showLogin()" style="background:rgba(16,185,129,0.1);color:#6ee7b7;border:1px solid rgba(16,185,129,0.25);padding:10px 24px;border-radius:10px;font-size:0.875rem;font-weight:700;cursor:pointer;">Try AI Roadmaps →</button>
       </div>
-      <div style="flex:1;min-width:280px;background:linear-gradient(135deg,#13111C,#1a1825);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+      <div class="feature-col" style="flex:1;min-width:280px;background:linear-gradient(135deg,#13111C,#1a1825);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
         <div style="display:flex;gap:6px;margin-bottom:18px;"><div style="width:10px;height:10px;border-radius:50%;background:#ff5f57;"></div><div style="width:10px;height:10px;border-radius:50%;background:#febc2e;"></div><div style="width:10px;height:10px;border-radius:50%;background:#28c840;"></div></div>
         <div style="font-size:0.7rem;font-weight:700;color:#6ee7b7;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:14px;">&#9632; Roadmap — Biology, 10th Grade</div>
         <div style="display:flex;flex-direction:column;gap:10px;">
