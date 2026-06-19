@@ -814,11 +814,51 @@
     html, body { overflow-x: hidden; }
 
     @media (max-width: 768px) {
+      /* ── Landing page ── */
       .bg-blob { display: none !important; }
       nav { padding: 16px 20px !important; }
       footer { padding: 24px 20px !important; flex-direction: column !important; align-items: flex-start !important; }
       .feature-row { gap: 24px !important; margin-bottom: 60px !important; }
       .feature-col { min-width: unset !important; width: 100% !important; }
+
+      /* ── App sidebar: slide off-screen, show as overlay when open ── */
+      .sidebar {
+        position: fixed !important;
+        left: -280px !important;
+        top: 0 !important;
+        height: 100vh !important;
+        z-index: 300 !important;
+        transition: left 0.25s ease !important;
+      }
+      .sidebar.mobile-open { left: 0 !important; }
+      #mobile-sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 299;
+        backdrop-filter: blur(2px);
+      }
+      #mobile-sidebar-overlay.active { display: block; }
+
+      /* ── Mobile top bar (hamburger) ── */
+      #mobile-nav-bar { display: flex !important; }
+
+      /* ── App page sections ── */
+      .page-section { padding: 16px !important; }
+      #pg-home h1 { font-size: 2.2rem !important; line-height: 1.1 !important; }
+      #pg-home > div:first-child { margin-bottom: 28px !important; }
+
+      /* ── Retain Center header: stack buttons below title on mobile ── */
+      #pg-cards > div:first-child { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
+      #pg-cards > div:first-child > div:last-child { display: flex; flex-wrap: wrap; gap: 8px; }
+
+      /* ── My Stuff header ── */
+      #pg-mystuff > div:first-child { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
+
+      /* ── Notes/YT button rows: wrap on small screens ── */
+      #pg-notes .flex.gap-4 { flex-wrap: wrap !important; }
+      #pg-yt .flex.gap-3 { flex-wrap: wrap !important; }
     }
 
     @media (max-width: 480px) {
@@ -1134,7 +1174,19 @@
     </div>
   </aside>
 
+  <!-- Mobile sidebar overlay (tap to close) -->
+  <div id="mobile-sidebar-overlay" onclick="closeMobileSidebar()"></div>
+
   <main id="app-main-content" class="flex-1 h-full overflow-y-auto">
+
+    <!-- Mobile-only top bar with hamburger -->
+    <div id="mobile-nav-bar" style="display:none;align-items:center;gap:12px;padding:12px 16px;position:sticky;top:0;z-index:200;background:rgba(11,10,16,0.95);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,0.05);">
+      <button onclick="openMobileSidebar()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:8px 10px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+        <svg width="18" height="18" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <span style="font-size:1rem;font-weight:800;color:white;letter-spacing:-0.02em;">BreakItDown<span style="color:#8b5cf6;">.</span></span>
+    </div>
+
     <section id="pg-home" class="page-section active p-20 max-w-7xl mx-auto">
       <div class="mb-16">
         <h1 class="text-7xl font-extrabold mb-6 tracking-tight">Your Digital Brain<span class="text-violet-500">.</span></h1>
@@ -6641,6 +6693,21 @@ function escHtml(str) {
       <button onclick="closeUpgradeModal()" style="width:100%;padding:10px;background:transparent;border:none;color:#52525b;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Maybe later</button>
     </div>
   </div>
+
+  <script>
+    function openMobileSidebar() {
+      document.querySelector('.sidebar').classList.add('mobile-open');
+      document.getElementById('mobile-sidebar-overlay').classList.add('active');
+    }
+    function closeMobileSidebar() {
+      document.querySelector('.sidebar').classList.remove('mobile-open');
+      document.getElementById('mobile-sidebar-overlay').classList.remove('active');
+    }
+    // Close sidebar when a nav item is tapped on mobile
+    document.querySelectorAll('.nav-item').forEach(function(el) {
+      el.addEventListener('click', closeMobileSidebar);
+    });
+  </script>
 
 </body>
 </html>
