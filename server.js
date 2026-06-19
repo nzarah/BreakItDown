@@ -39,7 +39,7 @@ const noteStore = new Map();
 // ── GEMINI ──────────────────────────────────────────────────────────────────
 async function callGemini(prompt, extraParts = [], model = "gemini-2.5-flash") {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("GEMINI_API_KEY not found in environment variables.");
+  if (!apiKey) throw new Error("AI service is not configured.");
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -52,7 +52,7 @@ async function callGemini(prompt, extraParts = [], model = "gemini-2.5-flash") {
   const json = await res.json();
 
   if (json.candidates?.[0]?.content) return json.candidates[0].content.parts[0].text;
-  if (json.error) throw new Error("Gemini API Error: " + json.error.message);
+  if (json.error) throw new Error("AI service error: " + json.error.message);
   throw new Error("AI could not generate a response. Try again in a moment.");
 }
 

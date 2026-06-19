@@ -2444,7 +2444,7 @@ async function generateNotes(type) {
     } catch (err) {
         loader.classList.add('hidden');
         btn.disabled = false;
-        output.innerHTML = `<div class="text-red-400 p-4">Error: ${err.message}</div>`;
+        output.innerHTML = `<div class="text-red-400 p-4">Error: ${sanitizeError(err.message)}</div>`;
         console.error('Notes Error:', err);
     }
 }
@@ -2570,7 +2570,7 @@ async function generateNotes(type) {
 
   } catch (err) {
     loader.classList.add('hidden');
-    output.innerHTML = `<div class="text-red-400 p-4 text-center">Error: ${err.message}</div>`;
+    output.innerHTML = `<div class="text-red-400 p-4 text-center">Error: ${sanitizeError(err.message)}</div>`;
     console.error("Roadmap Logic Error:", err);
   }
 }
@@ -3083,7 +3083,7 @@ async function sendEchoMessage() {
     const errBubble = document.createElement('div');
     errBubble.className = 'echo-msg-echo';
     errBubble.style.color = '#f87171';
-    errBubble.textContent = 'Error: ' + err.message;
+    errBubble.textContent = 'Error: ' + sanitizeError(err.message);
     msgs.appendChild(errBubble);
   }
   msgs.scrollTop = msgs.scrollHeight;
@@ -3405,7 +3405,7 @@ async function prepareAndGenerateCards(overrideContent) {
   } catch (err) {
     btn.disabled = false;
     btn.innerHTML = "AI Generate";
-    container.innerHTML = `<div class="col-span-full text-red-400 text-center p-4">Error: ${err.message}</div>`;
+    container.innerHTML = `<div class="col-span-full text-red-400 text-center p-4">Error: ${sanitizeError(err.message)}</div>`;
     console.error("Study Center Error:", err);
   }
 }
@@ -6581,6 +6581,13 @@ async function openPostToGroupModalFromSlideshow(id) {
 function escHtml(str) {
   if (!str) return '';
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function sanitizeError(msg) {
+  return (msg || 'Something went wrong. Please try again.')
+    .replace(/gemini/gi, 'AI')
+    .replace(/google ai/gi, 'AI')
+    .replace(/GEMINI_API_KEY/g, 'AI service config')
+    .replace(/generativelanguage\.googleapis\.com[^\s]*/gi, 'AI service');
 }
   </script>
 
