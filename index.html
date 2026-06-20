@@ -2193,8 +2193,14 @@
     (function() {
       const params = new URLSearchParams(window.location.search);
       if (params.get('pro') === 'success') {
-        history.replaceState({}, '', window.location.pathname);
         const sessionId = params.get('session_id');
+        gtag('event', 'conversion', {
+          'send_to': 'AW-18253415112/IGBMCOP4zsIcEMiF9P9D',
+          'value': 3.99,
+          'currency': 'USD',
+          'transaction_id': sessionId || ''
+        });
+        history.replaceState({}, '', window.location.pathname);
         if (sessionId) {
           // Verify payment server-side and write pro:true to Firebase
           // (fallback in case the webhook missed due to server sleep)
