@@ -1162,6 +1162,10 @@
         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
         Study Groups
       </div>
+      <div onclick="showPage('pg-tracker'); loadTracker();" id="nav-pg-tracker" class="nav-item">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+        Tracker
+      </div>
     </nav>
 
     <div class="p-6 space-y-3">
@@ -1775,6 +1779,168 @@
         </div>
       </div>
     </section>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         ASSIGNMENT TRACKER PAGE
+    ══════════════════════════════════════════════════════════════════ -->
+    <section id="pg-tracker" class="page-section p-8 max-w-6xl mx-auto">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-8">
+        <div>
+          <h1 class="text-4xl font-extrabold tracking-tight text-white">Assignment Tracker<span class="text-violet-500">.</span></h1>
+          <p class="text-zinc-500 mt-1 text-sm">Stay on top of every deadline, grade, and priority.</p>
+        </div>
+        <button onclick="openTrackerModal()" class="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90" style="background:linear-gradient(135deg,#7c3aed,#a855f7);box-shadow:0 4px 15px rgba(124,58,237,0.3);">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          Add Assignment
+        </button>
+      </div>
+
+      <!-- Filters -->
+      <div class="flex flex-wrap items-center gap-3 mb-6">
+        <input id="tracker-filter-search" oninput="applyTrackerFilters()" type="text" placeholder="Search by title or subject..." class="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-violet-500/50 transition-colors w-56">
+        <select id="tracker-filter-status" onchange="applyTrackerFilters()" class="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-zinc-300 outline-none focus:border-violet-500/50 transition-colors cursor-pointer">
+          <option value="">All Statuses</option>
+          <option value="Not Started">Not Started</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Completed">Completed</option>
+        </select>
+        <select id="tracker-filter-priority" onchange="applyTrackerFilters()" class="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-zinc-300 outline-none focus:border-violet-500/50 transition-colors cursor-pointer">
+          <option value="">All Priorities</option>
+          <option value="High">High</option>
+          <option value="Medium">Medium</option>
+          <option value="Low">Low</option>
+        </select>
+        <select id="tracker-filter-type" onchange="applyTrackerFilters()" class="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-zinc-300 outline-none focus:border-violet-500/50 transition-colors cursor-pointer">
+          <option value="">All Types</option>
+          <option value="Quiz">Quiz</option>
+          <option value="Exam">Exam</option>
+          <option value="Essay">Essay</option>
+          <option value="Discussion Post">Discussion Post</option>
+          <option value="Homework">Homework</option>
+          <option value="Project">Project</option>
+          <option value="Lab">Lab</option>
+          <option value="Other">Other</option>
+        </select>
+        <button onclick="clearTrackerFilters()" class="px-4 py-2 rounded-xl text-xs font-bold text-zinc-400 border border-white/10 bg-white/5 hover:bg-white/10 hover:text-white transition-all">Clear</button>
+      </div>
+
+      <!-- Summary stats -->
+      <div id="tracker-stats" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"></div>
+
+      <!-- Table wrapper -->
+      <div class="rounded-2xl border border-white/10 overflow-hidden bg-white/[0.02]">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-white/10 text-left">
+                <th class="px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-500">Title</th>
+                <th class="px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-500">Subject</th>
+                <th class="px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-500">Type</th>
+                <th class="px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-500">Priority</th>
+                <th class="px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-500">Status</th>
+                <th class="px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-500">Due Date</th>
+                <th class="px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-500">Days Left</th>
+                <th class="px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-500">Grade</th>
+                <th class="px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-500">Weight</th>
+                <th class="px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-500"></th>
+              </tr>
+            </thead>
+            <tbody id="tracker-table-body">
+              <tr>
+                <td colspan="10" class="px-4 py-16 text-center text-zinc-600 text-sm">No assignments yet — click <strong class="text-zinc-400">Add Assignment</strong> to get started.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ── ASSIGNMENT TRACKER MODAL ── -->
+    <div id="tracker-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div class="bg-[#13111c] border border-white/10 rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div class="flex items-center justify-between p-6 border-b border-white/10">
+          <h3 id="tracker-modal-heading" class="text-lg font-bold text-white">Add Assignment</h3>
+          <button onclick="closeTrackerModal()" class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 transition-colors">&#x2715;</button>
+        </div>
+        <div class="p-6 space-y-4">
+          <input type="hidden" id="tracker-modal-id">
+
+          <div>
+            <label class="block text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Title <span class="text-red-400">*</span></label>
+            <input id="tracker-modal-title-input" type="text" placeholder="e.g. Chapter 5 Quiz" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 outline-none focus:border-violet-500/50 transition-colors">
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Subject</label>
+              <input id="tracker-modal-subject" type="text" placeholder="e.g. Biology" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 outline-none focus:border-violet-500/50 transition-colors">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Type</label>
+              <select id="tracker-modal-type" class="w-full bg-[#1c1929] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-zinc-300 outline-none focus:border-violet-500/50 transition-colors cursor-pointer">
+                <option value="">Select type</option>
+                <option value="Quiz">Quiz</option>
+                <option value="Exam">Exam</option>
+                <option value="Essay">Essay</option>
+                <option value="Discussion Post">Discussion Post</option>
+                <option value="Homework">Homework</option>
+                <option value="Project">Project</option>
+                <option value="Lab">Lab</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Due Date</label>
+              <input id="tracker-modal-due" type="date" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-zinc-300 outline-none focus:border-violet-500/50 transition-colors">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Priority</label>
+              <select id="tracker-modal-priority" class="w-full bg-[#1c1929] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-zinc-300 outline-none focus:border-violet-500/50 transition-colors cursor-pointer">
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+                <option value="Low">Low</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Status</label>
+            <select id="tracker-modal-status" class="w-full bg-[#1c1929] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-zinc-300 outline-none focus:border-violet-500/50 transition-colors cursor-pointer">
+              <option value="Not Started">Not Started</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Grade</label>
+              <input id="tracker-modal-grade" type="text" placeholder='e.g. 92% or A-' class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 outline-none focus:border-violet-500/50 transition-colors">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Weight (%)</label>
+              <input id="tracker-modal-weight" type="number" min="0" max="100" placeholder="e.g. 20" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 outline-none focus:border-violet-500/50 transition-colors">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Notes</label>
+            <textarea id="tracker-modal-notes" rows="3" placeholder="Extra details, chapters covered, reminders..." class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 outline-none focus:border-violet-500/50 transition-colors resize-none"></textarea>
+          </div>
+        </div>
+        <div class="px-6 pb-6 flex items-center gap-3 justify-end">
+          <button onclick="closeTrackerModal()" class="px-5 py-2.5 rounded-xl text-sm font-bold text-zinc-400 border border-white/10 bg-white/5 hover:bg-white/10 hover:text-white transition-all">Cancel</button>
+          <button onclick="saveAssignment()" class="px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90" style="background:linear-gradient(135deg,#7c3aed,#a855f7);">Save Assignment</button>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -2277,6 +2443,7 @@
       'settings':  () => { showPage('pg-settings'); loadSettings(); },
       'friends':   () => { showPage('pg-friends'); loadFriendsPage(); },
       'groups':    () => { showPage('pg-groups'); loadGroupsPage(); },
+      'tracker':   () => { showPage('pg-tracker'); loadTracker(); },
     };
     const key = (path || '/').replace(/^\//, '') || 'home';
     (map[key] || map['home'])();
@@ -6729,6 +6896,226 @@ function sanitizeError(msg) {
     document.querySelectorAll('.nav-item').forEach(function(el) {
       el.addEventListener('click', closeMobileSidebar);
     });
+
+  // ══════════════════════════════════════════════════
+  //  ASSIGNMENT TRACKER
+  // ══════════════════════════════════════════════════
+
+  let _trackerData = [];
+
+  function _daysLeft(dueDateStr) {
+    if (!dueDateStr) return null;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const due   = new Date(dueDateStr + 'T00:00:00');
+    return Math.round((due - today) / 86400000);
+  }
+
+  function loadTracker() {
+    if (!_appUser) return;
+    db.ref('users/' + _appUser.uid + '/assignments').once('value').then(function(snap) {
+      const raw = snap.val() || {};
+      _trackerData = Object.entries(raw).map(function([k, v]) { return Object.assign({}, v, { id: k }); });
+      _trackerData.sort(function(a, b) {
+        if (!a.dueDate && !b.dueDate) return 0;
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
+        return a.dueDate.localeCompare(b.dueDate);
+      });
+      renderTrackerTable();
+    });
+  }
+
+  function renderTrackerTable() {
+    const search   = (document.getElementById('tracker-filter-search')   || {}).value || '';
+    const status   = (document.getElementById('tracker-filter-status')   || {}).value || '';
+    const priority = (document.getElementById('tracker-filter-priority') || {}).value || '';
+    const type     = (document.getElementById('tracker-filter-type')     || {}).value || '';
+
+    const q = search.toLowerCase();
+    const filtered = _trackerData.filter(function(a) {
+      if (q && !((a.title||'').toLowerCase().includes(q) || (a.subject||'').toLowerCase().includes(q))) return false;
+      if (status   && a.status   !== status)   return false;
+      if (priority && a.priority !== priority) return false;
+      if (type     && a.type     !== type)     return false;
+      return true;
+    });
+
+    // Stats
+    const total     = _trackerData.length;
+    const completed = _trackerData.filter(function(a){ return a.status === 'Completed'; }).length;
+    const inProg    = _trackerData.filter(function(a){ return a.status === 'In Progress'; }).length;
+    const overdue   = _trackerData.filter(function(a){ const d = _daysLeft(a.dueDate); return d !== null && d < 0 && a.status !== 'Completed'; }).length;
+    const statsEl   = document.getElementById('tracker-stats');
+    if (statsEl) {
+      statsEl.innerHTML = [
+        { label: 'Total',      value: total,     color: 'violet' },
+        { label: 'Completed',  value: completed, color: 'green'  },
+        { label: 'In Progress',value: inProg,    color: 'blue'   },
+        { label: 'Overdue',    value: overdue,   color: 'red'    },
+      ].map(function(s) {
+        return '<div class="bg-white/[0.03] border border-white/10 rounded-xl p-4">' +
+          '<div class="text-2xl font-extrabold text-' + s.color + '-400">' + s.value + '</div>' +
+          '<div class="text-xs text-zinc-500 font-bold uppercase tracking-widest mt-0.5">' + s.label + '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    const tbody = document.getElementById('tracker-table-body');
+    if (!tbody) return;
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="10" class="px-4 py-16 text-center text-zinc-600 text-sm">' +
+        (_trackerData.length === 0
+          ? 'No assignments yet — click <strong class="text-zinc-400">Add Assignment</strong> to get started.'
+          : 'No assignments match your filters.') +
+        '</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(function(a) {
+      // Priority pill
+      var priClass = { High: 'bg-red-500/20 text-red-400', Medium: 'bg-amber-500/20 text-amber-400', Low: 'bg-green-500/20 text-green-400' }[a.priority] || 'bg-white/10 text-zinc-400';
+      var priDot   = { High: 'bg-red-400', Medium: 'bg-amber-400', Low: 'bg-green-400' }[a.priority] || 'bg-zinc-500';
+
+      // Status pill (clickable to cycle)
+      var stClass = { 'Not Started': 'bg-zinc-700/60 text-zinc-300', 'In Progress': 'bg-blue-500/20 text-blue-400', 'Completed': 'bg-green-500/20 text-green-400' }[a.status] || 'bg-zinc-700/60 text-zinc-300';
+
+      // Days left
+      var dl = _daysLeft(a.dueDate);
+      var dlText, dlClass;
+      if (dl === null) { dlText = '—'; dlClass = 'text-zinc-600'; }
+      else if (a.status === 'Completed') { dlText = 'Done'; dlClass = 'text-green-400'; }
+      else if (dl < 0)  { dlText = 'Overdue'; dlClass = 'text-red-400 font-bold'; }
+      else if (dl === 0){ dlText = 'Today';   dlClass = 'text-red-400 font-bold'; }
+      else if (dl <= 3) { dlText = dl + 'd';  dlClass = 'text-amber-400 font-semibold'; }
+      else              { dlText = dl + 'd';  dlClass = 'text-zinc-300'; }
+
+      var dueFormatted = a.dueDate ? new Date(a.dueDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
+
+      return '<tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors group">' +
+        '<td class="px-4 py-3 font-semibold text-white max-w-[180px] truncate" title="' + _esc(a.title) + '">' + _esc(a.title) + (a.notes ? '<div class="text-[10px] text-zinc-600 truncate mt-0.5">' + _esc(a.notes) + '</div>' : '') + '</td>' +
+        '<td class="px-4 py-3 text-zinc-400">' + (a.subject ? _esc(a.subject) : '<span class="text-zinc-700">—</span>') + '</td>' +
+        '<td class="px-4 py-3 text-zinc-400">' + (a.type ? _esc(a.type) : '<span class="text-zinc-700">—</span>') + '</td>' +
+        '<td class="px-4 py-3"><span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ' + priClass + '"><span class="w-1.5 h-1.5 rounded-full ' + priDot + '"></span>' + _esc(a.priority || '—') + '</span></td>' +
+        '<td class="px-4 py-3"><button onclick="cycleAssignmentStatus(\'' + a.id + '\')" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ' + stClass + ' hover:opacity-80 transition-opacity cursor-pointer">' + _esc(a.status || '—') + '</button></td>' +
+        '<td class="px-4 py-3 text-zinc-400 whitespace-nowrap">' + dueFormatted + '</td>' +
+        '<td class="px-4 py-3 whitespace-nowrap ' + dlClass + '">' + dlText + '</td>' +
+        '<td class="px-4 py-3 text-zinc-300">' + (a.grade ? _esc(a.grade) : '<span class="text-zinc-700">—</span>') + '</td>' +
+        '<td class="px-4 py-3 text-zinc-400">' + (a.weight ? a.weight + '%' : '<span class="text-zinc-700">—</span>') + '</td>' +
+        '<td class="px-4 py-3">' +
+          '<div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">' +
+            '<button onclick="openTrackerModal(\'' + a.id + '\')" title="Edit" class="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 hover:bg-violet-500/20 text-zinc-400 hover:text-violet-400 transition-colors">' +
+              '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>' +
+            '</button>' +
+            '<button onclick="deleteAssignment(\'' + a.id + '\')" title="Delete" class="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 transition-colors">' +
+              '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>' +
+            '</button>' +
+          '</div>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  function _esc(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function openTrackerModal(id) {
+    var modal = document.getElementById('tracker-modal');
+    var heading = document.getElementById('tracker-modal-heading');
+    document.getElementById('tracker-modal-id').value = '';
+    document.getElementById('tracker-modal-title-input').value = '';
+    document.getElementById('tracker-modal-subject').value = '';
+    document.getElementById('tracker-modal-type').value = '';
+    document.getElementById('tracker-modal-due').value = '';
+    document.getElementById('tracker-modal-priority').value = 'Medium';
+    document.getElementById('tracker-modal-status').value = 'Not Started';
+    document.getElementById('tracker-modal-grade').value = '';
+    document.getElementById('tracker-modal-weight').value = '';
+    document.getElementById('tracker-modal-notes').value = '';
+    heading.textContent = 'Add Assignment';
+
+    if (id) {
+      var a = _trackerData.find(function(x){ return x.id === id; });
+      if (a) {
+        document.getElementById('tracker-modal-id').value = a.id;
+        document.getElementById('tracker-modal-title-input').value = a.title || '';
+        document.getElementById('tracker-modal-subject').value = a.subject || '';
+        document.getElementById('tracker-modal-type').value = a.type || '';
+        document.getElementById('tracker-modal-due').value = a.dueDate || '';
+        document.getElementById('tracker-modal-priority').value = a.priority || 'Medium';
+        document.getElementById('tracker-modal-status').value = a.status || 'Not Started';
+        document.getElementById('tracker-modal-grade').value = a.grade || '';
+        document.getElementById('tracker-modal-weight').value = a.weight || '';
+        document.getElementById('tracker-modal-notes').value = a.notes || '';
+        heading.textContent = 'Edit Assignment';
+      }
+    }
+    modal.classList.remove('hidden');
+  }
+
+  function closeTrackerModal() {
+    document.getElementById('tracker-modal').classList.add('hidden');
+  }
+
+  function saveAssignment() {
+    var title = (document.getElementById('tracker-modal-title-input').value || '').trim();
+    if (!title) {
+      document.getElementById('tracker-modal-title-input').focus();
+      return;
+    }
+    var id = document.getElementById('tracker-modal-id').value;
+    var obj = {
+      title:    title,
+      subject:  (document.getElementById('tracker-modal-subject').value || '').trim(),
+      type:     document.getElementById('tracker-modal-type').value,
+      dueDate:  document.getElementById('tracker-modal-due').value,
+      priority: document.getElementById('tracker-modal-priority').value,
+      status:   document.getElementById('tracker-modal-status').value,
+      grade:    (document.getElementById('tracker-modal-grade').value || '').trim(),
+      weight:   document.getElementById('tracker-modal-weight').value,
+      notes:    (document.getElementById('tracker-modal-notes').value || '').trim(),
+    };
+    var ref = id
+      ? db.ref('users/' + _appUser.uid + '/assignments/' + id)
+      : db.ref('users/' + _appUser.uid + '/assignments').push();
+    if (!id) obj.createdAt = Date.now();
+    ref.update(obj).then(function() {
+      closeTrackerModal();
+      loadTracker();
+    });
+  }
+
+  function deleteAssignment(id) {
+    if (!confirm('Delete this assignment?')) return;
+    db.ref('users/' + _appUser.uid + '/assignments/' + id).remove().then(function() {
+      loadTracker();
+    });
+  }
+
+  function cycleAssignmentStatus(id) {
+    var a = _trackerData.find(function(x){ return x.id === id; });
+    if (!a) return;
+    var cycle = ['Not Started', 'In Progress', 'Completed'];
+    var next = cycle[(cycle.indexOf(a.status) + 1) % cycle.length];
+    db.ref('users/' + _appUser.uid + '/assignments/' + id).update({ status: next }).then(function() {
+      a.status = next;
+      renderTrackerTable();
+    });
+  }
+
+  function applyTrackerFilters() {
+    renderTrackerTable();
+  }
+
+  function clearTrackerFilters() {
+    var s = document.getElementById('tracker-filter-search');   if (s) s.value = '';
+    var st = document.getElementById('tracker-filter-status');  if (st) st.value = '';
+    var p = document.getElementById('tracker-filter-priority'); if (p) p.value = '';
+    var t = document.getElementById('tracker-filter-type');     if (t) t.value = '';
+    renderTrackerTable();
+  }
+
   </script>
 
 </body>
